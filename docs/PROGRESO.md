@@ -255,6 +255,9 @@ Se amplio HU-1 en backend y frontend: el registro Angular ahora funciona como wi
 ### [2026-05-20] — Correccion flujo Stripe y validacion temprana de correo
 Se corrigieron las URLs de retorno de Stripe para volver al frontend Angular (`/login`) en lugar del HTML legacy `test-auth.html`. Tambien se agrego `GET /api/auth/register/email-disponible` y el wizard valida el correo al salir de la primera fase para evitar avanzar con correos ya registrados.
 
+### [2026-05-20] — Especificaciones retrospectivas por HU implementada
+Se analizaron backend, frontend, endpoints, servicios, DTOs, modelos, validaciones y flujos UI existentes para generar 28 carpetas `docs/HU-*/spec.md` con especificaciones funcionales y tecnicas retrospectivas de las funcionalidades implementadas.
+
 ---
 
 ## Métricas del proyecto
