@@ -1,59 +1,233 @@
-<div class="auth-card">
+<div class="auth-card register-card">
   <p class="eyebrow">Registro</p>
-  <h2>Crear cuenta</h2>
-  <p class="subtitle">El inversionista se registra, valida correo y puede activar plan premium.</p>
+  <h2>Crear cuenta de inversionista</h2>
+  <p class="subtitle">{{ pasos[pasoActual()].descripcion }}</p>
+
+  <div class="stepper" aria-label="Fases de registro">
+    @for (paso of pasos; track paso.titulo; let i = $index) {
+      <button type="button" class="step-dot" [class.active]="pasoActual() === i" [class.done]="pasoActual() > i">
+        <span>{{ i + 1 }}</span>
+        <strong>{{ paso.titulo }}</strong>
+      </button>
+    }
+  </div>
 
   <form [formGroup]="form" (ngSubmit)="registrar()" class="stack">
-    <div class="field">
-      <label for="nombre">Nombre completo</label>
-      <input id="nombre" type="text" formControlName="nombreCompleto" placeholder="Juan Perez" />
-    </div>
-    <div class="field">
-      <label for="correo">Correo electronico</label>
-      <input id="correo" type="email" formControlName="correo" placeholder="juan@ejemplo.com" />
-    </div>
-    <div class="field">
-      <label for="contrasenia">Contrasenia</label>
-      <input id="contrasenia" type="password" formControlName="contrasenia" placeholder="Minimo 8 caracteres" />
-    </div>
-    <div class="field">
-      <label for="telefono">Telefono</label>
-      <input id="telefono" type="tel" formControlName="telefono" placeholder="+57 300 123 4567" />
-    </div>
-    <div class="field">
-      <label for="nivel">Nivel de experiencia</label>
-      <select id="nivel" formControlName="nivelExperiencia">
-        <option value="PRINCIPIANTE">Principiante</option>
-        <option value="INTERMEDIO">Intermedio</option>
-        <option value="AVANZADO">Avanzado</option>
-      </select>
-    </div>
-    <div class="field">
-      <label for="intereses">Acciones de interes</label>
-      <input id="intereses" type="text" formControlName="interesesMercado" />
-    </div>
+    @if (pasoActual() === 0) {
+      <section class="register-section">
+        <div class="section-title">
+          <h3>Datos principales</h3>
+          <p>Estos datos se usan para crear el acceso y validar identidad.</p>
+        </div>
 
-    <div class="field">
-      <label>Plan de suscripcion</label>
-      <div class="plan-grid">
-        <button type="button" class="plan-card" [class.active]="plan() === 'BASICO'" (click)="seleccionarPlan('BASICO')">
-          <strong>Basico</strong>
-          <span>Gratis</span>
-        </button>
-        <button type="button" class="plan-card" [class.active]="plan() === 'PREMIUM_MENSUAL'" (click)="seleccionarPlan('PREMIUM_MENSUAL')">
-          <strong>Premium</strong>
-          <span>$12/mes</span>
-        </button>
-        <button type="button" class="plan-card" [class.active]="plan() === 'PREMIUM_ANUAL'" (click)="seleccionarPlan('PREMIUM_ANUAL')">
-          <strong>Anual</strong>
-          <span>$120/anio</span>
-        </button>
-      </div>
-    </div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="nombre">Nombre completo</label>
+            <input id="nombre" type="text" formControlName="nombreCompleto" placeholder="Juan Perez" />
+          </div>
+          <div class="field">
+            <label for="correo">Correo electronico</label>
+            <input id="correo" type="email" formControlName="correo" placeholder="juan@ejemplo.com" />
+          </div>
+          <div class="field">
+            <label for="contrasenia">Contrasenia</label>
+            <input id="contrasenia" type="password" formControlName="contrasenia" placeholder="Minimo 8 caracteres" />
+          </div>
+          <div class="field">
+            <label for="telefono">Telefono</label>
+            <input id="telefono" type="tel" formControlName="telefono" placeholder="+57 300 123 4567" />
+          </div>
+          <div class="field">
+            <label for="tipoIdentificacion">Tipo de documento</label>
+            <select id="tipoIdentificacion" formControlName="tipoIdentificacion">
+              <option value="CC">Cedula de ciudadania</option>
+              <option value="CE">Cedula de extranjeria</option>
+              <option value="PASAPORTE">Pasaporte</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="numeroIdentificacion">Numero de documento</label>
+            <input id="numeroIdentificacion" type="text" formControlName="numeroIdentificacion" />
+          </div>
+          <div class="field">
+            <label for="fechaNacimiento">Fecha de nacimiento</label>
+            <input id="fechaNacimiento" type="date" formControlName="fechaNacimiento" />
+          </div>
+          <div class="field">
+            <label for="pais">Pais</label>
+            <select id="pais" formControlName="pais">
+              <option value="CO">Colombia</option>
+              <option value="US">Estados Unidos</option>
+              <option value="MX">Mexico</option>
+              <option value="PE">Peru</option>
+              <option value="CL">Chile</option>
+            </select>
+          </div>
+          <div class="field wide">
+            <label for="direccion">Direccion</label>
+            <input id="direccion" type="text" formControlName="direccion" placeholder="Calle 123 #45-67" />
+          </div>
+          <div class="field">
+            <label for="ciudad">Ciudad</label>
+            <input id="ciudad" type="text" formControlName="ciudad" placeholder="Bogota" />
+          </div>
+          <div class="field">
+            <label for="codigoPostal">Codigo postal</label>
+            <input id="codigoPostal" type="text" formControlName="codigoPostal" placeholder="110111" />
+          </div>
+        </div>
+      </section>
+    }
 
-    <button class="btn" type="submit" [disabled]="cargando()">
-      {{ cargando() ? 'Creando...' : 'Crear cuenta' }}
-    </button>
+    @if (pasoActual() === 1) {
+      <section class="register-section">
+        <div class="section-title">
+          <h3>Perfil financiero</h3>
+          <p>Selecciona tus mercados de interes y tu contexto de trading.</p>
+        </div>
+
+        <div class="field">
+          <label>Intereses de mercado</label>
+          <div class="chip-grid">
+            @for (mercado of mercadoOpciones; track mercado.simbolo) {
+              <button type="button" class="chip" [class.active]="interesSeleccionado(mercado.simbolo)" (click)="alternarInteres(mercado.simbolo)">
+                <strong>{{ mercado.simbolo }}</strong>
+                <span>{{ mercado.nombre }}</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label for="estiloTrading">Estilo de trading</label>
+            <select id="estiloTrading" formControlName="estiloTrading">
+              <option value="SCALPING">Scalping</option>
+              <option value="INTRADIA">Intradia</option>
+              <option value="SWING">Swing trading</option>
+              <option value="POSICIONAL">Posicional</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="rangoIngresos">Ingresos mensuales</label>
+            <select id="rangoIngresos" formControlName="rangoIngresos">
+              <option value="MENOS_2M">Menos de $2M COP</option>
+              <option value="2M_5M">$2M - $5M COP</option>
+              <option value="5M_10M">$5M - $10M COP</option>
+              <option value="10M_20M">$10M - $20M COP</option>
+              <option value="MAS_20M">Mas de $20M COP</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="nivel">Experiencia</label>
+            <select id="nivel" formControlName="nivelExperiencia">
+              <option value="PRINCIPIANTE">Principiante</option>
+              <option value="INTERMEDIO">Intermedio</option>
+              <option value="AVANZADO">Avanzado</option>
+            </select>
+          </div>
+        </div>
+      </section>
+    }
+
+    @if (pasoActual() === 2) {
+      <section class="register-section">
+        <div class="section-title">
+          <h3>Opciones del perfil</h3>
+          <p>Podras modificar estas preferencias desde tu perfil cuando quieras.</p>
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label for="tipoOrdenDefault">Tipo de orden preferida</label>
+            <select id="tipoOrdenDefault" formControlName="tipoOrdenDefault">
+              <option value="MARKET">Market</option>
+              <option value="LIMIT">Limit</option>
+              <option value="STOP_LOSS">Stop Loss</option>
+              <option value="TAKE_PROFIT">Take Profit</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="vistaPortafolio">Vista de portafolio</label>
+            <select id="vistaPortafolio" formControlName="vistaPortafolio">
+              <option value="LISTA">Lista</option>
+              <option value="GRAFICO">Grafico</option>
+              <option value="DETALLADA">Detallada</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Notificaciones</label>
+          <div class="toggle-row">
+            <label class="check-card">
+              <input type="checkbox" formControlName="notificacionEmail" />
+              <span>Email</span>
+            </label>
+            <label class="check-card">
+              <input type="checkbox" formControlName="notificacionSms" />
+              <span>SMS</span>
+            </label>
+            <label class="check-card">
+              <input type="checkbox" formControlName="notificacionWhatsapp" />
+              <span>WhatsApp</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Comisionista</label>
+          <div class="choice-grid">
+            <button type="button" class="choice-card" [class.active]="form.controls.solicitaComisionista.value" (click)="form.controls.solicitaComisionista.setValue(true)">
+              <strong>Asignarme uno</strong>
+              <span>Buscaremos un comisionista compatible con tus mercados de interes.</span>
+            </button>
+            <button type="button" class="choice-card" [class.active]="!form.controls.solicitaComisionista.value" (click)="form.controls.solicitaComisionista.setValue(false)">
+              <strong>Prefiero no</strong>
+              <span>Puedes solicitarlo despues desde tu perfil.</span>
+            </button>
+          </div>
+          <p class="microcopy">Si luego quieres quitarlo o cambiarlo, podras pedir el ajuste desde tu cuenta.</p>
+        </div>
+      </section>
+    }
+
+    @if (pasoActual() === 3) {
+      <section class="register-section">
+        <div class="section-title">
+          <h3>Plan de suscripcion</h3>
+          <p>El codigo de verificacion se enviara al crear la cuenta. Si eliges premium, despues pasaras a Stripe.</p>
+        </div>
+
+        <div class="plan-grid">
+          <button type="button" class="plan-card" [class.active]="plan() === 'BASICO'" (click)="seleccionarPlan('BASICO')">
+            <strong>Basico</strong>
+            <span>Gratis</span>
+          </button>
+          <button type="button" class="plan-card" [class.active]="plan() === 'PREMIUM_MENSUAL'" (click)="seleccionarPlan('PREMIUM_MENSUAL')">
+            <strong>Premium mensual</strong>
+            <span>$12/mes</span>
+          </button>
+          <button type="button" class="plan-card" [class.active]="plan() === 'PREMIUM_ANUAL'" (click)="seleccionarPlan('PREMIUM_ANUAL')">
+            <strong>Premium anual</strong>
+            <span>$120/anio</span>
+          </button>
+        </div>
+      </section>
+    }
+
+    <div class="wizard-actions">
+      <button class="btn secondary" type="button" (click)="regresar()" [disabled]="pasoActual() === 0 || cargando()">Anterior</button>
+      @if (pasoActual() < pasos.length - 1) {
+        <button class="btn" type="button" (click)="continuar()" [disabled]="validandoCorreo()">
+          {{ validandoCorreo() ? 'Validando...' : 'Siguiente' }}
+        </button>
+      } @else {
+        <button class="btn" type="submit" [disabled]="cargando()">
+          {{ cargando() ? 'Creando...' : 'Crear cuenta y verificar' }}
+        </button>
+      }
+    </div>
   </form>
 
   <div class="links">

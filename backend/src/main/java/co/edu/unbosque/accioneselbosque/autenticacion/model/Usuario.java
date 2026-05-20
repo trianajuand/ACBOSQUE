@@ -62,6 +62,36 @@ public class Usuario implements Serializable {
     @Column(name = "telefono")
     private String telefono;
 
+    @Column(name = "tipo_identificacion")
+    private String tipoIdentificacion;
+
+    @Column(name = "numero_identificacion")
+    private String numeroIdentificacion;
+
+    @Column(name = "fecha_nacimiento")
+    private String fechaNacimiento;
+
+    @Column(name = "direccion")
+    private String direccion;
+
+    @Column(name = "ciudad")
+    private String ciudad;
+
+    @Column(name = "codigo_postal")
+    private String codigoPostal;
+
+    @Column(name = "pais")
+    private String pais;
+
+    @Column(name = "estilo_trading")
+    private String estiloTrading;
+
+    @Column(name = "rango_ingresos")
+    private String rangoIngresos;
+
+    @Column(name = "solicita_comisionista")
+    private Boolean solicitaComisionista;
+
     // Suscripción
     @Column(name = "plan_suscripcion")
     private String planSuscripcion; // BASICO, PREMIUM_MENSUAL, PREMIUM_ANUAL
@@ -207,6 +237,36 @@ public class Usuario implements Serializable {
 
     public String getTelefono() { return telefono; }
     public void setTelefono(String telefono) { this.telefono = telefono; }
+
+    public String getTipoIdentificacion() { return tipoIdentificacion; }
+    public void setTipoIdentificacion(String tipoIdentificacion) { this.tipoIdentificacion = tipoIdentificacion; }
+
+    public String getNumeroIdentificacion() { return numeroIdentificacion; }
+    public void setNumeroIdentificacion(String numeroIdentificacion) { this.numeroIdentificacion = numeroIdentificacion; }
+
+    public String getFechaNacimiento() { return fechaNacimiento; }
+    public void setFechaNacimiento(String fechaNacimiento) { this.fechaNacimiento = fechaNacimiento; }
+
+    public String getDireccion() { return direccion; }
+    public void setDireccion(String direccion) { this.direccion = direccion; }
+
+    public String getCiudad() { return ciudad; }
+    public void setCiudad(String ciudad) { this.ciudad = ciudad; }
+
+    public String getCodigoPostal() { return codigoPostal; }
+    public void setCodigoPostal(String codigoPostal) { this.codigoPostal = codigoPostal; }
+
+    public String getPais() { return pais; }
+    public void setPais(String pais) { this.pais = pais; }
+
+    public String getEstiloTrading() { return estiloTrading; }
+    public void setEstiloTrading(String estiloTrading) { this.estiloTrading = estiloTrading; }
+
+    public String getRangoIngresos() { return rangoIngresos; }
+    public void setRangoIngresos(String rangoIngresos) { this.rangoIngresos = rangoIngresos; }
+
+    public boolean isSolicitaComisionista() { return Boolean.TRUE.equals(solicitaComisionista); }
+    public void setSolicitaComisionista(boolean solicitaComisionista) { this.solicitaComisionista = solicitaComisionista; }
 
     public String getPlanSuscripcion() { return planSuscripcion; }
     public void setPlanSuscripcion(String planSuscripcion) { this.planSuscripcion = planSuscripcion; }

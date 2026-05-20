@@ -109,6 +109,16 @@ public class PerfilService {
         dto.setCorreo(u.getCorreo());
         dto.setNivelExperiencia(u.getNivelExperiencia());
         dto.setTelefono(u.getTelefono());
+        dto.setTipoIdentificacion(u.getTipoIdentificacion());
+        dto.setNumeroIdentificacion(u.getNumeroIdentificacion());
+        dto.setFechaNacimiento(u.getFechaNacimiento());
+        dto.setDireccion(u.getDireccion());
+        dto.setCiudad(u.getCiudad());
+        dto.setCodigoPostal(u.getCodigoPostal());
+        dto.setPais(u.getPais());
+        dto.setEstiloTrading(u.getEstiloTrading());
+        dto.setRangoIngresos(u.getRangoIngresos());
+        dto.setSolicitaComisionista(u.isSolicitaComisionista());
         dto.setMfaHabilitado(u.isMfaHabilitado());
         dto.setPlanSuscripcion(u.getPlanSuscripcion() != null ? u.getPlanSuscripcion() : "BASICO");
         dto.setEsPremium(u.isEsPremium());

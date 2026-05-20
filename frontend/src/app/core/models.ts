@@ -12,12 +12,27 @@ export interface ConfirmarRegistroResponse {
   stripeCheckoutUrl?: string;
 }
 
+export interface CorreoDisponibleResponse {
+  correo: string;
+  disponible: boolean;
+}
+
 export interface Perfil {
   nombreCompleto?: string;
   correo?: string;
   nivelExperiencia?: string;
   interesesMercado?: string[];
   telefono?: string | null;
+  tipoIdentificacion?: string;
+  numeroIdentificacion?: string;
+  fechaNacimiento?: string;
+  direccion?: string;
+  ciudad?: string;
+  codigoPostal?: string;
+  pais?: string;
+  estiloTrading?: string;
+  rangoIngresos?: string;
+  solicitaComisionista?: boolean;
   mfaHabilitado?: boolean;
   planSuscripcion?: string;
   esPremium?: boolean;

@@ -7,6 +7,7 @@ C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accionesel
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\dto\ActualizarPerfilDTO.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\dto\ConfirmarRegistroDTO.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\dto\ConfirmarRegistroResponseDTO.java
+C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\dto\CorreoDisponibleDTO.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\dto\LoginRequestDTO.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\dto\LoginResponseDTO.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\dto\MFARequestDTO.java

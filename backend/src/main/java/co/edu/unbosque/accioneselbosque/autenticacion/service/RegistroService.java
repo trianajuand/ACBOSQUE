@@ -21,6 +21,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Locale;
 
 @Service
 public class RegistroService {
@@ -67,14 +69,28 @@ public class RegistroService {
         usuario.setRol(Rol.INVERSIONISTA);
         usuario.setEstadoCuenta(EstadoCuenta.PENDIENTE_VERIFICACION);
         usuario.setNivelExperiencia(solicitud.getNivelExperiencia());
-        usuario.setInteresesMercado(
-                solicitud.getInteresesMercado() != null
-                        ? String.join(",", solicitud.getInteresesMercado())
-                        : null);
+        usuario.setInteresesMercado(String.join(",", normalizarIntereses(solicitud.getInteresesMercado())));
         usuario.setTelefono(solicitud.getTelefono());
+        usuario.setTipoIdentificacion(solicitud.getTipoIdentificacion());
+        usuario.setNumeroIdentificacion(solicitud.getNumeroIdentificacion());
+        usuario.setFechaNacimiento(solicitud.getFechaNacimiento());
+        usuario.setDireccion(solicitud.getDireccion());
+        usuario.setCiudad(solicitud.getCiudad());
+        usuario.setCodigoPostal(solicitud.getCodigoPostal());
+        usuario.setPais(solicitud.getPais() != null ? solicitud.getPais() : "CO");
+        usuario.setEstiloTrading(solicitud.getEstiloTrading());
+        usuario.setRangoIngresos(solicitud.getRangoIngresos());
+        usuario.setTipoOrdenDefault(
+                solicitud.getTipoOrdenDefault() != null ? solicitud.getTipoOrdenDefault() : "MARKET");
+        usuario.setVistaPortafolio(
+                solicitud.getVistaPortafolio() != null ? solicitud.getVistaPortafolio() : "LISTA");
+        usuario.setNotificacionEmail(solicitud.isNotificacionEmail());
+        usuario.setNotificacionSms(solicitud.isNotificacionSms());
+        usuario.setNotificacionWhatsapp(solicitud.isNotificacionWhatsapp());
+        usuario.setSolicitaComisionista(solicitud.isSolicitaComisionista());
+        usuario.setTiposNotificacion("ORDENES,MERCADO,SEGURIDAD");
         usuario.setPlanSuscripcion(plan);
         usuario.setMfaHabilitado(false);
-        usuario.setNotificacionEmail(true);
         usuario.setPendienteCuentaAlpaca(false);
         usuario.setFechaCreacion(LocalDateTime.now());
         usuarioRepository.save(usuario);
@@ -82,6 +98,10 @@ public class RegistroService {
         String codigo = mfaService.generarYGuardarCodigo(solicitud.getCorreo(), TipoCodigo.REGISTRO);
         despachador.enviarCodigoRegistro(solicitud.getCorreo(), solicitud.getNombreCompleto(), codigo);
         auditLog.registrar(TipoEvento.REGISTRO_INICIADO, solicitud.getCorreo(), "Plan seleccionado: " + plan);
+    }
+
+    public boolean correoDisponible(String correo) {
+        return correo != null && !correo.isBlank() && !usuarioRepository.existsByCorreo(correo.trim());
     }
 
     @Transactional
@@ -113,5 +133,18 @@ public class RegistroService {
         orquestadorRegistro.crearCuentaAlpaca(usuario);
 
         return new ConfirmarRegistroResponseDTO("Cuenta creada exitosamente");
+    }
+
+    private List<String> normalizarIntereses(List<String> intereses) {
+        if (intereses == null || intereses.isEmpty()) {
+            return List.of("AAPL", "MSFT", "TSLA");
+        }
+        List<String> normalizados = intereses.stream()
+                .filter(interes -> interes != null && !interes.isBlank())
+                .map(interes -> interes.trim().toUpperCase(Locale.ROOT))
+                .distinct()
+                .limit(10)
+                .toList();
+        return normalizados.isEmpty() ? List.of("AAPL", "MSFT", "TSLA") : normalizados;
     }
 }

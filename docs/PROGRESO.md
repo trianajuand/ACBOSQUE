@@ -6,7 +6,7 @@
 
 ## Estado general
 
-- **Fecha última actualización:** 2026-05-06
+- **Fecha última actualización:** 2026-05-20
 - **Sprint actual:** Sprint 2 — Servicio de Mercado + Sprint 3 — Servicio de Órdenes (parcial)
 - **Sprints completados:** Sprint 1 (Autenticación + Perfil)
 - **Historias del MVP completadas:** 16 / 42
@@ -248,6 +248,12 @@ Spring REQUIRED propagation hace que el flag `readOnly` de la transacción exter
 
 ### [2026-05-18] — Frontend Angular inicial
 Se creo el proyecto Angular en `frontend/` con rutas separadas para login, registro, verificacion de registro, recuperacion, reset de contrasenia y dashboard. El dashboard consume los endpoints existentes de perfil, mercado, ordenes y portafolio, mantiene la paleta oscura minimalista de los HTML de prueba y deja `dashboard.html` / `test-auth.html` como referencia legacy.
+
+### [2026-05-20] — Registro de inversionista ampliado por fases
+Se amplio HU-1 en backend y frontend: el registro Angular ahora funciona como wizard de 4 fases (datos e identidad, perfil financiero, preferencias, plan). El backend persiste identidad, direccion, codigo postal, estilo de trading, rango de ingresos, preferencias iniciales y solicitud de comisionista; mantiene el flujo existente de codigo de verificacion y redireccion a Stripe para planes premium.
+
+### [2026-05-20] — Correccion flujo Stripe y validacion temprana de correo
+Se corrigieron las URLs de retorno de Stripe para volver al frontend Angular (`/login`) en lugar del HTML legacy `test-auth.html`. Tambien se agrego `GET /api/auth/register/email-disponible` y el wizard valida el correo al salir de la primera fase para evitar avanzar con correos ya registrados.
 
 ---
 

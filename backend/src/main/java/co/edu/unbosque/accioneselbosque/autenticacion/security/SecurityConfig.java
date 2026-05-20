@@ -34,6 +34,7 @@ public class SecurityConfig {
                         "/favicon.ico", "/*.css", "/*.js", "/api/health").permitAll()
                 // Endpoints públicos de autenticación
                 .requestMatchers(
+                        "/api/auth/register/email-disponible",
                         "/api/auth/register/investor",
                         "/api/auth/register/confirm",
                         "/api/auth/login",

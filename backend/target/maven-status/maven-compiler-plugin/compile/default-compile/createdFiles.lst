@@ -26,6 +26,7 @@ co\edu\unbosque\accioneselbosque\autenticacion\dto\MFARequestDTO.class
 co\edu\unbosque\accioneselbosque\ordenes\service\PortafolioService.class
 co\edu\unbosque\accioneselbosque\ordenes\interfaces\IOrden.class
 co\edu\unbosque\accioneselbosque\shared\config\CorsConfig.class
+co\edu\unbosque\accioneselbosque\autenticacion\dto\CorreoDisponibleDTO.class
 co\edu\unbosque\accioneselbosque\shared\exceptions\GlobalExceptionHandler.class
 co\edu\unbosque\accioneselbosque\autenticacion\dto\ActualizarPerfilDTO.class
 co\edu\unbosque\accioneselbosque\autenticacion\model\EstadoCuenta.class
