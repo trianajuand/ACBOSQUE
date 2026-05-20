@@ -1,0 +1,34 @@
+<div class="auth-card">
+  <p class="eyebrow">Acceso</p>
+  <h2>Iniciar sesion</h2>
+  <p class="subtitle">Usa tus credenciales para entrar al dashboard.</p>
+
+  <form [formGroup]="form" (ngSubmit)="login()" class="stack">
+    <div class="field">
+      <label for="correo">Correo electronico</label>
+      <input id="correo" type="email" formControlName="correo" placeholder="juan@ejemplo.com" autocomplete="email" />
+    </div>
+    <div class="field">
+      <label for="contrasenia">Contrasenia</label>
+      <input id="contrasenia" type="password" formControlName="contrasenia" autocomplete="current-password" />
+    </div>
+    <button class="btn" type="submit" [disabled]="cargando()">
+      {{ cargando() ? 'Validando...' : 'Entrar' }}
+    </button>
+  </form>
+
+  @if (requiereMfa()) {
+    <form [formGroup]="mfaForm" (ngSubmit)="verificarMfa()" class="mfa-box page-enter">
+      <div class="field">
+        <label for="codigo">Codigo MFA</label>
+        <input id="codigo" type="text" formControlName="codigo" maxlength="6" inputmode="numeric" class="code-input" />
+      </div>
+      <button class="btn secondary" type="submit">Verificar codigo</button>
+    </form>
+  }
+
+  <div class="links">
+    <a routerLink="/registro">Crear cuenta</a>
+    <a routerLink="/recuperar">Olvide mi contrasenia</a>
+  </div>
+</div>

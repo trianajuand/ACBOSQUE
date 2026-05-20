@@ -1,0 +1,62 @@
+<div class="auth-card">
+  <p class="eyebrow">Registro</p>
+  <h2>Crear cuenta</h2>
+  <p class="subtitle">El inversionista se registra, valida correo y puede activar plan premium.</p>
+
+  <form [formGroup]="form" (ngSubmit)="registrar()" class="stack">
+    <div class="field">
+      <label for="nombre">Nombre completo</label>
+      <input id="nombre" type="text" formControlName="nombreCompleto" placeholder="Juan Perez" />
+    </div>
+    <div class="field">
+      <label for="correo">Correo electronico</label>
+      <input id="correo" type="email" formControlName="correo" placeholder="juan@ejemplo.com" />
+    </div>
+    <div class="field">
+      <label for="contrasenia">Contrasenia</label>
+      <input id="contrasenia" type="password" formControlName="contrasenia" placeholder="Minimo 8 caracteres" />
+    </div>
+    <div class="field">
+      <label for="telefono">Telefono</label>
+      <input id="telefono" type="tel" formControlName="telefono" placeholder="+57 300 123 4567" />
+    </div>
+    <div class="field">
+      <label for="nivel">Nivel de experiencia</label>
+      <select id="nivel" formControlName="nivelExperiencia">
+        <option value="PRINCIPIANTE">Principiante</option>
+        <option value="INTERMEDIO">Intermedio</option>
+        <option value="AVANZADO">Avanzado</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="intereses">Acciones de interes</label>
+      <input id="intereses" type="text" formControlName="interesesMercado" />
+    </div>
+
+    <div class="field">
+      <label>Plan de suscripcion</label>
+      <div class="plan-grid">
+        <button type="button" class="plan-card" [class.active]="plan() === 'BASICO'" (click)="seleccionarPlan('BASICO')">
+          <strong>Basico</strong>
+          <span>Gratis</span>
+        </button>
+        <button type="button" class="plan-card" [class.active]="plan() === 'PREMIUM_MENSUAL'" (click)="seleccionarPlan('PREMIUM_MENSUAL')">
+          <strong>Premium</strong>
+          <span>$12/mes</span>
+        </button>
+        <button type="button" class="plan-card" [class.active]="plan() === 'PREMIUM_ANUAL'" (click)="seleccionarPlan('PREMIUM_ANUAL')">
+          <strong>Anual</strong>
+          <span>$120/anio</span>
+        </button>
+      </div>
+    </div>
+
+    <button class="btn" type="submit" [disabled]="cargando()">
+      {{ cargando() ? 'Creando...' : 'Crear cuenta' }}
+    </button>
+  </form>
+
+  <div class="links">
+    <a routerLink="/login">Ya tengo cuenta</a>
+  </div>
+</div>

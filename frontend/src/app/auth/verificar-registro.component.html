@@ -1,0 +1,27 @@
+<div class="auth-card">
+  <p class="eyebrow">Validacion</p>
+  <h2>Verifica tu correo</h2>
+  <p class="subtitle">Ingresa el codigo de 6 digitos que recibiste.</p>
+
+  <div class="hint">Correo: <strong>{{ correo() || 'sin correo guardado' }}</strong></div>
+
+  <form [formGroup]="form" (ngSubmit)="verificar()" class="stack" style="margin-top: 16px">
+    <div class="field">
+      <label for="codigo">Codigo de verificacion</label>
+      <input id="codigo" type="text" formControlName="codigo" maxlength="6" inputmode="numeric" class="code-input" />
+    </div>
+    <button class="btn" type="submit">Activar cuenta</button>
+  </form>
+
+  @if (stripeCheckoutUrl()) {
+    <div class="mfa-box">
+      <p class="subtitle">Tu cuenta esta activa. Stripe completara el plan premium.</p>
+      <button class="btn stripe" type="button" (click)="pagarStripe()">Pagar con Stripe</button>
+    </div>
+  }
+
+  <div class="links">
+    <a routerLink="/registro">Volver al registro</a>
+    <a routerLink="/login">Ir al login</a>
+  </div>
+</div>

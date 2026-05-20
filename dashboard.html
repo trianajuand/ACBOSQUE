@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Acciones ElBosque — Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a202c; --border: #2d3748;
+      --text: #e2e8f0; --muted: #718096; --accent: #4299e1;
+      --green: #48bb78; --red: #fc8181; --yellow: #f6ad55; --purple: #9f7aea;
+    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+    /* SIDEBAR */
+    .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 0; flex-shrink: 0; }
+    .sidebar-logo { padding: 20px 20px 16px; border-bottom: 1px solid var(--border); }
+    .sidebar-logo span { color: var(--accent); font-size: 1rem; font-weight: 700; letter-spacing: 0.05em; }
+    .sidebar-logo small { display: block; color: var(--muted); font-size: 0.7rem; margin-top: 2px; }
+    .sidebar-nav { flex: 1; padding: 12px 0; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; font-size: 0.88rem; color: var(--muted); transition: all 0.15s; border-left: 3px solid transparent; }
+    .nav-item:hover { background: #2d3748; color: var(--text); }
+    .nav-item.active { background: #2a4a6b; color: var(--accent); border-left-color: var(--accent); }
+    .nav-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+    .sidebar-bottom { padding: 16px 20px; border-top: 1px solid var(--border); }
+    .user-info { font-size: 0.8rem; color: var(--muted); margin-bottom: 10px; }
+    .user-info strong { display: block; color: var(--text); font-size: 0.85rem; }
+    .badge-premium { display: inline-block; background: #744210; color: var(--yellow); font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; margin-top: 3px; }
+    .btn-logout { width: 100%; padding: 8px; background: transparent; border: 1px solid #4a5568; border-radius: 6px; color: var(--muted); cursor: pointer; font-size: 0.82rem; transition: all 0.2s; }
+    .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+    /* MAIN */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar h1 { font-size: 1rem; font-weight: 600; color: var(--text); }
+    .topbar-right { display: flex; align-items: center; gap: 16px; }
+    .market-status { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .market-time { color: var(--muted); font-size: 0.78rem; font-family: monospace; }
+
+    .content { flex: 1; overflow-y: auto; padding: 24px; }
+
+    /* PANELS */
+    .panels { display: none; }
+    .panels.active { display: block; }
+
+    /* STATS */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+    .stat-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-value { font-size: 1.5rem; font-weight: 700; margin-top: 6px; }
+    .stat-change { font-size: 0.78rem; margin-top: 4px; }
+    .up { color: var(--green); }
+    .down { color: var(--red); }
+
+    /* TABLES */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+    .card-title { font-size: 0.85rem; font-weight: 600; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+    .card-title small { color: var(--muted); font-weight: 400; font-size: 0.75rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th { text-align: left; color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0 0 10px; }
+    td { padding: 8px 0; border-top: 1px solid var(--border); color: var(--text); }
+    td:last-child, th:last-child { text-align: right; }
+    .ticker { font-weight: 700; font-family: monospace; color: var(--accent); }
+    .chip { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 600; }
+    .chip.buy { background: #1a3a28; color: var(--green); }
+    .chip.sell { background: #3a1a1a; color: var(--red); }
+    .chip.pending { background: #3a3010; color: var(--yellow); }
+    .chip.executed { background: #1a2a3a; color: var(--accent); }
+
+    /* ORDER FORM */
+    .order-form { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 24px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .form-group label { display: block; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+    .form-group input, .form-group select { width: 100%; background: #2d3748; border: 1px solid #4a5568; border-radius: 6px; padding: 8px 10px; color: var(--text); font-size: 0.85rem; outline: none; }
+    .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+    .order-tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+    .order-tab { padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; color: var(--muted); border: 1px solid transparent; transition: all 0.15s; }
+    .order-tab.active { background: #2a4a6b; color: var(--accent); border-color: var(--accent); }
+    .btn-order { margin-top: 14px; padding: 10px 24px; border: none; border-radius: 6px; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+    .btn-buy { background: var(--green); color: #0f1117; }
+    .btn-sell { background: var(--red); color: #fff; }
+    .commission-hint { font-size: 0.75rem; color: var(--muted); margin-top: 8px; }
+    .commission-hint span { color: var(--yellow); }
+
+    /* PERFIL */
+    .perfil-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .perfil-field { margin-bottom: 14px; }
+    .perfil-field label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; display: block; letter-spacing: 0.04em; }
+    .perfil-field input, .perfil-field select { width: 100%; background: #2d3748; border: 1px solid #4a5568; border-radius: 6px; padding: 8px 10px; color: var(--text); font-size: 0.85rem; outline: none; }
+    .perfil-field input:focus, .perfil-field select:focus { border-color: var(--accent); }
+    /* Vista de solo lectura */
+    .perfil-row { display: flex; flex-direction: column; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+    .perfil-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .perfil-row .prf-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+    .perfil-row .prf-val { font-size: 0.9rem; color: var(--text); font-weight: 500; }
+    .perfil-row .prf-val.empty { color: var(--muted); font-style: italic; font-weight: 400; }
+    .prf-edit-mode { display: none; }
+    .btn-edit { padding: 7px 16px; background: transparent; border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; cursor: pointer; font-size: 0.82rem; transition: all 0.2s; }
+    .btn-edit:hover { background: var(--accent); color: white; }
+    .btn-cancel { padding: 7px 16px; background: transparent; border: 1px solid #4a5568; color: var(--muted); border-radius: 6px; cursor: pointer; font-size: 0.82rem; margin-right: 8px; }
+    .btn-cancel:hover { border-color: var(--red); color: var(--red); }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .toggle-label { font-size: 0.85rem; }
+    .toggle-label small { display: block; color: var(--muted); font-size: 0.75rem; }
+    .toggle { width: 40px; height: 22px; border-radius: 11px; background: #4a5568; cursor: pointer; position: relative; transition: background 0.2s; border: none; }
+    .toggle.on { background: var(--accent); }
+    .toggle::after { content: ''; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: white; top: 2px; left: 2px; transition: left 0.2s; }
+    .toggle.on::after { left: 20px; }
+    .btn-save { padding: 9px 20px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; margin-top: 16px; transition: background 0.2s; }
+    .btn-save:hover { background: #2b6cb0; }
+
+    /* TOAST */
+    #toast { position: fixed; bottom: 24px; right: 24px; background: #2d3748; color: var(--text); padding: 10px 18px; border-radius: 8px; font-size: 0.85rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; border-left: 4px solid var(--accent); max-width: 300px; }
+    #toast.show { opacity: 1; }
+    #toast.error { border-color: var(--red); }
+    #toast.success { border-color: var(--green); }
+
+    /* PORTAFOLIO */
+    .portfolio-bar { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; margin-bottom: 4px; }
+    .portfolio-fill { height: 100%; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <span>Acciones ElBosque</span>
+    <small>Plataforma de Day Trading</small>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-item active" onclick="mostrarPanel('dashboard', this)"><span class="icon">📊</span> Dashboard</div>
+    <div class="nav-item" onclick="mostrarPanel('mercado', this)"><span class="icon">📈</span> Mercado</div>
+    <div class="nav-item" onclick="mostrarPanel('ordenes', this)"><span class="icon">📋</span> Órdenes</div>
+    <div class="nav-item" onclick="mostrarPanel('portafolio', this)"><span class="icon">💼</span> Portafolio</div>
+    <div class="nav-item" onclick="mostrarPanel('perfil', this)"><span class="icon">👤</span> Perfil</div>
+    <div class="nav-item" onclick="mostrarPanel('configuracion', this)"><span class="icon">⚙️</span> Configuración</div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="user-info">
+      <strong id="sidebar-nombre">Cargando...</strong>
+      <span id="sidebar-correo" style="font-size:0.72rem"></span>
+      <span class="badge-premium" id="sidebar-plan" style="display:none">★ PREMIUM</span>
+    </div>
+    <button class="btn-logout" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <h1 id="panel-title">Dashboard</h1>
+    <div class="topbar-right">
+      <div class="market-status"><div class="dot"></div><span style="font-size:0.8rem;color:var(--green)">NYSE Abierto</span></div>
+      <div class="market-time" id="reloj">--:--:--</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DIAGNÓSTICO (se oculta cuando todo está bien) -->
+    <div id="diag-banner" style="background:#2d1a1a;border:1px solid #fc8181;border-radius:8px;padding:14px 18px;margin-bottom:18px;font-size:0.83rem;display:none">
+      <div style="color:#fc8181;font-weight:700;margin-bottom:6px">⚠ Problema detectado</div>
+      <div id="diag-msg" style="color:#e2e8f0;line-height:1.6"></div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="panels active" id="panel-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Saldo Disponible</div>
+          <div class="stat-value" style="color:var(--green)">$24,830.50</div>
+          <div class="stat-change up">+$1,230.00 hoy</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Valor del Portafolio</div>
+          <div class="stat-value">$67,492.18</div>
+          <div class="stat-change up">+2.34% ↑</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Órdenes Activas</div>
+          <div class="stat-value" style="color:var(--yellow)">3</div>
+          <div class="stat-change" style="color:var(--muted)">2 pendientes · 1 ejecutando</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Ganancia / Pérdida</div>
+          <div class="stat-value up">+$4,218.34</div>
+          <div class="stat-change up">+6.67% total</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Acciones de Interés <small>Tiempo real (simulado)</small></div>
+          <table>
+            <tr><th>Ticker</th><th>Empresa</th><th>Precio</th><th>Cambio</th></tr>
+            <tr><td class="ticker">AAPL</td><td>Apple Inc.</td><td>$189.42</td><td class="up">+1.23%</td></tr>
+            <tr><td class="ticker">MSFT</td><td>Microsoft</td><td>$412.78</td><td class="up">+0.87%</td></tr>
+            <tr><td class="ticker">GOOGL</td><td>Alphabet</td><td>$178.53</td><td class="down">-0.45%</td></tr>
+            <tr><td class="ticker">TSLA</td><td>Tesla</td><td>$195.20</td><td class="down">-2.13%</td></tr>
+            <tr><td class="ticker">AMZN</td><td>Amazon</td><td>$224.91</td><td class="up">+1.56%</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-title">Órdenes Recientes</div>
+          <table>
+            <tr><th>Ticker</th><th>Tipo</th><th>Estado</th><th>Valor</th></tr>
+            <tr><td class="ticker">AAPL</td><td><span class="chip buy">COMPRA</span></td><td><span class="chip executed">Ejecutada</span></td><td>$1,894.20</td></tr>
+            <tr><td class="ticker">TSLA</td><td><span class="chip sell">VENTA</span></td><td><span class="chip pending">Pendiente</span></td><td>$975.60</td></tr>
+            <tr><td class="ticker">MSFT</td><td><span class="chip buy">COMPRA</span></td><td><span class="chip executed">Ejecutada</span></td><td>$4,127.80</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- MERCADO -->
+    <div class="panels" id="panel-mercado">
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title">Mercado en Tiempo Real <small>Alpha Vantage — actualizado 09:31 EST</small></div>
+        <table>
+          <tr><th>Ticker</th><th>Empresa</th><th>Precio</th><th>Apertura</th><th>Máx.</th><th>Mín.</th><th>Volumen</th><th>Cambio</th></tr>
+          <tr><td class="ticker">AAPL</td><td>Apple Inc.</td><td>$189.42</td><td>$187.80</td><td>$190.15</td><td>$187.30</td><td>42.1M</td><td class="up">+1.23%</td></tr>
+          <tr><td class="ticker">MSFT</td><td>Microsoft Corp.</td><td>$412.78</td><td>$409.20</td><td>$414.00</td><td>$408.50</td><td>18.3M</td><td class="up">+0.87%</td></tr>
+          <tr><td class="ticker">GOOGL</td><td>Alphabet Inc.</td><td>$178.53</td><td>$179.30</td><td>$180.10</td><td>$177.90</td><td>22.7M</td><td class="down">-0.45%</td></tr>
+          <tr><td class="ticker">TSLA</td><td>Tesla Inc.</td><td>$195.20</td><td>$199.50</td><td>$200.00</td><td>$194.80</td><td>89.4M</td><td class="down">-2.13%</td></tr>
+          <tr><td class="ticker">AMZN</td><td>Amazon.com</td><td>$224.91</td><td>$221.50</td><td>$225.80</td><td>$221.00</td><td>31.2M</td><td class="up">+1.56%</td></tr>
+          <tr><td class="ticker">NVDA</td><td>NVIDIA Corp.</td><td>$876.30</td><td>$862.00</td><td>$880.00</td><td>$860.50</td><td>55.8M</td><td class="up">+1.66%</td></tr>
+          <tr><td class="ticker">META</td><td>Meta Platforms</td><td>$545.12</td><td>$540.00</td><td>$547.00</td><td>$538.50</td><td>14.9M</td><td class="up">+0.95%</td></tr>
+          <tr><td class="ticker">JPM</td><td>JPMorgan Chase</td><td>$212.45</td><td>$214.00</td><td>$214.50</td><td>$211.80</td><td>8.2M</td><td class="down">-0.72%</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- ÓRDENES -->
+    <div class="panels" id="panel-ordenes">
+      <div class="order-form">
+        <div class="card-title">Nueva Orden</div>
+        <div class="order-tabs">
+          <div class="order-tab active" onclick="setOrderTab('MARKET', this)">Market</div>
+          <div class="order-tab" onclick="setOrderTab('LIMIT', this)">Limit</div>
+          <div class="order-tab" onclick="setOrderTab('STOP_LOSS', this)">Stop Loss</div>
+          <div class="order-tab" onclick="setOrderTab('TAKE_PROFIT', this)">Take Profit</div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Ticker</label>
+            <input id="ord-ticker" placeholder="AAPL" oninput="calcComision()" style="text-transform:uppercase" />
+          </div>
+          <div class="form-group">
+            <label>Cantidad</label>
+            <input id="ord-cantidad" type="number" placeholder="10" oninput="calcComision()" />
+          </div>
+          <div class="form-group">
+            <label>Precio (USD)</label>
+            <input id="ord-precio" type="number" placeholder="189.42" oninput="calcComision()" />
+          </div>
+        </div>
+        <div class="commission-hint" id="comision-hint">Comisión estimada: <span>—</span></div>
+        <div style="display:flex;gap:10px;margin-top:4px">
+          <button class="btn-order btn-buy" onclick="colocarOrden('COMPRA')">▲ Comprar</button>
+          <button class="btn-order btn-sell" onclick="colocarOrden('VENTA')">▼ Vender</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Historial de Órdenes</div>
+        <table>
+          <tr><th>Fecha</th><th>Ticker</th><th>Tipo</th><th>Orden</th><th>Cant.</th><th>Precio</th><th>Comisión</th><th>Estado</th></tr>
+          <tr><td>2026-04-29 09:31</td><td class="ticker">AAPL</td><td><span class="chip buy">COMPRA</span></td><td>MARKET</td><td>10</td><td>$189.42</td><td>$37.88</td><td><span class="chip executed">Ejecutada</span></td></tr>
+          <tr><td>2026-04-29 09:15</td><td class="ticker">MSFT</td><td><span class="chip buy">COMPRA</span></td><td>LIMIT</td><td>10</td><td>$412.78</td><td>$82.56</td><td><span class="chip executed">Ejecutada</span></td></tr>
+          <tr><td>2026-04-28 15:45</td><td class="ticker">TSLA</td><td><span class="chip sell">VENTA</span></td><td>STOP_LOSS</td><td>5</td><td>$195.12</td><td>$19.51</td><td><span class="chip pending">Pendiente</span></td></tr>
+          <tr><td>2026-04-28 10:30</td><td class="ticker">NVDA</td><td><span class="chip buy">COMPRA</span></td><td>MARKET</td><td>3</td><td>$876.30</td><td>$52.58</td><td><span class="chip executed">Ejecutada</span></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- PORTAFOLIO -->
+    <div class="panels" id="panel-portafolio">
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card">
+          <div class="stat-label">Valor Total</div>
+          <div class="stat-value">$67,492.18</div>
+          <div class="stat-change up">+$4,218.34 (+6.67%)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Inversión Inicial</div>
+          <div class="stat-value">$63,273.84</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Comisiones Pagadas</div>
+          <div class="stat-value" style="color:var(--yellow)">$192.53</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Holdings Actuales</div>
+        <table>
+          <tr><th>Ticker</th><th>Empresa</th><th>Cant.</th><th>Precio Prom.</th><th>Precio Actual</th><th>Valor</th><th>G/P</th></tr>
+          <tr>
+            <td class="ticker">AAPL</td><td>Apple Inc.</td><td>50</td><td>$175.20</td><td>$189.42</td><td>$9,471.00</td>
+            <td class="up">+$711.00 (+8.12%)</td>
+          </tr>
+          <tr>
+            <td class="ticker">MSFT</td><td>Microsoft</td><td>30</td><td>$385.50</td><td>$412.78</td><td>$12,383.40</td>
+            <td class="up">+$818.40 (+7.08%)</td>
+          </tr>
+          <tr>
+            <td class="ticker">NVDA</td><td>NVIDIA</td><td>20</td><td>$820.00</td><td>$876.30</td><td>$17,526.00</td>
+            <td class="up">+$1,126.00 (+6.87%)</td>
+          </tr>
+          <tr>
+            <td class="ticker">TSLA</td><td>Tesla</td><td>15</td><td>$210.80</td><td>$195.20</td><td>$2,928.00</td>
+            <td class="down">-$234.00 (-7.40%)</td>
+          </tr>
+          <tr>
+            <td class="ticker">AMZN</td><td>Amazon</td><td>25</td><td>$210.30</td><td>$224.91</td><td>$5,622.75</td>
+            <td class="up">+$365.25 (+6.94%)</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- PERFIL -->
+    <div class="panels" id="panel-perfil">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">
+            Datos Personales
+            <div>
+              <button class="btn-cancel prf-edit-mode" id="btn-cancelar-perfil" onclick="cancelarEdicion()">Cancelar</button>
+              <button class="btn-edit" id="btn-editar-perfil" onclick="activarEdicion()">Editar datos</button>
+            </div>
+          </div>
+
+          <!-- MODO VISTA (default) -->
+          <div id="prf-view">
+            <div class="perfil-row">
+              <span class="prf-label">Nombre completo</span>
+              <span class="prf-val" id="v-nombre">—</span>
+            </div>
+            <div class="perfil-row">
+              <span class="prf-label">Correo electrónico</span>
+              <span class="prf-val" id="v-correo">—</span>
+            </div>
+            <div class="perfil-row">
+              <span class="prf-label">Teléfono</span>
+              <span class="prf-val" id="v-telefono">—</span>
+            </div>
+            <div class="perfil-row">
+              <span class="prf-label">Nivel de experiencia</span>
+              <span class="prf-val" id="v-nivel">—</span>
+            </div>
+            <div class="perfil-row">
+              <span class="prf-label">Intereses de mercado</span>
+              <span class="prf-val" id="v-intereses">—</span>
+            </div>
+          </div>
+
+          <!-- MODO EDICIÓN (oculto por defecto) -->
+          <div id="prf-edit" class="prf-edit-mode">
+            <div class="perfil-field">
+              <label>Nombre completo</label>
+              <input id="prf-nombre" type="text" />
+            </div>
+            <div class="perfil-field">
+              <label>Correo electrónico</label>
+              <input id="prf-correo" type="email" disabled style="opacity:0.5;cursor:not-allowed" />
+            </div>
+            <div class="perfil-field">
+              <label>Teléfono</label>
+              <input id="prf-telefono" type="tel" placeholder="+57 300 123 4567" />
+            </div>
+            <div class="perfil-field">
+              <label>Nivel de experiencia</label>
+              <select id="prf-nivel">
+                <option value="PRINCIPIANTE">Principiante</option>
+                <option value="INTERMEDIO">Intermedio</option>
+                <option value="AVANZADO">Avanzado</option>
+              </select>
+            </div>
+            <div class="perfil-field">
+              <label>Intereses de mercado (separados por coma)</label>
+              <input id="prf-intereses" type="text" placeholder="tecnología, energía, salud" />
+            </div>
+            <button class="btn-save" onclick="guardarPerfil()">Guardar cambios</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Seguridad</div>
+          <div class="toggle-row">
+            <div class="toggle-label">
+              MFA (HU-10)
+              <small>Autenticación de dos factores por correo</small>
+            </div>
+            <button class="toggle" id="mfa-toggle" onclick="toggleMfa()"></button>
+          </div>
+          <div style="margin-top:16px">
+            <div class="card-title" style="margin-bottom:8px">Plan de suscripción</div>
+            <div id="prf-plan-info" style="font-size:0.85rem;color:var(--muted)">Cargando...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFIGURACIÓN -->
+    <div class="panels" id="panel-configuracion">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Notificaciones (HU-08)</div>
+          <div class="toggle-row">
+            <div class="toggle-label">Email<small>Notificaciones por correo electrónico</small></div>
+            <button class="toggle on" id="notif-email" onclick="this.classList.toggle('on')"></button>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-label">SMS<small>Mensajes de texto al celular</small></div>
+            <button class="toggle" id="notif-sms" onclick="this.classList.toggle('on')"></button>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-label">WhatsApp<small>Notificaciones por WhatsApp</small></div>
+            <button class="toggle" id="notif-whatsapp" onclick="this.classList.toggle('on')"></button>
+          </div>
+          <button class="btn-save" onclick="guardarNotificaciones()">Guardar preferencias</button>
+        </div>
+        <div class="card">
+          <div class="card-title">Preferencias de Operación (HU-09)</div>
+          <div class="perfil-field">
+            <label>Tipo de orden por defecto</label>
+            <select id="pref-orden">
+              <option value="MARKET">Market</option>
+              <option value="LIMIT">Limit</option>
+              <option value="STOP_LOSS">Stop Loss</option>
+              <option value="TAKE_PROFIT">Take Profit</option>
+            </select>
+          </div>
+          <div class="perfil-field">
+            <label>Vista del portafolio</label>
+            <select id="pref-vista">
+              <option value="LISTA">Lista</option>
+              <option value="GRAFICO">Gráfico</option>
+            </select>
+          </div>
+          <button class="btn-save" onclick="guardarOperacion()">Guardar preferencias</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const BASE = 'http://localhost:8080';
+  const TOKEN_KEY = 'acbosque_jwt';
+
+  // Si no hay JWT, redirigir al login
+  const jwt = localStorage.getItem(TOKEN_KEY);
+  if (!jwt) window.location.href = 'test-auth.html';
+
+  async function apiFetch(endpoint, options = {}) {
+    const headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt };
+    try {
+      const res = await fetch(BASE + endpoint, { headers, ...options });
+      if (res.status === 401) {
+        localStorage.removeItem(TOKEN_KEY);
+        window.location.href = 'test-auth.html';
+      }
+      const data = await res.json().catch(() => ({}));
+      return { ok: res.ok, status: res.status, data };
+    } catch (e) {
+      console.error('Error de red en', endpoint, e);
+      return { ok: false, status: 0, data: { error: 'Sin conexión con el servidor' } };
+    }
+  }
+
+  function toast(msg, tipo = 'info') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'show ' + tipo;
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.className = '', 3500);
+  }
+
+  // Navegación
+  function mostrarPanel(nombre, el) {
+    document.querySelectorAll('.panels').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('panel-' + nombre).classList.add('active');
+    el.classList.add('active');
+    const titulos = { dashboard:'Dashboard', mercado:'Mercado', ordenes:'Órdenes', portafolio:'Portafolio', perfil:'Mi Perfil', configuracion:'Configuración' };
+    document.getElementById('panel-title').textContent = titulos[nombre] || nombre;
+    if (nombre === 'perfil') cargarPerfil();
+    if (nombre === 'configuracion') cargarPreferencias();
+  }
+
+  // Cargar perfil del backend (HU-06) — llena la vista de solo lectura y los inputs
+  async function cargarPerfil() {
+    const r = await apiFetch('/api/perfil');
+    if (!r.ok) {
+      toast(r.data.error || `Error ${r.status} al cargar el perfil`, 'error');
+      return;
+    }
+    const p = r.data;
+
+    // Sidebar
+    document.getElementById('sidebar-nombre').textContent = p.nombreCompleto || '—';
+    document.getElementById('sidebar-correo').textContent = p.correo || '';
+    if (p.esPremium) document.getElementById('sidebar-plan').style.display = 'inline-block';
+
+    // Modo VISTA (solo lectura)
+    const val = (v, fallback = 'No especificado') => v || fallback;
+    setVista('v-nombre', val(p.nombreCompleto));
+    setVista('v-correo', val(p.correo));
+    setVista('v-telefono', p.telefono || null);
+    setVista('v-nivel', p.nivelExperiencia ? nivelesLabel[p.nivelExperiencia] || p.nivelExperiencia : null);
+    setVista('v-intereses', p.interesesMercado && p.interesesMercado.length
+      ? p.interesesMercado.join(' · ')
+      : null);
+
+    // Modo EDICIÓN (inputs pre-cargados)
+    document.getElementById('prf-nombre').value = p.nombreCompleto || '';
+    document.getElementById('prf-correo').value = p.correo || '';
+    document.getElementById('prf-telefono').value = p.telefono || '';
+    document.getElementById('prf-nivel').value = p.nivelExperiencia || 'PRINCIPIANTE';
+    document.getElementById('prf-intereses').value = (p.interesesMercado || []).join(', ');
+
+    // MFA toggle
+    const mfaToggle = document.getElementById('mfa-toggle');
+    if (p.mfaHabilitado) mfaToggle.classList.add('on'); else mfaToggle.classList.remove('on');
+
+    // Plan
+    document.getElementById('prf-plan-info').innerHTML = p.esPremium
+      ? `<span style="color:var(--yellow)">★ ${p.planSuscripcion}</span> — activo`
+      : `<span>Básico</span> &nbsp;<a href="#" style="color:var(--accent);font-size:0.82rem" onclick="event.preventDefault();toast('Actualiza tu plan desde el módulo de suscripción','info')">Mejorar a Premium →</a>`;
+
+    // Asegurar que empiece en modo vista
+    cancelarEdicion();
+  }
+
+  const nivelesLabel = { PRINCIPIANTE: 'Principiante', INTERMEDIO: 'Intermedio', AVANZADO: 'Avanzado' };
+
+  function setVista(id, valor) {
+    const el = document.getElementById(id);
+    if (valor) {
+      el.textContent = valor;
+      el.classList.remove('empty');
+    } else {
+      el.textContent = 'No especificado';
+      el.classList.add('empty');
+    }
+  }
+
+  function activarEdicion() {
+    document.getElementById('prf-view').style.display = 'none';
+    document.getElementById('prf-edit').style.display = 'block';
+    document.getElementById('btn-editar-perfil').style.display = 'none';
+    document.querySelectorAll('.prf-edit-mode').forEach(el => el.style.display = 'inline-block');
+    document.getElementById('prf-nombre').focus();
+  }
+
+  function cancelarEdicion() {
+    document.getElementById('prf-view').style.display = 'block';
+    document.getElementById('prf-edit').style.display = 'none';
+    document.getElementById('btn-editar-perfil').style.display = 'inline-block';
+    document.getElementById('btn-cancelar-perfil').style.display = 'none';
+  }
+
+  // Guardar perfil (HU-07)
+  async function guardarPerfil() {
+    const r = await apiFetch('/api/perfil', {
+      method: 'PUT',
+      body: JSON.stringify({
+        nombreCompleto: document.getElementById('prf-nombre').value.trim(),
+        nivelExperiencia: document.getElementById('prf-nivel').value,
+        interesesMercado: document.getElementById('prf-intereses').value.split(',').map(s=>s.trim()).filter(Boolean),
+        telefono: document.getElementById('prf-telefono').value.trim() || null,
+      })
+    });
+    if (r.ok) {
+      toast('Perfil actualizado exitosamente', 'success');
+      await cargarPerfil(); // recarga vista con datos nuevos y vuelve a modo lectura
+    } else {
+      toast(r.data.error || 'Error al guardar', 'error');
+    }
+  }
+
+  // Toggle MFA (HU-10)
+  async function toggleMfa() {
+    const toggle = document.getElementById('mfa-toggle');
+    const activar = !toggle.classList.contains('on');
+    const r = await apiFetch('/api/perfil/mfa?activar=' + activar, { method: 'PUT' });
+    if (r.ok) {
+      if (activar) toggle.classList.add('on'); else toggle.classList.remove('on');
+      toast(activar ? 'MFA activado' : 'MFA desactivado', 'success');
+    } else {
+      toast(r.data.error || 'Error al cambiar MFA', 'error');
+    }
+  }
+
+  // Cargar preferencias (HU-08, HU-09)
+  async function cargarPreferencias() {
+    const r = await apiFetch('/api/perfil');
+    if (!r.ok) return;
+    const p = r.data;
+    if (p.notificacionEmail) document.getElementById('notif-email').classList.add('on'); else document.getElementById('notif-email').classList.remove('on');
+    if (p.notificacionSms) document.getElementById('notif-sms').classList.add('on'); else document.getElementById('notif-sms').classList.remove('on');
+    if (p.notificacionWhatsapp) document.getElementById('notif-whatsapp').classList.add('on'); else document.getElementById('notif-whatsapp').classList.remove('on');
+    if (p.tipoOrdenDefault) document.getElementById('pref-orden').value = p.tipoOrdenDefault;
+    if (p.vistaPortafolio) document.getElementById('pref-vista').value = p.vistaPortafolio;
+  }
+
+  // Guardar notificaciones (HU-08)
+  async function guardarNotificaciones() {
+    const r = await apiFetch('/api/perfil/preferencias/notificaciones', {
+      method: 'PUT',
+      body: JSON.stringify({
+        notificacionEmail: document.getElementById('notif-email').classList.contains('on'),
+        notificacionSms: document.getElementById('notif-sms').classList.contains('on'),
+        notificacionWhatsapp: document.getElementById('notif-whatsapp').classList.contains('on'),
+        tiposNotificacion: ['ORDER_EXECUTED', 'LOGIN'],
+      })
+    });
+    toast(r.ok ? 'Preferencias guardadas' : 'Error al guardar', r.ok ? 'success' : 'error');
+  }
+
+  // Guardar preferencias operación (HU-09)
+  async function guardarOperacion() {
+    const r = await apiFetch('/api/perfil/preferencias/operacion', {
+      method: 'PUT',
+      body: JSON.stringify({
+        tipoOrdenDefault: document.getElementById('pref-orden').value,
+        vistaPortafolio: document.getElementById('pref-vista').value,
+      })
+    });
+    toast(r.ok ? 'Preferencias guardadas' : 'Error al guardar', r.ok ? 'success' : 'error');
+  }
+
+  // Tabs de tipo de orden
+  function setOrderTab(tipo, el) {
+    document.querySelectorAll('.order-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  // Calcular comisión (2%)
+  function calcComision() {
+    const cant = parseFloat(document.getElementById('ord-cantidad').value) || 0;
+    const precio = parseFloat(document.getElementById('ord-precio').value) || 0;
+    const total = cant * precio;
+    const comision = total * 0.02;
+    const hint = document.getElementById('comision-hint');
+    hint.innerHTML = total > 0
+      ? `Valor total: $${total.toFixed(2)} — Comisión 2%: <span>$${comision.toFixed(2)}</span>`
+      : `Comisión estimada: <span>—</span>`;
+  }
+
+  // Simular colocación de orden
+  function colocarOrden(accion) {
+    const ticker = document.getElementById('ord-ticker').value.toUpperCase();
+    const cant = document.getElementById('ord-cantidad').value;
+    const precio = document.getElementById('ord-precio').value;
+    if (!ticker || !cant || !precio) { toast('Completa todos los campos', 'error'); return; }
+    toast(`Orden de ${accion} ${cant} ${ticker} a $${precio} enviada (simulado)`, 'success');
+  }
+
+  // Cerrar sesión
+  async function cerrarSesion() {
+    await apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    localStorage.removeItem(TOKEN_KEY);
+    window.location.href = 'test-auth.html';
+  }
+
+  // Reloj
+  function actualizarReloj() {
+    document.getElementById('reloj').textContent = new Date().toLocaleTimeString('en-US', { hour12: false, timeZone: 'America/New_York' }) + ' EST';
+  }
+  actualizarReloj();
+  setInterval(actualizarReloj, 1000);
+
+  // Diagnóstico y carga inicial
+  (async () => {
+    const banner = document.getElementById('diag-banner');
+    const diagMsg = document.getElementById('diag-msg');
+    const problemas = [];
+
+    // 1. Verificar que se sirve desde localhost:8080
+    const url = window.location.href;
+    const desdeServidor = url.startsWith('http://localhost:8080') || url.startsWith('http://127.0.0.1:8080');
+    if (!desdeServidor) {
+      problemas.push(`<b>URL incorrecta:</b> Estás abriendo el archivo desde <code>${url}</code>.<br>
+        Debes acceder desde el servidor: <a href="http://localhost:8080/dashboard.html" style="color:#63b3ed">http://localhost:8080/dashboard.html</a>`);
+    }
+
+    // 2. Ping al backend
+    let backendVivo = false;
+    try {
+      const ping = await fetch(BASE + '/api/health');
+      backendVivo = ping.ok;
+    } catch(e) {
+      problemas.push(`<b>Backend no responde</b> en ${BASE}.<br>
+        Ejecuta en la carpeta <code>backend/</code>: <code>mvn spring-boot:run</code>`);
+    }
+
+    // 3. JWT
+    if (!jwt) {
+      problemas.push('<b>Sin sesión:</b> No hay JWT en localStorage. Inicia sesión primero.');
+    }
+
+    if (problemas.length > 0) {
+      diagMsg.innerHTML = problemas.map((p, i) => `${i+1}. ${p}`).join('<br><br>');
+      banner.style.display = 'block';
+      return;
+    }
+
+    // Todo OK — cargar sidebar
+    const r = await apiFetch('/api/perfil');
+    if (r.ok) {
+      document.getElementById('sidebar-nombre').textContent = r.data.nombreCompleto || '—';
+      document.getElementById('sidebar-correo').textContent = r.data.correo || '';
+      if (r.data.esPremium) document.getElementById('sidebar-plan').style.display = 'inline-block';
+    } else {
+      diagMsg.innerHTML = `<b>Error ${r.status} al cargar perfil:</b> ${JSON.stringify(r.data)}`;
+      banner.style.display = 'block';
+    }
+  })();
+</script>
+</body>
+</html>

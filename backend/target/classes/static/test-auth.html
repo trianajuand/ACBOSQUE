@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Acciones ElBosque — Auth</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 40px 16px; }
+    .page { display: none; width: 100%; max-width: 440px; }
+    .page.active { display: block; }
+    .card { background: #1a202c; border: 1px solid #2d3748; border-radius: 12px; padding: 32px; }
+    .logo { color: #63b3ed; font-size: 1.1rem; font-weight: 700; text-align: center; margin-bottom: 24px; letter-spacing: 0.05em; }
+    h2 { color: #e2e8f0; font-size: 1.2rem; font-weight: 600; margin-bottom: 6px; }
+    .subtitle { color: #718096; font-size: 0.85rem; margin-bottom: 24px; }
+    label { display: block; font-size: 0.75rem; color: #a0aec0; margin-bottom: 4px; margin-top: 16px; text-transform: uppercase; letter-spacing: 0.05em; }
+    label:first-of-type { margin-top: 0; }
+    input, select { width: 100%; background: #2d3748; border: 1px solid #4a5568; border-radius: 8px; padding: 10px 12px; color: #e2e8f0; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
+    input:focus, select:focus { border-color: #4299e1; }
+    select option { background: #2d3748; }
+    .btn { margin-top: 20px; width: 100%; padding: 11px; background: #3182ce; color: #fff; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .btn:hover { background: #2b6cb0; }
+    .btn.secondary { background: transparent; border: 1px solid #4a5568; color: #a0aec0; margin-top: 10px; }
+    .btn.secondary:hover { border-color: #718096; color: #e2e8f0; }
+    .btn.stripe { background: #635bff; margin-top: 12px; }
+    .btn.stripe:hover { background: #4f46e5; }
+    .link { margin-top: 16px; text-align: center; font-size: 0.82rem; color: #718096; }
+    .link a { color: #63b3ed; cursor: pointer; text-decoration: none; }
+    .link a:hover { text-decoration: underline; }
+    .code-hint { background: #2d3748; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 0.82rem; color: #a0aec0; text-align: center; }
+    .code-hint span { color: #68d391; font-weight: 600; }
+    .mfa-box { display: none; margin-top: 16px; padding-top: 16px; border-top: 1px dashed #4a5568; }
+    .mfa-box.visible { display: block; }
+    .plan-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .plan-card { background: #2d3748; border: 2px solid #4a5568; border-radius: 8px; padding: 10px 8px; cursor: pointer; text-align: center; transition: all 0.2s; }
+    .plan-card:hover { border-color: #4299e1; }
+    .plan-card.selected { border-color: #4299e1; background: #2a4a6b; }
+    .plan-card .plan-name { font-size: 0.78rem; font-weight: 700; color: #e2e8f0; }
+    .plan-card .plan-price { font-size: 0.72rem; color: #68d391; margin-top: 2px; }
+    .plan-card .plan-badge { font-size: 0.65rem; color: #f6ad55; margin-top: 2px; }
+    .stripe-box { display: none; margin-top: 16px; background: #1a2744; border: 1px solid #4a5568; border-radius: 8px; padding: 16px; text-align: center; }
+    .stripe-box.visible { display: block; }
+    .stripe-box p { font-size: 0.85rem; color: #a0aec0; margin-bottom: 8px; }
+    .sector-grupo { margin-top: 10px; }
+    .sector-nombre { font-size: 0.7rem; color: #718096; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .sector-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pill { background: #2d3748; border: 1px solid #4a5568; border-radius: 20px; padding: 4px 10px; font-size: 0.75rem; color: #a0aec0; cursor: pointer; transition: all 0.15s; user-select: none; }
+    .pill:hover { border-color: #4299e1; color: #e2e8f0; }
+    .pill.selected { background: #2a4a6b; border-color: #4299e1; color: #90cdf4; font-weight: 600; }
+    .intereses-hint { font-size: 0.75rem; color: #718096; margin-top: 8px; }
+    .intereses-hint span { color: #68d391; }
+    #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #2d3748; color: #e2e8f0; padding: 10px 20px; border-radius: 8px; font-size: 0.85rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; border-left: 4px solid #4299e1; max-width: 380px; text-align: center; }
+    #toast.show { opacity: 1; }
+    #toast.error { border-color: #fc8181; }
+    #toast.success { border-color: #48bb78; }
+    .jwt-bar { width: 100%; max-width: 440px; background: #1a202c; border: 1px solid #2d3748; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 0.72rem; color: #718096; font-family: monospace; word-break: break-all; display: none; }
+    .jwt-bar.visible { display: block; }
+  </style>
+</head>
+<body>
+
+<div class="jwt-bar" id="jwt-bar"></div>
+
+<!-- PÁGINA: Registro -->
+<div class="page active" id="page-registro">
+  <div class="logo">Acciones ElBosque</div>
+  <div class="card">
+    <h2>Crear cuenta</h2>
+    <p class="subtitle">Ingresa tus datos para registrarte</p>
+    <label>Nombre completo</label>
+    <input type="text" id="reg-nombre" placeholder="Juan Pérez" />
+    <label>Correo electrónico</label>
+    <input type="email" id="reg-correo" placeholder="juan@ejemplo.com" />
+    <label>Contraseña</label>
+    <input type="password" id="reg-password" placeholder="Mínimo 8 caracteres" />
+    <label>Teléfono (opcional, para SMS/WhatsApp)</label>
+    <input type="tel" id="reg-telefono" placeholder="+57 300 123 4567" />
+    <label>Nivel de experiencia</label>
+    <select id="reg-nivel">
+      <option value="PRINCIPIANTE">Principiante</option>
+      <option value="INTERMEDIO">Intermedio</option>
+      <option value="AVANZADO">Avanzado</option>
+    </select>
+    <label>Intereses de mercado</label>
+    <div id="intereses-container"></div>
+    <div class="intereses-hint">Selecciona los activos que te interesan. Si no seleccionas ninguno se usarán <span>AAPL, MSFT, TSLA, AMZN, GOOGL</span> por defecto.</div>
+    <label>Plan de suscripción</label>
+    <div class="plan-cards">
+      <div class="plan-card selected" onclick="seleccionarPlan('BASICO', this)">
+        <div class="plan-name">Básico</div>
+        <div class="plan-price">Gratis</div>
+      </div>
+      <div class="plan-card" onclick="seleccionarPlan('PREMIUM_MENSUAL', this)">
+        <div class="plan-name">Premium</div>
+        <div class="plan-price">$12/mes</div>
+        <div class="plan-badge">★ Recomendado</div>
+      </div>
+      <div class="plan-card" onclick="seleccionarPlan('PREMIUM_ANUAL', this)">
+        <div class="plan-name">Premium</div>
+        <div class="plan-price">$120/año</div>
+        <div class="plan-badge">Ahorra 17%</div>
+      </div>
+    </div>
+    <input type="hidden" id="reg-plan" value="BASICO" />
+    <button class="btn" onclick="registrar()">Crear cuenta</button>
+    <div class="link">¿Ya tienes cuenta? <a onclick="ir('page-login')">Inicia sesión</a></div>
+  </div>
+</div>
+
+<!-- PÁGINA: Verificar código -->
+<div class="page" id="page-verificar">
+  <div class="logo">Acciones ElBosque</div>
+  <div class="card">
+    <h2>Verifica tu correo</h2>
+    <p class="subtitle">Ingresa el código de 6 dígitos que enviamos a tu correo</p>
+    <div class="code-hint">Revisa la bandeja de entrada de <span id="correo-hint"></span></div>
+    <label>Código de verificación</label>
+    <input type="text" id="ver-codigo" placeholder="123456" maxlength="6" style="text-align:center;font-size:1.4rem;letter-spacing:8px;" />
+    <button class="btn" onclick="verificarRegistro()">Activar cuenta</button>
+    <button class="btn secondary" onclick="ir('page-registro')">Volver</button>
+    <!-- Caja de pago Stripe (solo si eligió premium) -->
+    <div class="stripe-box" id="stripe-box">
+      <p>Tu cuenta fue creada. Completa el pago para activar tu plan premium.</p>
+      <button class="btn stripe" onclick="irAStripe()">Pagar con Stripe</button>
+    </div>
+  </div>
+</div>
+
+<!-- PÁGINA: Login -->
+<div class="page" id="page-login">
+  <div class="logo">Acciones ElBosque</div>
+  <div class="card">
+    <h2>Iniciar sesión</h2>
+    <p class="subtitle">Bienvenido de nuevo</p>
+    <label>Correo electrónico</label>
+    <input type="email" id="login-correo" placeholder="juan@ejemplo.com" />
+    <label>Contraseña</label>
+    <input type="password" id="login-password" />
+    <button class="btn" onclick="login()">Iniciar sesión</button>
+
+    <div class="mfa-box" id="mfa-box">
+      <label>Código MFA (revisa tu correo)</label>
+      <input type="text" id="mfa-codigo" placeholder="123456" maxlength="6" style="text-align:center;font-size:1.2rem;letter-spacing:6px;" />
+      <input type="hidden" id="mfa-token" />
+      <button class="btn" onclick="verificarMfa()">Verificar</button>
+    </div>
+
+    <div class="link">¿No tienes cuenta? <a onclick="ir('page-registro')">Regístrate</a></div>
+    <div class="link"><a onclick="ir('page-forgot')">¿Olvidaste tu contraseña?</a></div>
+  </div>
+</div>
+
+<!-- PÁGINA: Olvidé contraseña -->
+<div class="page" id="page-forgot">
+  <div class="logo">Acciones ElBosque</div>
+  <div class="card">
+    <h2>Recuperar contraseña</h2>
+    <p class="subtitle">Te enviaremos un código a tu correo</p>
+    <label>Correo electrónico</label>
+    <input type="email" id="forgot-correo" placeholder="juan@ejemplo.com" />
+    <button class="btn" onclick="forgotPassword()">Enviar código</button>
+    <button class="btn secondary" onclick="ir('page-login')">Volver</button>
+  </div>
+</div>
+
+<!-- PÁGINA: Resetear contraseña -->
+<div class="page" id="page-reset">
+  <div class="logo">Acciones ElBosque</div>
+  <div class="card">
+    <h2>Nueva contraseña</h2>
+    <p class="subtitle">Ingresa el código que recibiste y tu nueva contraseña</p>
+    <div class="code-hint">Código enviado a <span id="reset-correo-hint"></span></div>
+    <label>Código de recuperación</label>
+    <input type="text" id="reset-token" placeholder="123456" maxlength="6" style="text-align:center;font-size:1.2rem;letter-spacing:6px;" />
+    <label>Nueva contraseña</label>
+    <input type="password" id="reset-password" placeholder="Mínimo 8 caracteres" />
+    <button class="btn" onclick="resetPassword()">Cambiar contraseña</button>
+    <button class="btn secondary" onclick="ir('page-forgot')">Volver</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const BASE = 'http://localhost:8080';
+  const TOKEN_KEY = 'acbosque_jwt';
+  let stripeCheckoutUrl = null;
+
+  function ir(paginaId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(paginaId).classList.add('active');
+  }
+
+  function toast(msg, tipo = 'info') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'show ' + tipo;
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.className = '', 3500);
+  }
+
+  function guardarToken(token) {
+    localStorage.setItem(TOKEN_KEY, token);
+    const bar = document.getElementById('jwt-bar');
+    bar.textContent = 'JWT: ' + token;
+    bar.classList.add('visible');
+  }
+
+  function seleccionarPlan(plan, el) {
+    document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('reg-plan').value = plan;
+    const stripeBox = document.getElementById('stripe-box');
+    if (stripeBox) stripeBox.classList.remove('visible');
+  }
+
+  function irAStripe() {
+    if (stripeCheckoutUrl) window.location.href = stripeCheckoutUrl;
+  }
+
+  async function api(endpoint, body, method = 'POST') {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch(BASE + endpoint, { method, headers, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  const SIMBOLOS_DEFAULT = {
+    'Tecnología': ['AAPL','MSFT','GOOGL','NVDA','META','AMZN'],
+    'Finanzas':   ['JPM','BAC','GS','V','MA','AXP'],
+    'Consumo':    ['TSLA','NKE','MCD','SBUX','WMT','DIS'],
+    'Energía':    ['XOM','CVX','COP','SLB','EOG','VLO'],
+    'Salud':      ['JNJ','UNH','PFE','ABBV','MRK','LLY'],
+  };
+  const AREAS_REGISTRO = new Set(['tecnologia', 'finanzas', 'consumo', 'energia', 'salud']);
+
+  function claveArea(sector) {
+    return sector.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(' ')[0];
+  }
+
+  function renderPills(simbolosPorSector) {
+    const container = document.getElementById('intereses-container');
+    container.innerHTML = '';
+    const grupos = Object.entries(simbolosPorSector)
+      .filter(([sector, simbolos]) => AREAS_REGISTRO.has(claveArea(sector)) && Array.isArray(simbolos));
+    const gruposVisibles = grupos.length > 0 ? grupos : Object.entries(SIMBOLOS_DEFAULT);
+    for (const [sector, simbolos] of gruposVisibles) {
+      const grupo = document.createElement('div');
+      grupo.className = 'sector-grupo';
+      grupo.innerHTML = `<div class="sector-nombre">${sector}</div><div class="sector-pills">${
+        simbolos.slice(0, 6).map(s => `<div class="pill" data-simbolo="${s}" onclick="togglePill(this)">${s}</div>`).join('')
+      }</div>`;
+      container.appendChild(grupo);
+    }
+  }
+
+  async function cargarSimbolos() {
+    try {
+      const res = await fetch(BASE + '/api/mercado/simbolos');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const simbolosPorSector = data.datos || data.data || data;
+      if (typeof simbolosPorSector !== 'object' || Array.isArray(simbolosPorSector)) throw new Error('formato inesperado');
+      renderPills(simbolosPorSector);
+    } catch (e) {
+      renderPills(SIMBOLOS_DEFAULT);
+    }
+  }
+
+  function togglePill(el) { el.classList.toggle('selected'); }
+
+  // Registro
+  async function registrar() {
+    const correo = document.getElementById('reg-correo').value.trim();
+    const seleccionados = [...document.querySelectorAll('#intereses-container .pill.selected')]
+      .map(p => p.dataset.simbolo);
+    const intereses = seleccionados.length > 0 ? seleccionados : ['AAPL', 'MSFT', 'TSLA', 'AMZN', 'GOOGL'];
+    const res = await api('/api/auth/register/investor', {
+      nombreCompleto: document.getElementById('reg-nombre').value.trim(),
+      correo,
+      contrasenia: document.getElementById('reg-password').value,
+      telefono: document.getElementById('reg-telefono').value.trim() || null,
+      nivelExperiencia: document.getElementById('reg-nivel').value,
+      interesesMercado: intereses,
+      planSuscripcion: document.getElementById('reg-plan').value,
+    });
+    if (res.ok) {
+      localStorage.setItem('reg_correo', correo);
+      document.getElementById('correo-hint').textContent = correo;
+      ir('page-verificar');
+      toast('Código enviado a ' + correo, 'success');
+    } else {
+      toast(res.data.error || 'Error al registrar', 'error');
+    }
+  }
+
+  // Verificar código de registro
+  async function verificarRegistro() {
+    const correo = localStorage.getItem('reg_correo');
+    const res = await api('/api/auth/register/confirm', {
+      correo,
+      codigo: document.getElementById('ver-codigo').value.trim(),
+    });
+    if (res.ok) {
+      if (res.data.requierePago && res.data.stripeCheckoutUrl) {
+        setTimeout(() => irAStripe(), 700);
+        stripeCheckoutUrl = res.data.stripeCheckoutUrl;
+        document.getElementById('stripe-box').classList.add('visible');
+        toast('¡Cuenta activada! Completa el pago premium con Stripe.', 'success');
+        toast('Correo verificado. Redirigiendo a Stripe...', 'success');
+      } else {
+        toast('¡Cuenta activada! Ya puedes iniciar sesión.', 'success');
+        setTimeout(() => ir('page-login'), 1500);
+      }
+    } else {
+      toast(res.data.error || 'Código incorrecto', 'error');
+    }
+  }
+
+  // Login
+  async function login() {
+    const res = await api('/api/auth/login', {
+      correo: document.getElementById('login-correo').value.trim(),
+      contrasenia: document.getElementById('login-password').value,
+    });
+    if (res.ok) {
+      if (res.data.token) {
+        guardarToken(res.data.token);
+        toast('Sesión iniciada. Redirigiendo...', 'success');
+        setTimeout(() => window.location.href = 'dashboard.html', 800);
+      } else if (res.data.requiereMfa) {
+        document.getElementById('mfa-token').value = res.data.mfaToken || '';
+        document.getElementById('mfa-box').classList.add('visible');
+        toast('Ingresa el código MFA enviado a tu correo', 'info');
+      }
+    } else {
+      toast(res.data.error || 'Credenciales incorrectas', 'error');
+    }
+  }
+
+  // Verificar MFA
+  async function verificarMfa() {
+    const res = await api('/api/auth/mfa/verify', {
+      mfaToken: document.getElementById('mfa-token').value,
+      codigo: document.getElementById('mfa-codigo').value.trim(),
+    });
+    if (res.ok && res.data.token) {
+      guardarToken(res.data.token);
+      document.getElementById('mfa-box').classList.remove('visible');
+      toast('Sesión iniciada. Redirigiendo...', 'success');
+      setTimeout(() => window.location.href = 'dashboard.html', 800);
+    } else {
+      toast(res.data.error || 'Código MFA incorrecto', 'error');
+    }
+  }
+
+  // Olvidé contraseña
+  async function forgotPassword() {
+    const correo = document.getElementById('forgot-correo').value.trim();
+    const res = await api('/api/auth/forgot-password', { correo });
+    if (res.ok) {
+      localStorage.setItem('reset_correo', correo);
+      document.getElementById('reset-correo-hint').textContent = correo;
+      ir('page-reset');
+      toast('Código enviado a ' + correo, 'success');
+    } else {
+      toast(res.data.error || 'Correo no encontrado', 'error');
+    }
+  }
+
+  // Resetear contraseña
+  async function resetPassword() {
+    const res = await api('/api/auth/reset-password', {
+      correo: localStorage.getItem('reset_correo'),
+      token: document.getElementById('reset-token').value.trim(),
+      nuevaContrasenia: document.getElementById('reset-password').value,
+    });
+    if (res.ok) {
+      toast('Contraseña cambiada exitosamente', 'success');
+      setTimeout(() => ir('page-login'), 1500);
+    } else {
+      toast(res.data.error || 'Error al cambiar contraseña', 'error');
+    }
+  }
+
+  // Mostrar JWT si existe (pero si ya hay sesión, ir directo al dashboard)
+  const t = localStorage.getItem(TOKEN_KEY);
+  if (t) {
+    document.getElementById('jwt-bar').textContent = 'JWT activo: ' + t;
+    document.getElementById('jwt-bar').classList.add('visible');
+  }
+
+  // Cargar símbolos al inicio para el formulario de registro
+  cargarSimbolos();
+
+  // Manejar retorno de Stripe
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('stripe_success') === 'true') {
+    confirmarPagoStripe(params.get('session_id'));
+  } else if (params.get('stripe_cancel') === 'true') {
+    toast('Pago cancelado. Puedes activar tu plan premium desde tu perfil.', 'info');
+    ir('page-login');
+  }
+
+  async function confirmarPagoStripe(sessionId) {
+    if (!sessionId) {
+      toast('Pago recibido, pero falta confirmar la sesión de Stripe.', 'error');
+      ir('page-login');
+      return;
+    }
+    try {
+      const res = await fetch(BASE + '/api/suscripciones/confirmar-checkout?session_id=' + encodeURIComponent(sessionId));
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+      toast('¡Pago exitoso! Tu plan premium está activo.', 'success');
+    } catch (e) {
+      toast('Pago recibido, pero no se pudo activar premium automáticamente.', 'error');
+    }
+    ir('page-login');
+  }
+</script>
+</body>
+</html>

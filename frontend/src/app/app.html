@@ -1,0 +1,7 @@
+<router-outlet />
+
+@if (toast.mensaje()) {
+  <div class="toast" [class.success]="toast.tipo() === 'success'" [class.error]="toast.tipo() === 'error'">
+    {{ toast.mensaje() }}
+  </div>
+}

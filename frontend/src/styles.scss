@@ -1,0 +1,154 @@
+:root {
+  color-scheme: dark;
+  --bg: #0f1117;
+  --surface: #171d29;
+  --surface-2: #1f2735;
+  --surface-3: #273244;
+  --border: #303b4f;
+  --text: #edf2f7;
+  --muted: #8c99ad;
+  --accent: #4299e1;
+  --accent-2: #63b3ed;
+  --green: #48bb78;
+  --red: #fc8181;
+  --yellow: #f6ad55;
+  --radius: 8px;
+  --shadow: 0 16px 48px rgba(0, 0, 0, 0.26);
+  font-family: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(66, 153, 225, 0.1), transparent 28rem),
+    linear-gradient(135deg, #0f1117 0%, #111827 44%, #0f1117 100%);
+  color: var(--text);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: var(--accent-2);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.btn {
+  min-height: 42px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  color: white;
+  background: var(--accent);
+  font-weight: 700;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #2b6cb0;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn.secondary {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.btn.secondary:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+  background: rgba(66, 153, 225, 0.08);
+}
+
+.btn.success {
+  background: var(--green);
+  color: #07130d;
+}
+
+.btn.danger {
+  background: var(--red);
+  color: #210808;
+}
+
+.btn.stripe {
+  background: #635bff;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field label {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  outline: none;
+  padding: 10px 12px;
+  background: var(--surface-3);
+  color: var(--text);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+}
+
+.field input[disabled] {
+  opacity: 0.55;
+}
+
+.page-enter {
+  animation: page-enter 240ms ease-out;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

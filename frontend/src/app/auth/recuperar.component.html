@@ -1,0 +1,17 @@
+<div class="auth-card">
+  <p class="eyebrow">Recuperacion</p>
+  <h2>Recuperar contrasenia</h2>
+  <p class="subtitle">Te enviaremos un codigo al correo registrado.</p>
+
+  <form [formGroup]="form" (ngSubmit)="enviar()" class="stack">
+    <div class="field">
+      <label for="correo">Correo electronico</label>
+      <input id="correo" type="email" formControlName="correo" placeholder="juan@ejemplo.com" />
+    </div>
+    <button class="btn" type="submit">Enviar codigo</button>
+  </form>
+
+  <div class="links">
+    <a routerLink="/login">Volver al login</a>
+  </div>
+</div>

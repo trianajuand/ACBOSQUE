@@ -1,0 +1,474 @@
+<main class="dashboard-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span>AE</span>
+      <div>
+        <strong>Acciones ElBosque</strong>
+        <small>Day trading</small>
+      </div>
+    </div>
+
+    <nav>
+      <button [class.active]="panel() === 'dashboard'" (click)="seleccionar('dashboard')">Dashboard</button>
+      <button [class.active]="panel() === 'mercado'" (click)="seleccionar('mercado')">Mercado</button>
+      <button [class.active]="panel() === 'ordenes'" (click)="seleccionar('ordenes')">Ordenes</button>
+      <button [class.active]="panel() === 'portafolio'" (click)="seleccionar('portafolio')">Portafolio</button>
+      <button [class.active]="panel() === 'perfil'" (click)="seleccionar('perfil')">Perfil</button>
+      <button [class.active]="panel() === 'configuracion'" (click)="seleccionar('configuracion')">Configuracion</button>
+    </nav>
+
+    <div class="user-box">
+      <strong>{{ perfil()?.nombreCompleto || 'Inversionista' }}</strong>
+      <small>{{ perfil()?.correo || 'Sin correo' }}</small>
+      @if (perfil()?.esPremium) {
+        <span class="premium">Premium</span>
+      }
+      <button class="btn secondary" type="button" (click)="cerrarSesion()">Cerrar sesion</button>
+    </div>
+  </aside>
+
+  <section class="workspace">
+    <header class="topbar">
+      <div>
+        <p>{{ panel() }}</p>
+        <h1>{{ panel() === 'dashboard' ? 'Resumen general' : panel() }}</h1>
+      </div>
+      <div class="market-pill">
+        <span></span>
+        NYSE/NASDAQ
+        <strong>{{ reloj() }}</strong>
+      </div>
+    </header>
+
+    @if (cargando()) {
+      <section class="loading page-enter">Cargando informacion del broker...</section>
+    } @else {
+      <section class="content page-enter">
+        @if (panel() === 'dashboard') {
+          <div class="stats-grid">
+            <article class="metric">
+              <span>Saldo disponible</span>
+              <strong class="up">{{ dinero(saldo()?.saldoDisponible) }}</strong>
+              <small>Reservado {{ dinero(saldo()?.fondosReservados) }}</small>
+            </article>
+            <article class="metric">
+              <span>Valor portafolio</span>
+              <strong>{{ dinero(portafolio()?.valorTotalPortafolio) }}</strong>
+              <small [class]="claseNumero(portafolio()?.gananciaPerdidaTotalPct)">
+                {{ pct(portafolio()?.gananciaPerdidaTotalPct) }}
+              </small>
+            </article>
+            <article class="metric">
+              <span>Ordenes activas</span>
+              <strong>{{ activas().length }}</strong>
+              <small>Enviadas, pendientes o en cola</small>
+            </article>
+            <article class="metric">
+              <span>Ganancia / perdida</span>
+              <strong [class]="claseNumero(portafolio()?.gananciaPerdidaTotal)">
+                {{ dinero(portafolio()?.gananciaPerdidaTotal) }}
+              </strong>
+              <small>Comisiones {{ dinero(saldo()?.totalComisionesPagadas) }}</small>
+            </article>
+          </div>
+
+          <div class="split">
+            <section class="panel">
+              <div class="panel-title">
+                <h2>Acciones de interes</h2>
+                <button class="quiet" type="button" (click)="cargarMercado()">Actualizar</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Simbolo</th><th>Mercado</th><th>Precio</th><th>Cambio</th></tr></thead>
+                  <tbody>
+                    @for (c of cotizaciones(); track c.simbolo) {
+                      <tr>
+                        <td><strong class="ticker">{{ c.simbolo }}</strong><small>{{ c.nombreEmpresa || nombreEmpresa(c.simbolo) }}</small></td>
+                        <td>{{ c.mercado || mercadoInternacional(c.simbolo) }}</td>
+                        <td>{{ dinero(c.precioActual) }}</td>
+                        <td [class]="claseNumero(c.variacionPorcentual)">{{ pct(c.variacionPorcentual) }}</td>
+                      </tr>
+                    } @empty {
+                      <tr><td colspan="4" class="empty">Sin cotizaciones todavia.</td></tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-title"><h2>Ordenes recientes</h2></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Simbolo</th><th>Lado</th><th>Estado</th><th>Monto</th></tr></thead>
+                  <tbody>
+                    @for (o of ordenes().slice(0, 6); track o.id || o.simbolo) {
+                      <tr>
+                        <td><strong class="ticker">{{ o.simbolo }}</strong><small>{{ o.tipoOrden }}</small></td>
+                        <td><span class="chip" [class.sell]="o.lado === 'VENTA'">{{ o.lado }}</span></td>
+                        <td>{{ o.estado }}</td>
+                        <td>{{ dinero(o.montoTotal) }}</td>
+                      </tr>
+                    } @empty {
+                      <tr><td colspan="4" class="empty">Aun no hay ordenes.</td></tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        }
+
+        @if (panel() === 'mercado') {
+          <section class="market-hero">
+            <div class="panel-title">
+              <h2>Mercados de preferencias</h2>
+              <form [formGroup]="buscarForm" (ngSubmit)="buscarCotizacion()" class="search">
+                <input formControlName="simbolo" placeholder="AAPL, VOD.L, 7203.T" />
+                <button class="btn" type="submit">Buscar</button>
+              </form>
+            </div>
+
+            <div class="symbol-grid">
+              @for (c of cotizaciones(); track c.simbolo) {
+                <button class="sim-card preferred" type="button" (click)="seleccionarSimboloMercado(c.simbolo)">
+                  <div class="sc-header">
+                    <span class="sc-ticker">{{ c.simbolo }}</span>
+                    <span class="sc-badge">{{ c.mercado || mercadoInternacional(c.simbolo) }}</span>
+                  </div>
+                  <div class="sc-empresa">{{ c.nombreEmpresa || nombreEmpresa(c.simbolo) }}</div>
+                  <div class="sc-precio">{{ dinero(c.precioActual) }}</div>
+                  <div class="sc-cambio" [class]="claseNumero(c.variacionPorcentual)">
+                    {{ variacionArrow(c.variacionPorcentual) }} {{ pct(c.variacionPorcentual) }}
+                  </div>
+                  <svg class="sparkline" viewBox="0 0 100 26" preserveAspectRatio="none" [class.down-line]="(c.variacionPorcentual || 0) < 0">
+                    <rect x="0" [attr.y]="miniRectY(c)" width="100" [attr.height]="miniRectHeight(c)" rx="2"></rect>
+                    <line x1="5" [attr.y1]="miniY(c.precioApertura, c.precioMaximo, c.precioMinimo)" x2="95" [attr.y2]="miniY(c.precioActual, c.precioMaximo, c.precioMinimo)"></line>
+                    <circle cx="95" [attr.cy]="miniY(c.precioActual, c.precioMaximo, c.precioMinimo)" r="2.8"></circle>
+                  </svg>
+                  <div class="sc-hl">
+                    <span class="up">H: {{ dinero(c.precioMaximo) }}</span>
+                    <span class="down">L: {{ dinero(c.precioMinimo) }}</span>
+                  </div>
+                </button>
+              } @empty {
+                @for (s of simbolosPreferidos(); track s.simbolo) {
+                  <button class="sim-card preferred" type="button" (click)="seleccionarSimboloMercado(s.simbolo)">
+                    <div class="sc-header">
+                      <span class="sc-ticker">{{ s.simbolo }}</span>
+                      <span class="sc-badge">{{ s.mercado }}</span>
+                    </div>
+                    <div class="sc-empresa">{{ s.nombre }}</div>
+                    <div class="sc-precio">-</div>
+                    <div class="sc-cambio">Seleccionar para cargar</div>
+                  </button>
+                } @empty {
+                  <p class="empty">Configura intereses en tu perfil para verlos aqui.</p>
+                }
+              }
+            </div>
+          </section>
+
+          @if (busqueda() || detalleSeleccionado()) {
+            <section class="detalle-card page-enter" [class.negative]="!graficaPositiva()">
+              <div class="detalle-head">
+                <div>
+                  <div class="detalle-title-row">
+                    <span class="detalle-ticker">{{ detalleSeleccionado()?.simbolo || busqueda()?.simbolo }}</span>
+                    <span class="sc-badge">{{ detalleSeleccionado()?.mercado || busqueda()?.mercado || mercadoInternacional(busqueda()?.simbolo) }}</span>
+                    <span class="detalle-open" [class.up]="detalleSeleccionado()?.mercadoAbierto" [class.down]="!detalleSeleccionado()?.mercadoAbierto">
+                      {{ detalleSeleccionado()?.mercadoAbierto ? '● Abierto' : '○ Cerrado' }}
+                    </span>
+                  </div>
+                  <div class="detalle-empresa">{{ detalleSeleccionado()?.nombreEmpresa || busqueda()?.nombreEmpresa || nombreEmpresa(busqueda()?.simbolo) }}</div>
+                </div>
+                <div class="detalle-price">
+                  <strong>{{ dinero(detalleSeleccionado()?.precioActual || busqueda()?.precioActual) }}</strong>
+                  <span [class]="claseNumero(detalleSeleccionado()?.variacionPorcentual || busqueda()?.variacionPorcentual)">
+                    {{ variacionArrow(detalleSeleccionado()?.variacionPorcentual || busqueda()?.variacionPorcentual) }}
+                    {{ pct(detalleSeleccionado()?.variacionPorcentual || busqueda()?.variacionPorcentual) }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="detalle-body">
+                <div class="det-stats-grid">
+                  @for (stat of statsDetalle(); track stat[0]) {
+                    <div class="det-stat">
+                      <span>{{ stat[0] }}</span>
+                      <strong>{{ stat[1] }}</strong>
+                    </div>
+                  }
+                </div>
+                <div class="detalle-chart">
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Grafica de precio">
+                    <polygon class="chart-area" [attr.points]="areaGrafica()"></polygon>
+                    <polyline class="chart-line" [attr.points]="puntosGrafica()"></polyline>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="detalle-actions">
+                <button class="btn-op btn-op-compra" type="button" (click)="seleccionar('ordenes'); setLado('COMPRA'); seleccionarSimboloOrden(detalleSeleccionado()?.simbolo || busqueda()?.simbolo || 'AAPL')">▲ Comprar</button>
+                <button class="btn-op btn-op-venta" type="button" (click)="seleccionar('ordenes'); setLado('VENTA'); seleccionarSimboloOrden(detalleSeleccionado()?.simbolo || busqueda()?.simbolo || 'AAPL')">▼ Vender</button>
+                <button class="btn-op-cerrar" type="button" (click)="busqueda.set(null); detalleSeleccionado.set(null)">Cerrar</button>
+              </div>
+            </section>
+          }
+
+          <section class="panel">
+            <div class="panel-title"><h2>Demas mercados</h2></div>
+            <div class="market-groups">
+              @for (grupo of otrosMercados(); track grupo.grupo) {
+                <details class="market-group">
+                  <summary>
+                    <span>{{ grupo.grupo }}</span>
+                    <em>{{ grupo.simbolos.length }} simbolos</em>
+                  </summary>
+                  <div class="symbol-grid compact-symbols">
+                    @for (s of grupo.simbolos; track s.simbolo) {
+                      <button class="symbol-card" type="button" (click)="seleccionarSimboloMercado(s.simbolo)">
+                        <strong>{{ s.simbolo }}</strong>
+                        <span>{{ s.nombre }}</span>
+                        <em>{{ s.mercado }}</em>
+                      </button>
+                    }
+                  </div>
+                </details>
+              }
+            </div>
+          </section>
+        }
+
+        @if (panel() === 'ordenes') {
+          <section class="order-layout">
+            <form class="order-ticket" [formGroup]="orderForm" (ngSubmit)="previsualizar()">
+              <div class="panel-title"><h2>Nueva orden</h2></div>
+              <div class="segmented order-types">
+                @for (tipo of ['MARKET', 'LIMIT', 'STOP_LOSS', 'TAKE_PROFIT']; track tipo) {
+                  <button type="button" [class.active]="orderForm.controls.tipoOrden.value === tipo" (click)="setTipoOrden(tipo)">
+                    {{ tipo }}
+                  </button>
+                }
+              </div>
+              <div class="segmented side action-side">
+                <button type="button" [class.active]="orderForm.controls.lado.value === 'COMPRA'" (click)="setLado('COMPRA')">Comprar</button>
+                <button type="button" [class.active]="orderForm.controls.lado.value === 'VENTA'" (click)="setLado('VENTA')">Vender</button>
+              </div>
+              <div class="form-grid">
+                <div class="field">
+                  <label>Simbolo</label>
+                  <select formControlName="simbolo">
+                    @for (s of simbolos(); track s.simbolo) {
+                      <option [value]="s.simbolo">{{ s.simbolo }} - {{ s.nombre }} ({{ s.mercado }})</option>
+                    }
+                  </select>
+                </div>
+                <div class="field"><label>Cantidad</label><input type="number" formControlName="cantidad" /></div>
+                @if (orderForm.controls.tipoOrden.value === 'LIMIT' || orderForm.controls.tipoOrden.value === 'TAKE_PROFIT') {
+                  <div class="field"><label>Precio limite</label><input type="number" formControlName="precioLimite" /></div>
+                }
+                @if (orderForm.controls.tipoOrden.value === 'STOP_LOSS') {
+                  <div class="field"><label>Precio stop</label><input type="number" formControlName="precioStop" /></div>
+                }
+              </div>
+              <button class="btn" type="submit">Previsualizar comision</button>
+            </form>
+
+            <section class="panel symbol-picker">
+              <div class="panel-title"><h2>Seleccion rapida</h2></div>
+              <div class="symbol-grid compact-symbols">
+                @for (s of simbolosPreferidos().concat(simbolos().slice(0, 14)); track s.simbolo) {
+                  <button class="symbol-card" type="button" [class.selected]="orderForm.controls.simbolo.value === s.simbolo" (click)="seleccionarSimboloOrden(s.simbolo)">
+                    <strong>{{ s.simbolo }}</strong>
+                    <span>{{ s.nombre }}</span>
+                    <em>{{ s.mercado }}</em>
+                  </button>
+                }
+              </div>
+            </section>
+
+            @if (resumen()) {
+              <section class="preview page-enter">
+                <div class="panel-title"><h2>Resumen antes de confirmar</h2></div>
+                <div class="quote-strip compact">
+                  <div><span>Precio</span><strong>{{ dinero(resumen()?.precioEstimado) }}</strong></div>
+                  <div><span>Monto base</span><strong>{{ dinero(resumen()?.montoBase) }}</strong></div>
+                  <div><span>Comision</span><strong>{{ dinero(resumen()?.montoComision) }}</strong></div>
+                  <div><span>Total</span><strong>{{ dinero(resumen()?.totalADebitar || resumen()?.totalARecibir) }}</strong></div>
+                </div>
+                @if (resumen()?.advertencia) {
+                  <p class="warning">{{ resumen()?.advertencia }}</p>
+                }
+                <button class="btn success" type="button" (click)="confirmarOrden()">Confirmar orden</button>
+              </section>
+            }
+          </section>
+
+          <section class="panel">
+            <div class="panel-title"><h2>Historial de ordenes</h2></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Fecha</th><th>Simbolo</th><th>Lado</th><th>Tipo</th><th>Cant.</th><th>Precio</th><th>Comision</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                  @for (o of ordenes(); track o.id || o.creadaEn) {
+                    <tr>
+                      <td>{{ o.creadaEn || '-' }}</td>
+                      <td><strong class="ticker">{{ o.simbolo }}</strong></td>
+                      <td>{{ o.lado }}</td>
+                      <td>{{ o.tipoOrden }}</td>
+                      <td>{{ o.cantidad }}</td>
+                      <td>{{ dinero(o.precioEjecucion || o.precioLimite || o.precioStop) }}</td>
+                      <td>{{ dinero(o.comision) }}</td>
+                      <td>{{ o.estado }}</td>
+                      <td><button class="quiet" type="button" (click)="cancelarOrden(o.id)">Cancelar</button></td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="9" class="empty">No hay historial.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+        }
+
+        @if (panel() === 'portafolio') {
+          <div class="stats-grid three">
+            <article class="metric"><span>Valor total</span><strong>{{ dinero(portafolio()?.valorTotalPortafolio) }}</strong></article>
+            <article class="metric"><span>Inversion inicial</span><strong>{{ dinero(totalInvertido()) }}</strong></article>
+            <article class="metric"><span>Comisiones</span><strong>{{ dinero(saldo()?.totalComisionesPagadas) }}</strong></article>
+          </div>
+          <section class="panel">
+            <div class="panel-title">
+              <h2>Holdings</h2>
+              <form [formGroup]="depositoForm" (ngSubmit)="depositar()" class="search">
+                <input type="number" formControlName="monto" />
+                <button class="btn" type="submit">Depositar</button>
+              </form>
+            </div>
+            <div class="table-wrap">
+              @if (perfil()?.vistaPortafolio === 'GRAFICO') {
+                <div class="holding-bars">
+                  @for (h of portafolio()?.holdings || []; track h.simbolo) {
+                    <div class="holding-bar">
+                      <div>
+                        <strong class="ticker">{{ h.simbolo }}</strong>
+                        <small>{{ nombreEmpresa(h.simbolo) }}</small>
+                      </div>
+                      <div class="bar-track">
+                        <span [style.width.%]="((h.valorTotal || 0) / ((portafolio()?.valorTotalPortafolio || 1))) * 100"></span>
+                      </div>
+                      <strong>{{ dinero(h.valorTotal) }}</strong>
+                    </div>
+                  } @empty {
+                    <p class="empty">Portafolio vacio.</p>
+                  }
+                </div>
+              } @else {
+                <table>
+                  <thead><tr><th>Simbolo</th><th>Cantidad</th><th>Promedio</th><th>Actual</th><th>Valor</th><th>G/P</th></tr></thead>
+                  <tbody>
+                    @for (h of portafolio()?.holdings || []; track h.simbolo) {
+                      <tr>
+                        <td><strong class="ticker">{{ h.simbolo }}</strong><small>{{ h.nombreEmpresa || nombreEmpresa(h.simbolo) }}</small></td>
+                        <td>{{ h.cantidad }}</td>
+                        <td>{{ dinero(h.precioPromedio) }}</td>
+                        <td>{{ dinero(h.precioActual) }}</td>
+                        <td>{{ dinero(h.valorTotal) }}</td>
+                        <td [class]="claseNumero(h.gananciaPerdida)">{{ dinero(h.gananciaPerdida) }} ({{ pct(h.gananciaPerdidaPct) }})</td>
+                      </tr>
+                    } @empty {
+                      <tr><td colspan="6" class="empty">Portafolio vacio.</td></tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </div>
+          </section>
+        }
+
+        @if (panel() === 'perfil') {
+          <section class="profile-grid">
+            <div class="panel">
+              <div class="panel-title">
+                <h2>Datos personales</h2>
+                <button class="quiet" type="button" (click)="editandoPerfil.set(!editandoPerfil())">
+                  {{ editandoPerfil() ? 'Cancelar' : 'Editar' }}
+                </button>
+              </div>
+              @if (!editandoPerfil()) {
+                <div class="detail-list">
+                  <div><span>Nombre</span><strong>{{ perfil()?.nombreCompleto || '-' }}</strong></div>
+                  <div><span>Correo</span><strong>{{ perfil()?.correo || '-' }}</strong></div>
+                  <div><span>Telefono</span><strong>{{ perfil()?.telefono || '-' }}</strong></div>
+                  <div><span>Experiencia</span><strong>{{ perfil()?.nivelExperiencia || '-' }}</strong></div>
+                  <div><span>Intereses</span><strong>{{ (perfil()?.interesesMercado || []).join(', ') || '-' }}</strong></div>
+                </div>
+              } @else {
+                <form [formGroup]="perfilForm" (ngSubmit)="guardarPerfil()" class="form-grid one">
+                  <div class="field"><label>Nombre</label><input formControlName="nombreCompleto" /></div>
+                  <div class="field"><label>Telefono</label><input formControlName="telefono" /></div>
+                  <div class="field">
+                    <label>Experiencia</label>
+                    <select formControlName="nivelExperiencia">
+                      <option value="PRINCIPIANTE">Principiante</option>
+                      <option value="INTERMEDIO">Intermedio</option>
+                      <option value="AVANZADO">Avanzado</option>
+                    </select>
+                  </div>
+                  <div class="field"><label>Intereses</label><input formControlName="interesesMercado" /></div>
+                  <button class="btn" type="submit">Guardar cambios</button>
+                </form>
+              }
+            </div>
+            <div class="panel">
+              <div class="panel-title"><h2>Seguridad y plan</h2></div>
+              <div class="toggle-row">
+                <div><strong>MFA</strong><small>Segundo factor por correo</small></div>
+                <button class="toggle" [class.on]="perfil()?.mfaHabilitado" type="button" (click)="toggleMfa()"></button>
+              </div>
+              <div class="detail-list">
+                <div><span>Plan</span><strong>{{ perfil()?.planSuscripcion || 'BASICO' }}</strong></div>
+                <div><span>Premium</span><strong>{{ perfil()?.esPremium ? 'Activo' : 'No activo' }}</strong></div>
+              </div>
+            </div>
+          </section>
+        }
+
+        @if (panel() === 'configuracion') {
+          <form class="profile-grid" [formGroup]="preferenciasForm" (ngSubmit)="guardarPreferencias()">
+            <section class="panel">
+              <div class="panel-title"><h2>Notificaciones</h2></div>
+              <label class="check"><input type="checkbox" formControlName="notificacionEmail" /> Email</label>
+              <label class="check"><input type="checkbox" formControlName="notificacionSms" /> SMS</label>
+              <label class="check"><input type="checkbox" formControlName="notificacionWhatsapp" /> WhatsApp</label>
+            </section>
+            <section class="panel">
+              <div class="panel-title"><h2>Operacion</h2></div>
+              <div class="form-grid one">
+                <div class="field">
+                  <label>Tipo de orden por defecto</label>
+                  <select formControlName="tipoOrdenDefault">
+                    <option value="MARKET">Market</option>
+                    <option value="LIMIT">Limit</option>
+                    <option value="STOP_LOSS">Stop Loss</option>
+                    <option value="TAKE_PROFIT">Take Profit</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Vista del portafolio</label>
+                  <select formControlName="vistaPortafolio">
+                    <option value="LISTA">Lista</option>
+                    <option value="GRAFICO">Grafico</option>
+                  </select>
+                </div>
+                <button class="btn" type="submit">Guardar preferencias</button>
+              </div>
+            </section>
+          </form>
+        }
+      </section>
+    }
+  </section>
+</main>
