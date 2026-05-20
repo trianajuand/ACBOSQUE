@@ -77,9 +77,15 @@ public class OrdenController {
     /** HU-24 a HU-26: Historial completo de órdenes. */
     @GetMapping("/historial")
     public ResponseEntity<RespuestaDTO> historial(
-            @AuthenticationPrincipal String correo) {
+            @AuthenticationPrincipal String correo,
+            @RequestParam(required = false) String desde,
+            @RequestParam(required = false) String hasta,
+            @RequestParam(required = false) String tipoOrden,
+            @RequestParam(required = false) String simbolo,
+            @RequestParam(required = false) String estado) {
         Usuario usuario = resolverUsuario(correo);
-        List<OrdenDTO> ordenes = ordenService.obtenerHistorialOrdenes(usuario.getId());
+        List<OrdenDTO> ordenes = ordenService.obtenerHistorialOrdenes(
+                usuario.getId(), desde, hasta, tipoOrden, simbolo, estado);
         return ResponseEntity.ok(RespuestaDTO.exito(ordenes));
     }
 

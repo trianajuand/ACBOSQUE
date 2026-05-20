@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -67,6 +68,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(StripeCheckoutException.class)
     public ResponseEntity<RespuestaDTO> manejarStripeCheckout(StripeCheckoutException ex) {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(RespuestaDTO.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<RespuestaDTO> manejarResponseStatus(ResponseStatusException ex) {
+        return ResponseEntity.status(ex.getStatusCode()).body(RespuestaDTO.error(ex.getReason()));
     }
 
     @ExceptionHandler(Exception.class)

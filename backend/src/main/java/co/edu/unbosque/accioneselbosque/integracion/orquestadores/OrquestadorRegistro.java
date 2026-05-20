@@ -1,7 +1,8 @@
 package co.edu.unbosque.accioneselbosque.integracion.orquestadores;
 
+import co.edu.unbosque.accioneselbosque.autenticacion.model.Inversionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
-import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
+import co.edu.unbosque.accioneselbosque.autenticacion.repository.InversionistaRepository;
 import co.edu.unbosque.accioneselbosque.integracion.adaptadores.alpaca.IIntegracionAlpaca;
 import co.edu.unbosque.accioneselbosque.trazabilidad.interfaces.IAuditLog;
 import co.edu.unbosque.accioneselbosque.trazabilidad.model.TipoEvento;
@@ -11,25 +12,29 @@ import org.springframework.stereotype.Service;
 public class OrquestadorRegistro {
 
     private final IIntegracionAlpaca alpaca;
-    private final UsuarioRepository usuarioRepository;
+    private final InversionistaRepository inversionistaRepository;
     private final IAuditLog auditLog;
 
-    public OrquestadorRegistro(IIntegracionAlpaca alpaca, UsuarioRepository usuarioRepository, IAuditLog auditLog) {
+    public OrquestadorRegistro(IIntegracionAlpaca alpaca,
+                               InversionistaRepository inversionistaRepository,
+                               IAuditLog auditLog) {
         this.alpaca = alpaca;
-        this.usuarioRepository = usuarioRepository;
+        this.inversionistaRepository = inversionistaRepository;
         this.auditLog = auditLog;
     }
 
     public void crearCuentaAlpaca(Usuario usuario) {
-        String alpacaId = alpaca.crearCuenta(usuario);
+        Inversionista inversionista = inversionistaRepository.findByUsuarioId(usuario.getId())
+                .orElseThrow(() -> new IllegalStateException("Inversionista no encontrado para usuario " + usuario.getId()));
+        String alpacaId = alpaca.crearCuenta(usuario, inversionista);
         if (alpacaId != null) {
-            usuario.setAlpacaAccountId(alpacaId);
-            usuario.setPendienteCuentaAlpaca(false);
-            usuarioRepository.save(usuario);
+            inversionista.setAlpacaAccountId(alpacaId);
+            inversionista.setPendienteCuentaAlpaca(false);
+            inversionistaRepository.save(inversionista);
             auditLog.registrar(TipoEvento.REGISTRO_EXITOSO, usuario.getCorreo(), "Cuenta Alpaca creada: " + alpacaId);
         } else {
-            usuario.setPendienteCuentaAlpaca(true);
-            usuarioRepository.save(usuario);
+            inversionista.setPendienteCuentaAlpaca(true);
+            inversionistaRepository.save(inversionista);
             auditLog.registrar(TipoEvento.REGISTRO_FALLO_ALPACA, usuario.getCorreo(), "Fallo al crear cuenta Alpaca");
         }
     }

@@ -14,14 +14,16 @@ export class ApiService {
   readonly tokenKey = 'acbosque_jwt';
 
   get token(): string | null {
-    return localStorage.getItem(this.tokenKey);
+    return sessionStorage.getItem(this.tokenKey) || localStorage.getItem(this.tokenKey);
   }
 
   setToken(token: string): void {
-    localStorage.setItem(this.tokenKey, token);
+    sessionStorage.setItem(this.tokenKey, token);
+    localStorage.removeItem(this.tokenKey);
   }
 
   clearToken(): void {
+    sessionStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.tokenKey);
   }
 

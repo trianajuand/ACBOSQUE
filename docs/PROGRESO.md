@@ -9,7 +9,7 @@
 - **Fecha última actualización:** 2026-05-20
 - **Sprint actual:** Sprint 2 — Servicio de Mercado + Sprint 3 — Servicio de Órdenes (parcial)
 - **Sprints completados:** Sprint 1 (Autenticación + Perfil)
-- **Historias del MVP completadas:** 16 / 42
+- **Historias del MVP completadas:** 19 / 42
 - **Bloqueos actuales:** ninguno
 
 ---
@@ -95,7 +95,7 @@ Todas las historias se consideran cerradas cuando:
 
 | ID | Historia | Estado | Notas |
 |---|---|:-:|---|
-| HU-2 | Integración Alpaca al registrar inversionista | ✅ | `OrquestadorRegistro` invoca `AlpacaAdapter.crearCuenta()`. Guarda `alpacaAccountId` en `Usuario`. Maneja fallo (pendiente + notificación admin). |
+| HU-2 | Integración Alpaca al registrar inversionista | ✅ | `OrquestadorRegistro` invoca `AlpacaAdapter.crearCuenta()`. Guarda `alpacaAccountId` en `Inversionista`. Maneja fallo (pendiente + notificación admin). |
 | HU-13 | Dashboard de acciones de interés | ✅ | `GET /api/mercado/dashboard` — retorna cotizaciones de los `interesesMercado` del usuario. Caché de 3 min. Usa Alpaca para US, Alpha Vantage para globales. |
 | HU-14 | Detalle de una acción | ✅ | `GET /api/mercado/detalle/{simbolo}` — precio, historial, métricas. |
 | HU-15 | Visualización del portafolio | ✅ | `GET /api/portafolio` — holdings, precio promedio, valor total, ganancia/pérdida. |
@@ -107,6 +107,9 @@ Todas las historias se consideran cerradas cuando:
 | HU-21 | Cancelar orden pendiente | ✅ | `DELETE /api/ordenes/{ordenId}`. Libera fondos reservados. Cancela en Alpaca si aplica. |
 | HU-22 | Consultar órdenes activas | ✅ | `GET /api/ordenes/activas` — estados PENDIENTE, ENVIADA, EN_COLA. |
 | HU-23 | Encolamiento fuera de horario | ✅ | `ColaOrdenesService` con `@Scheduled` cada minuto. Procesa EN_COLA al abrir mercado. |
+| HU-24 | Historial de órdenes por período | ✅ | `GET /api/ordenes/historial?desde=&hasta=` conectado a filtros Angular. |
+| HU-25 | Historial por tipo y activo | ✅ | Filtros `tipoOrden` y `simbolo` en backend y frontend. |
+| HU-26 | Historial por estado | ✅ | Filtro `estado` en backend y frontend. |
 | EC-13 | Previsualización de comisión antes de confirmar | ✅ | `POST /api/ordenes/previsualizar` — muestra comisión (2%) y split plataforma/comisionista. |
 | — | Verificador de horarios de mercado | ✅ | `GET /api/mercado/horario/{mercado}` — NYSE/NASDAQ, TSE, LSE con horarios reales. |
 | — | Caché de precios (Maintain Multiple Copies) | ✅ | `PrecioCache` en BD. Refresco automático cada 3 min con `@Scheduled`. |
@@ -213,7 +216,6 @@ Todas las historias se consideran cerradas cuando:
 - HU-41: Despacho de notificaciones por Email/SMS/WhatsApp.
 - HU-42: Detección de fallo de servicio + alerta.
 - HU-27: Reporte personal de actividad.
-- HU-24 a HU-26: Historial con filtros.
 - Pruebas de carga con JMeter (1500 usuarios concurrentes — RNF-09).
 - Documentación final y entrega.
 
@@ -258,13 +260,22 @@ Se corrigieron las URLs de retorno de Stripe para volver al frontend Angular (`/
 ### [2026-05-20] — Especificaciones retrospectivas por HU implementada
 Se analizaron backend, frontend, endpoints, servicios, DTOs, modelos, validaciones y flujos UI existentes para generar 28 carpetas `docs/HU-*/spec.md` con especificaciones funcionales y tecnicas retrospectivas de las funcionalidades implementadas.
 
+### [2026-05-20] — Normalizacion 3FN de usuarios y sesiones por pestaña
+Se separo `usuario` como tabla general de identidad/acceso/rol, dejando datos propios del inversionista en `inversionista` (Alpaca, Stripe, perfil financiero, preferencias y notificaciones) y especialidades en `comisionista`. Se agrego migracion defensiva para mover columnas legacy y se cambio el JWT Angular a `sessionStorage` para evitar que sesiones de comisionista e inversionista se pisen al refrescar.
+
+### [2026-05-20] — Refuerzo migracion Postgres usuario/inversionista/comisionista
+Se reforzo `NormalizacionUsuarios3FnMigration` para recrear/asegurar el esquema esperado en PostgreSQL: `usuario` queda solo con identidad, acceso, rol, estado y MFA; `inversionista` concentra Alpaca, Stripe, premium, perfil financiero, preferencias y notificaciones; `comisionista` conserva especialidades y vinculo a usuario. La migracion copia columnas legacy por tipo, agrega restricciones y elimina sobrantes en `usuario`.
+
+### [2026-05-20] — Mercado con refresco por API y filtros de historial
+`MercadoService.obtenerCotizacion` ahora intenta refrescar desde Alpaca Market Data o Alpha Vantage antes de responder y usa `precio_cache` solo como respaldo si el proveedor falla. Tambien se implementaron filtros de historial de ordenes por periodo, tipo, activo y estado en `/api/ordenes/historial` y en el dashboard Angular.
+
 ---
 
 ## Métricas del proyecto
 
 | Métrica | Valor actual |
 |---|---|
-| Historias completadas | 16 / 42 |
+| Historias completadas | 19 / 42 |
 | Cobertura de tests (services) | — |
 | Cobertura de tests (global) | — |
 | Endpoints REST funcionando | ~20 (auth + perfil + mercado + órdenes + portafolio) |

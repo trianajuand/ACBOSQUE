@@ -842,6 +842,17 @@ td small,
   color: var(--red);
 }
 
+.forced-sell.active {
+  width: 100%;
+  border-color: var(--red);
+  background: rgba(252, 129, 129, 0.14);
+  color: var(--red);
+}
+
+.forced-field {
+  margin-bottom: 0;
+}
+
 .symbol-picker {
   margin-bottom: 0;
 }
@@ -855,6 +866,29 @@ td small,
 
 .form-grid.one {
   grid-template-columns: 1fr;
+}
+
+.history-filters {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.filter-actions .btn,
+.filter-actions .quiet {
+  min-height: 40px;
+}
+
+.wide {
+  grid-column: 1 / -1;
 }
 
 .warning {
@@ -997,6 +1031,7 @@ td small,
   .split,
   .profile-grid,
   .order-layout,
+  .history-filters,
   .quote-strip,
   .quote-detail {
     grid-template-columns: 1fr;
@@ -1030,6 +1065,7 @@ td small,
   }
 
   .form-grid,
+  .history-filters,
   .quote-strip.compact {
     grid-template-columns: 1fr;
   }

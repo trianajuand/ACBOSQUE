@@ -1,11 +1,11 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService } from '../core/api.service';
 import { Cotizacion, DetalleAccion, Orden, Perfil, Portafolio, ResumenComision, Saldo } from '../core/models';
 import { ToastService } from '../core/toast.service';
 
-type Panel = 'dashboard' | 'mercado' | 'ordenes' | 'portafolio' | 'perfil' | 'configuracion';
+type Panel = 'dashboard' | 'mercado' | 'ordenes' | 'portafolio' | 'propuestas' | 'perfil' | 'configuracion';
 
 interface SymbolOption {
   simbolo: string;
@@ -95,11 +95,13 @@ const NOMBRES_EMPRESAS: Record<string, string> = {
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   private readonly fb = inject(FormBuilder);
+  private refrescoOperativoId?: number;
+  private relojId?: number;
 
   readonly panel = signal<Panel>('dashboard');
   readonly perfil = signal<Perfil | null>(null);
@@ -109,6 +111,7 @@ export class DashboardComponent implements OnInit {
   readonly catalogo = signal<Record<string, string[]>>({});
   readonly ordenes = signal<Orden[]>([]);
   readonly activas = signal<Orden[]>([]);
+  readonly propuestas = signal<Orden[]>([]);
   readonly portafolio = signal<Portafolio | null>(null);
   readonly saldo = signal<Saldo | null>(null);
   readonly resumen = signal<ResumenComision | null>(null);
@@ -240,10 +243,28 @@ export class DashboardComponent implements OnInit {
     vistaPortafolio: ['LISTA'],
   });
 
+  readonly historialFiltrosForm = this.fb.nonNullable.group({
+    desde: [''],
+    hasta: [''],
+    tipoOrden: [''],
+    simbolo: [''],
+    estado: [''],
+  });
+
   async ngOnInit(): Promise<void> {
     this.tick();
-    setInterval(() => this.tick(), 1000);
+    this.relojId = window.setInterval(() => this.tick(), 1000);
     await this.cargarTodo();
+    this.refrescoOperativoId = window.setInterval(() => void this.refrescarOperativo(), 10000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.refrescoOperativoId) {
+      window.clearInterval(this.refrescoOperativoId);
+    }
+    if (this.relojId) {
+      window.clearInterval(this.relojId);
+    }
   }
 
   async cargarTodo(): Promise<void> {
@@ -255,8 +276,18 @@ export class DashboardComponent implements OnInit {
       this.cargarSaldo(),
       this.cargarPortafolio(),
       this.cargarOrdenes(),
+      this.cargarPropuestas(),
     ]);
     this.cargando.set(false);
+  }
+
+  async refrescarOperativo(): Promise<void> {
+    await Promise.all([
+      this.cargarPropuestas(),
+      this.cargarOrdenes(),
+      this.cargarSaldo(),
+      this.cargarPortafolio(),
+    ]);
   }
 
   seleccionar(panel: Panel): void {
@@ -353,8 +384,9 @@ export class DashboardComponent implements OnInit {
   }
 
   async cargarOrdenes(): Promise<void> {
+    const historialUrl = this.historialUrl();
     const [historial, activas] = await Promise.all([
-      this.api.get<Orden[]>('/api/ordenes/historial'),
+      this.api.get<Orden[]>(historialUrl),
       this.api.get<Orden[]>('/api/ordenes/activas'),
     ]);
     if (historial.ok && historial.data) {
@@ -365,8 +397,46 @@ export class DashboardComponent implements OnInit {
     }
   }
 
+  async aplicarFiltrosHistorial(): Promise<void> {
+    await this.cargarOrdenes();
+  }
+
+  async limpiarFiltrosHistorial(): Promise<void> {
+    this.historialFiltrosForm.reset({
+      desde: '',
+      hasta: '',
+      tipoOrden: '',
+      simbolo: '',
+      estado: '',
+    });
+    await this.cargarOrdenes();
+  }
+
+  async cargarPropuestas(): Promise<void> {
+    const res = await this.api.get<Orden[]>('/api/propuestas');
+    if (res.ok && res.data) {
+      this.propuestas.set(res.data);
+    }
+  }
+
+  private historialUrl(): string {
+    const raw = this.historialFiltrosForm.getRawValue();
+    const params = new URLSearchParams();
+    if (raw.desde) params.set('desde', raw.desde);
+    if (raw.hasta) params.set('hasta', raw.hasta);
+    if (raw.tipoOrden) params.set('tipoOrden', raw.tipoOrden);
+    if (raw.simbolo.trim()) params.set('simbolo', raw.simbolo.trim().toUpperCase());
+    if (raw.estado) params.set('estado', raw.estado);
+    const query = params.toString();
+    return query ? `/api/ordenes/historial?${query}` : '/api/ordenes/historial';
+  }
+
   setTipoOrden(tipo: string): void {
-    this.orderForm.patchValue({ tipoOrden: tipo });
+    let lado = this.orderForm.controls.lado.value;
+    if (tipo === 'STOP_LOSS' || tipo === 'TAKE_PROFIT') {
+      lado = 'VENTA';
+    }
+    this.orderForm.patchValue({ tipoOrden: tipo, lado });
     this.resumen.set(null);
   }
 
@@ -375,12 +445,25 @@ export class DashboardComponent implements OnInit {
     this.resumen.set(null);
   }
 
+  async accionOrden(lado: 'COMPRA' | 'VENTA'): Promise<void> {
+    const resumen = this.resumen();
+    if (!resumen || resumen.lado !== lado) {
+      this.setLado(lado);
+      return;
+    }
+    await this.confirmarOrden(lado);
+  }
+
   construirOrdenPayload(): Record<string, unknown> {
     const raw = this.orderForm.getRawValue();
+    let lado = raw.lado;
+    if (raw.tipoOrden === 'STOP_LOSS' || raw.tipoOrden === 'TAKE_PROFIT') {
+      lado = 'VENTA';
+    }
     const payload: Record<string, unknown> = {
       simbolo: raw.simbolo.trim().toUpperCase(),
       tipoOrden: raw.tipoOrden,
-      lado: raw.lado,
+      lado,
       cantidad: raw.cantidad,
     };
     if (raw.tipoOrden === 'LIMIT' || raw.tipoOrden === 'TAKE_PROFIT') {
@@ -393,7 +476,7 @@ export class DashboardComponent implements OnInit {
   }
 
   async previsualizar(): Promise<void> {
-    if (this.orderForm.invalid) {
+    if (this.orderForm.invalid || !this.ordenTieneCamposRequeridos()) {
       this.toast.mostrar('Completa los datos de la orden', 'error');
       return;
     }
@@ -406,7 +489,14 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  async confirmarOrden(): Promise<void> {
+  async confirmarOrden(lado: 'COMPRA' | 'VENTA'): Promise<void> {
+    if (!this.resumen() || this.resumen()?.lado !== lado) {
+      this.orderForm.patchValue({ lado });
+      this.resumen.set(null);
+      this.toast.mostrar(`Previsualiza la comision de ${lado === 'COMPRA' ? 'compra' : 'venta'} antes de enviar`, 'error');
+      return;
+    }
+
     const res = await this.api.post<Orden>('/api/ordenes', this.construirOrdenPayload());
     if (res.ok) {
       this.toast.mostrar('Orden enviada correctamente', 'success');
@@ -423,6 +513,24 @@ export class DashboardComponent implements OnInit {
     this.toast.mostrar(res.ok ? 'Orden cancelada' : res.error || 'No se pudo cancelar', res.ok ? 'success' : 'error');
     if (res.ok) {
       await this.cargarOrdenes();
+    }
+  }
+
+  async aprobarPropuesta(id?: number): Promise<void> {
+    if (!id) return;
+    const res = await this.api.post<Orden>(`/api/propuestas/${id}/aprobar`, { comentario: 'Aprobada desde dashboard' });
+    this.toast.mostrar(res.ok ? 'Propuesta aprobada' : res.error || 'No se pudo aprobar', res.ok ? 'success' : 'error');
+    if (res.ok) {
+      await Promise.all([this.cargarPropuestas(), this.cargarOrdenes()]);
+    }
+  }
+
+  async rechazarPropuesta(id?: number): Promise<void> {
+    if (!id) return;
+    const res = await this.api.post<Orden>(`/api/propuestas/${id}/rechazar`, { comentario: 'Rechazada desde dashboard' });
+    this.toast.mostrar(res.ok ? 'Propuesta rechazada' : res.error || 'No se pudo rechazar', res.ok ? 'success' : 'error');
+    if (res.ok) {
+      await Promise.all([this.cargarPropuestas(), this.cargarOrdenes()]);
     }
   }
 
@@ -483,6 +591,47 @@ export class DashboardComponent implements OnInit {
     if (ok) {
       await this.cargarPerfil();
     }
+  }
+
+  async solicitarComisionista(): Promise<void> {
+    const res = await this.api.put('/api/perfil/comisionista/solicitar');
+    this.toast.mostrar(res.ok ? res.mensaje || 'Solicitud registrada' : res.error || 'No se pudo solicitar comisionista', res.ok ? 'success' : 'error');
+    if (res.ok) {
+      await this.cargarPerfil();
+    }
+  }
+
+  mostrarLadoOrden(): boolean {
+    const tipo = this.orderForm.controls.tipoOrden.value;
+    return tipo === 'MARKET' || tipo === 'LIMIT';
+  }
+
+  mostrarVentaForzadaOrden(): boolean {
+    const tipo = this.orderForm.controls.tipoOrden.value;
+    return tipo === 'STOP_LOSS' || tipo === 'TAKE_PROFIT';
+  }
+
+  mostrarPrecioLimiteOrden(): boolean {
+    return this.orderForm.controls.tipoOrden.value === 'LIMIT';
+  }
+
+  mostrarStopLossOrden(): boolean {
+    return this.orderForm.controls.tipoOrden.value === 'STOP_LOSS';
+  }
+
+  mostrarTakeProfitOrden(): boolean {
+    return this.orderForm.controls.tipoOrden.value === 'TAKE_PROFIT';
+  }
+
+  private ordenTieneCamposRequeridos(): boolean {
+    const raw = this.orderForm.getRawValue();
+    if ((raw.tipoOrden === 'LIMIT' || raw.tipoOrden === 'TAKE_PROFIT') && Number(raw.precioLimite || 0) <= 0) {
+      return false;
+    }
+    if (raw.tipoOrden === 'STOP_LOSS' && Number(raw.precioStop || 0) <= 0) {
+      return false;
+    }
+    return true;
   }
 
   async cerrarSesion(): Promise<void> {

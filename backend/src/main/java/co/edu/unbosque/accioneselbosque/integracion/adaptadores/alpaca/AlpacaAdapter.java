@@ -1,5 +1,6 @@
 package co.edu.unbosque.accioneselbosque.integracion.adaptadores.alpaca;
 
+import co.edu.unbosque.accioneselbosque.autenticacion.model.Inversionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,7 +68,7 @@ public class AlpacaAdapter implements IIntegracionAlpaca {
     // =========================================================
 
     @Override
-    public String crearCuenta(Usuario usuario) {
+    public String crearCuenta(Usuario usuario, Inversionista inversionista) {
         try {
             String[] partes = usuario.getNombreCompleto().split(" ", 2);
             String nombre = partes[0];
@@ -77,22 +78,22 @@ public class AlpacaAdapter implements IIntegracionAlpaca {
             body.put("account_type", "trading");
             body.put("contact", Map.of(
                     "email_address", usuario.getCorreo(),
-                    "phone_number", normalizarTelefono(usuario.getTelefono()),
-                    "street_address", List.of("123 Main St"),
-                    "city", "Bogota",
+                    "phone_number", normalizarTelefono(inversionista.getTelefono()),
+                    "street_address", List.of(valor(inversionista.getDireccion(), "123 Main St")),
+                    "city", valor(inversionista.getCiudad(), "Bogota"),
                     "state", "CO",
-                    "postal_code", "110111",
-                    "country", "COL"
+                    "postal_code", valor(inversionista.getCodigoPostal(), "110111"),
+                    "country", normalizarPais(inversionista.getPais())
             ));
             body.put("identity", Map.of(
                     "given_name", nombre,
                     "family_name", apellido,
-                    "date_of_birth", "1990-01-01",
+                    "date_of_birth", valor(inversionista.getFechaNacimiento(), "1990-01-01"),
                     "tax_id", generarTaxIdSandbox(usuario),
                     "tax_id_type", "OTHER",
-                    "country_of_citizenship", "COL",
-                    "country_of_birth", "COL",
-                    "country_of_tax_residence", "COL",
+                    "country_of_citizenship", normalizarPais(inversionista.getPais()),
+                    "country_of_birth", normalizarPais(inversionista.getPais()),
+                    "country_of_tax_residence", normalizarPais(inversionista.getPais()),
                     "funding_source", List.of("employment_income")
             ));
             body.put("disclosures", Map.of(
@@ -117,6 +118,17 @@ public class AlpacaAdapter implements IIntegracionAlpaca {
             log.error("Error al crear cuenta Alpaca para {}: {}", usuario.getCorreo(), e.getMessage());
         }
         return null;
+    }
+
+    private String valor(String valor, String respaldo) {
+        return valor == null || valor.isBlank() ? respaldo : valor;
+    }
+
+    private String normalizarPais(String pais) {
+        if (pais == null || pais.isBlank() || "CO".equalsIgnoreCase(pais)) {
+            return "COL";
+        }
+        return pais.length() == 2 ? pais.toUpperCase(Locale.ROOT) : pais.toUpperCase(Locale.ROOT);
     }
 
     private String normalizarTelefono(String telefono) {

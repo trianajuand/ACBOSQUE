@@ -1,6 +1,8 @@
 package co.edu.unbosque.accioneselbosque.mercado.controller;
 
+import co.edu.unbosque.accioneselbosque.autenticacion.model.Inversionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
+import co.edu.unbosque.accioneselbosque.autenticacion.repository.InversionistaRepository;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
 import co.edu.unbosque.accioneselbosque.mercado.dto.CotizacionDTO;
 import co.edu.unbosque.accioneselbosque.mercado.dto.DetalleAccionDTO;
@@ -18,10 +20,14 @@ public class MercadoController {
 
     private final MercadoService mercadoService;
     private final UsuarioRepository usuarioRepo;
+    private final InversionistaRepository inversionistaRepo;
 
-    public MercadoController(MercadoService mercadoService, UsuarioRepository usuarioRepo) {
+    public MercadoController(MercadoService mercadoService,
+                             UsuarioRepository usuarioRepo,
+                             InversionistaRepository inversionistaRepo) {
         this.mercadoService = mercadoService;
         this.usuarioRepo = usuarioRepo;
+        this.inversionistaRepo = inversionistaRepo;
     }
 
     /** HU-13: Dashboard con acciones de interés del usuario. */
@@ -30,7 +36,10 @@ public class MercadoController {
             @AuthenticationPrincipal String correo) {
         Usuario usuario = usuarioRepo.findByCorreo(correo)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-        List<CotizacionDTO> cotizaciones = mercadoService.obtenerDashboard(usuario.getInteresesMercado());
+        String intereses = inversionistaRepo.findByUsuarioId(usuario.getId())
+                .map(Inversionista::getInteresesMercado)
+                .orElse("");
+        List<CotizacionDTO> cotizaciones = mercadoService.obtenerDashboard(intereses);
         return ResponseEntity.ok(RespuestaDTO.exito(cotizaciones));
     }
 

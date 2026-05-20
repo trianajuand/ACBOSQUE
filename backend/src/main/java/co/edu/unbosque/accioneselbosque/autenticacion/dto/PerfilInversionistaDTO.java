@@ -19,6 +19,7 @@ public class PerfilInversionistaDTO {
     private String estiloTrading;
     private String rangoIngresos;
     private boolean solicitaComisionista;
+    private ComisionistaAsignadoDTO comisionistaAsignado;
     private boolean mfaHabilitado;
     private String planSuscripcion;
     private boolean esPremium;
@@ -77,6 +78,9 @@ public class PerfilInversionistaDTO {
 
     public boolean isSolicitaComisionista() { return solicitaComisionista; }
     public void setSolicitaComisionista(boolean solicitaComisionista) { this.solicitaComisionista = solicitaComisionista; }
+
+    public ComisionistaAsignadoDTO getComisionistaAsignado() { return comisionistaAsignado; }
+    public void setComisionistaAsignado(ComisionistaAsignadoDTO comisionistaAsignado) { this.comisionistaAsignado = comisionistaAsignado; }
 
     public boolean isMfaHabilitado() { return mfaHabilitado; }
     public void setMfaHabilitado(boolean mfaHabilitado) { this.mfaHabilitado = mfaHabilitado; }

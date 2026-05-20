@@ -1,0 +1,224 @@
+<main class="dashboard-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span>AE</span>
+      <div>
+        <strong>Comisionista</strong>
+        <small>Acciones ElBosque</small>
+      </div>
+    </div>
+
+    <nav>
+      <button [class.active]="panel() === 'clientes'" (click)="seleccionar('clientes')">Clientes</button>
+      <button [class.active]="panel() === 'portafolio'" (click)="seleccionar('portafolio')">Portafolio cliente</button>
+      <button [class.active]="panel() === 'ordenes'" (click)="seleccionar('ordenes')">Ordenes cliente</button>
+      <button [class.active]="panel() === 'propuestas'" (click)="seleccionar('propuestas')">Propuestas</button>
+    </nav>
+
+    <div class="user-box">
+      <strong>{{ clientesActivos() }} clientes asignados</strong>
+      <small>MFA obligatorio activo</small>
+      <button class="btn secondary" type="button" (click)="cerrarSesion()">Cerrar sesion</button>
+    </div>
+  </aside>
+
+  <section class="workspace">
+    <header class="topbar">
+      <div>
+        <p>Modulo comisionista</p>
+        <h1>{{ panel() }}</h1>
+      </div>
+      <div class="market-pill">
+        <span></span>
+        Cliente
+        <strong>{{ clienteSeleccionado()?.nombreCompleto || 'Sin seleccionar' }}</strong>
+      </div>
+    </header>
+
+    @if (cargando()) {
+      <section class="loading page-enter">Cargando clientes asignados...</section>
+    } @else {
+      <section class="content page-enter">
+        <div class="stats-grid three">
+          <article class="metric"><span>Clientes</span><strong>{{ clientesActivos() }}</strong></article>
+          <article class="metric"><span>Valor portafolio cliente</span><strong>{{ dinero(valorCliente()) }}</strong></article>
+          <article class="metric"><span>Propuestas aprobadas</span><strong>{{ aprobadas().length }}</strong></article>
+        </div>
+
+        @if (panel() === 'clientes') {
+          <section class="panel">
+            <div class="panel-title"><h2>Clientes asignados</h2></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Nombre</th><th>Correo</th><th>Experiencia</th><th>Intereses</th><th></th></tr></thead>
+                <tbody>
+                  @for (c of clientes(); track c.id) {
+                    <tr>
+                      <td><strong>{{ c.nombreCompleto }}</strong></td>
+                      <td>{{ c.correo }}</td>
+                      <td>{{ c.nivelExperiencia || '-' }}</td>
+                      <td>{{ (c.interesesMercado || []).join(', ') }}</td>
+                      <td><button class="quiet" type="button" (click)="verCliente(c)">Ver</button></td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="5" class="empty">No tienes clientes asignados.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+        }
+
+        @if (panel() === 'portafolio') {
+          <section class="panel">
+            <div class="panel-title"><h2>Portafolio del cliente</h2></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Simbolo</th><th>Cantidad</th><th>Promedio</th><th>Actual</th><th>Valor</th><th>G/P</th></tr></thead>
+                <tbody>
+                  @for (h of portafolio()?.holdings || []; track h.simbolo) {
+                    <tr>
+                      <td><strong class="ticker">{{ h.simbolo }}</strong></td>
+                      <td>{{ h.cantidad }}</td>
+                      <td>{{ dinero(h.precioPromedio) }}</td>
+                      <td>{{ dinero(h.precioActual) }}</td>
+                      <td>{{ dinero(h.valorTotal) }}</td>
+                      <td>{{ dinero(h.gananciaPerdida) }}</td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="6" class="empty">Portafolio vacio o cliente no seleccionado.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+        }
+
+        @if (panel() === 'ordenes') {
+          <section class="split">
+            <div class="panel">
+              <div class="panel-title"><h2>Ordenes activas</h2></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Simbolo</th><th>Tipo</th><th>Lado</th><th>Estado</th><th>Monto</th></tr></thead>
+                  <tbody>
+                    @for (o of activas(); track o.id) {
+                      <tr><td>{{ o.simbolo }}</td><td>{{ o.tipoOrden }}</td><td>{{ o.lado }}</td><td>{{ o.estado }}</td><td>{{ dinero(o.montoTotal) }}</td></tr>
+                    } @empty {
+                      <tr><td colspan="5" class="empty">Sin ordenes activas.</td></tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-title"><h2>Historial</h2></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Fecha</th><th>Simbolo</th><th>Estado</th><th>Monto</th></tr></thead>
+                  <tbody>
+                    @for (o of historial(); track o.id) {
+                      <tr><td>{{ o.creadaEn || '-' }}</td><td>{{ o.simbolo }}</td><td>{{ o.estado }}</td><td>{{ dinero(o.montoTotal) }}</td></tr>
+                    } @empty {
+                      <tr><td colspan="4" class="empty">Sin historial.</td></tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        }
+
+        @if (panel() === 'propuestas') {
+          <section class="order-layout">
+            <form class="order-ticket" [formGroup]="propuestaForm" (ngSubmit)="crearPropuesta()">
+              <div class="panel-title"><h2>Nueva propuesta</h2></div>
+              <div class="form-grid">
+                <div class="field">
+                  <label>Cliente</label>
+                  <select formControlName="clienteId" (change)="seleccionarClientePorId($any($event.target).value)">
+                    @for (c of clientes(); track c.id) {
+                      <option [value]="c.id">{{ c.nombreCompleto }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Simbolo</label>
+                  <input formControlName="simbolo" list="simbolos-propuesta" placeholder="AAPL, VOD.L, 7203.T" />
+                  <datalist id="simbolos-propuesta">
+                    @for (simbolo of simbolosPropuesta(); track simbolo) {
+                      <option [value]="simbolo"></option>
+                    }
+                  </datalist>
+                </div>
+                <div class="field">
+                  <label>Tipo</label>
+                  <select formControlName="tipoOrden" (change)="setTipoPropuesta($any($event.target).value)">
+                    <option value="MARKET">Market</option>
+                    <option value="LIMIT">Limit</option>
+                    <option value="STOP_LOSS">Stop Loss</option>
+                    <option value="TAKE_PROFIT">Take Profit</option>
+                  </select>
+                </div>
+                <div class="field"><label>Cantidad</label><input type="number" formControlName="cantidad" /></div>
+                @if (mostrarLadoPropuesta()) {
+                  <div class="field">
+                    <label>Lado</label>
+                    <select formControlName="lado">
+                      <option value="COMPRA">Compra</option>
+                      <option value="VENTA">Venta</option>
+                    </select>
+                  </div>
+                }
+                @if (mostrarVentaForzadaPropuesta()) {
+                  <div class="field">
+                    <label>Lado</label>
+                    <div class="segmented side action-side forced-field">
+                      <button type="button" class="active forced-sell">Vender</button>
+                    </div>
+                  </div>
+                }
+                @if (mostrarPrecioLimitePropuesta()) {
+                  <div class="field"><label>Precio limite</label><input type="number" formControlName="precioLimite" /></div>
+                }
+                @if (mostrarStopLossPropuesta()) {
+                  <div class="field wide"><label>Vender si el precio baja hasta</label><input type="number" formControlName="precioStop" /></div>
+                }
+                @if (mostrarTakeProfitPropuesta()) {
+                  <div class="field wide"><label>Vender si el precio sube hasta</label><input type="number" formControlName="precioLimite" /></div>
+                }
+                <div class="field wide"><label>Comentario</label><input formControlName="comentarioComisionista" /></div>
+              </div>
+              <button class="btn" type="submit">Enviar propuesta</button>
+            </form>
+
+            <section class="panel">
+              <div class="panel-title">
+                <h2>Aprobadas para firma</h2>
+                <button class="quiet" type="button" (click)="cargarAprobadas()">Actualizar</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Simbolo</th><th>Tipo</th><th>Lado</th><th>Monto</th><th></th></tr></thead>
+                  <tbody>
+                    @for (p of aprobadas(); track p.id) {
+                      <tr>
+                        <td>{{ p.simbolo }}</td>
+                        <td>{{ p.tipoOrden }}</td>
+                        <td>{{ p.lado }}</td>
+                        <td>{{ dinero(p.montoTotal) }}</td>
+                        <td><button class="quiet" type="button" (click)="firmarEnviar(p.id)">Firmar</button></td>
+                      </tr>
+                    } @empty {
+                      <tr><td colspan="5" class="empty">No hay propuestas aprobadas.</td></tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+        }
+      </section>
+    }
+  </section>
+</main>

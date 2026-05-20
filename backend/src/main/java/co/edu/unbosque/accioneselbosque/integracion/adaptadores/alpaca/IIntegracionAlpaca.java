@@ -1,5 +1,6 @@
 package co.edu.unbosque.accioneselbosque.integracion.adaptadores.alpaca;
 
+import co.edu.unbosque.accioneselbosque.autenticacion.model.Inversionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
 
 import java.util.List;
@@ -8,7 +9,7 @@ import java.util.Map;
 public interface IIntegracionAlpaca {
 
     // --- Broker: gestión de cuentas ---
-    String crearCuenta(Usuario usuario);
+    String crearCuenta(Usuario usuario, Inversionista inversionista);
 
     // --- Trading via Broker API (opera en nombre del sub-usuario) ---
     String crearOrden(String accountId, String simbolo, String tipoOrden,

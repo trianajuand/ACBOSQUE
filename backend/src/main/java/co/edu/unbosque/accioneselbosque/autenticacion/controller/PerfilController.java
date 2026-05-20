@@ -58,6 +58,15 @@ public class PerfilController {
         return ResponseEntity.ok(new RespuestaDTO(msg));
     }
 
+    @PutMapping("/comisionista/solicitar")
+    public ResponseEntity<RespuestaDTO> solicitarComisionista() {
+        boolean asignado = perfilService.solicitarComisionista(correoAutenticado());
+        String msg = asignado
+                ? "Comisionista asignado segun tus intereses"
+                : "Solicitud registrada. Se asignara cuando haya comisionistas disponibles";
+        return ResponseEntity.ok(new RespuestaDTO(msg));
+    }
+
     private String correoAutenticado() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
     }

@@ -22,8 +22,14 @@ public class OrdenDTO {
     private BigDecimal comision;
     private BigDecimal montoNeto;
     private String alpacaOrderId;
+    private Long comisionistaId;
+    private String comentarioComisionista;
+    private String comentarioInversionista;
     private LocalDateTime creadaEn;
     private LocalDateTime ejecutadaEn;
+    private LocalDateTime aprobadaEn;
+    private LocalDateTime rechazadaEn;
+    private LocalDateTime firmadaEn;
 
     public OrdenDTO() {}
 
@@ -66,9 +72,27 @@ public class OrdenDTO {
     public String getAlpacaOrderId() { return alpacaOrderId; }
     public void setAlpacaOrderId(String alpacaOrderId) { this.alpacaOrderId = alpacaOrderId; }
 
+    public Long getComisionistaId() { return comisionistaId; }
+    public void setComisionistaId(Long comisionistaId) { this.comisionistaId = comisionistaId; }
+
+    public String getComentarioComisionista() { return comentarioComisionista; }
+    public void setComentarioComisionista(String comentarioComisionista) { this.comentarioComisionista = comentarioComisionista; }
+
+    public String getComentarioInversionista() { return comentarioInversionista; }
+    public void setComentarioInversionista(String comentarioInversionista) { this.comentarioInversionista = comentarioInversionista; }
+
     public LocalDateTime getCreadaEn() { return creadaEn; }
     public void setCreadaEn(LocalDateTime creadaEn) { this.creadaEn = creadaEn; }
 
     public LocalDateTime getEjecutadaEn() { return ejecutadaEn; }
     public void setEjecutadaEn(LocalDateTime ejecutadaEn) { this.ejecutadaEn = ejecutadaEn; }
+
+    public LocalDateTime getAprobadaEn() { return aprobadaEn; }
+    public void setAprobadaEn(LocalDateTime aprobadaEn) { this.aprobadaEn = aprobadaEn; }
+
+    public LocalDateTime getRechazadaEn() { return rechazadaEn; }
+    public void setRechazadaEn(LocalDateTime rechazadaEn) { this.rechazadaEn = rechazadaEn; }
+
+    public LocalDateTime getFirmadaEn() { return firmadaEn; }
+    public void setFirmadaEn(LocalDateTime firmadaEn) { this.firmadaEn = firmadaEn; }
 }

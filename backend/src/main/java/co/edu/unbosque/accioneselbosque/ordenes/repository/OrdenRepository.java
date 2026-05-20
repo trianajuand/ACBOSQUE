@@ -13,7 +13,11 @@ public interface OrdenRepository extends CrudRepository<Orden, Long> {
 
     List<Orden> findByUsuarioIdAndEstadoOrderByCreadaEnDesc(Long usuarioId, EstadoOrden estado);
 
+    List<Orden> findByComisionistaIdAndEstadoOrderByCreadaEnDesc(Long comisionistaId, EstadoOrden estado);
+
     List<Orden> findByEstadoOrderByCreadaEnAsc(EstadoOrden estado);
 
     Optional<Orden> findByIdAndUsuarioId(Long id, Long usuarioId);
+
+    Optional<Orden> findByIdAndComisionistaId(Long id, Long comisionistaId);
 }

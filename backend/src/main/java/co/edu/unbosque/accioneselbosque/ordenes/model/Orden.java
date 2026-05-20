@@ -78,6 +78,21 @@ public class Orden {
     @Column(name = "ip_origen", length = 50)
     private String ipOrigen;
 
+    @Column(name = "comentario_comisionista", length = 500)
+    private String comentarioComisionista;
+
+    @Column(name = "comentario_inversionista", length = 500)
+    private String comentarioInversionista;
+
+    @Column(name = "aprobada_en")
+    private LocalDateTime aprobadaEn;
+
+    @Column(name = "rechazada_en")
+    private LocalDateTime rechazadaEn;
+
+    @Column(name = "firmada_en")
+    private LocalDateTime firmadaEn;
+
     public Orden() {}
 
     public Long getId() { return id; }
@@ -136,4 +151,19 @@ public class Orden {
 
     public String getIpOrigen() { return ipOrigen; }
     public void setIpOrigen(String ipOrigen) { this.ipOrigen = ipOrigen; }
+
+    public String getComentarioComisionista() { return comentarioComisionista; }
+    public void setComentarioComisionista(String comentarioComisionista) { this.comentarioComisionista = comentarioComisionista; }
+
+    public String getComentarioInversionista() { return comentarioInversionista; }
+    public void setComentarioInversionista(String comentarioInversionista) { this.comentarioInversionista = comentarioInversionista; }
+
+    public LocalDateTime getAprobadaEn() { return aprobadaEn; }
+    public void setAprobadaEn(LocalDateTime aprobadaEn) { this.aprobadaEn = aprobadaEn; }
+
+    public LocalDateTime getRechazadaEn() { return rechazadaEn; }
+    public void setRechazadaEn(LocalDateTime rechazadaEn) { this.rechazadaEn = rechazadaEn; }
+
+    public LocalDateTime getFirmadaEn() { return firmadaEn; }
+    public void setFirmadaEn(LocalDateTime firmadaEn) { this.firmadaEn = firmadaEn; }
 }

@@ -58,7 +58,7 @@ export class LoginComponent implements OnInit {
     if (res.data.token) {
       this.api.setToken(res.data.token);
       this.toast.mostrar('Sesion iniciada', 'success');
-      this.router.navigateByUrl('/dashboard');
+      this.router.navigateByUrl(this.rutaPorRol(res.data.rol));
       return;
     }
 
@@ -83,7 +83,7 @@ export class LoginComponent implements OnInit {
     if (res.ok && res.data?.token) {
       this.api.setToken(res.data.token);
       this.toast.mostrar('MFA verificado', 'success');
-      this.router.navigateByUrl('/dashboard');
+      this.router.navigateByUrl(this.rutaPorRol(res.data.rol));
     } else {
       this.toast.mostrar(res.error || 'Codigo MFA incorrecto', 'error');
     }
@@ -97,5 +97,9 @@ export class LoginComponent implements OnInit {
 
     const res = await this.api.get(`/api/suscripciones/confirmar-checkout?session_id=${encodeURIComponent(sessionId)}`, false);
     this.toast.mostrar(res.ok ? 'Pago premium confirmado' : res.error || 'No se pudo confirmar Stripe', res.ok ? 'success' : 'error');
+  }
+
+  private rutaPorRol(rol?: string): string {
+    return rol === 'COMISIONISTA' ? '/comisionista' : '/dashboard';
   }
 }

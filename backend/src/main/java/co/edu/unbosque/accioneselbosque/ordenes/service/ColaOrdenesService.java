@@ -1,7 +1,9 @@
 package co.edu.unbosque.accioneselbosque.ordenes.service;
 
 import co.edu.unbosque.accioneselbosque.autenticacion.model.EstadoCuenta;
+import co.edu.unbosque.accioneselbosque.autenticacion.model.Inversionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
+import co.edu.unbosque.accioneselbosque.autenticacion.repository.InversionistaRepository;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
 import co.edu.unbosque.accioneselbosque.integracion.adaptadores.alpaca.IIntegracionAlpaca;
 import co.edu.unbosque.accioneselbosque.ordenes.model.EstadoOrden;
@@ -34,6 +36,7 @@ public class ColaOrdenesService {
 
     private final OrdenRepository ordenRepo;
     private final UsuarioRepository usuarioRepo;
+    private final InversionistaRepository inversionistaRepo;
     private final IIntegracionAlpaca alpaca;
     private final SaldoService saldoService;
     private final PortafolioService portafolioService;
@@ -43,10 +46,12 @@ public class ColaOrdenesService {
     private BigDecimal porcentajeComision;
 
     public ColaOrdenesService(OrdenRepository ordenRepo, UsuarioRepository usuarioRepo,
+                               InversionistaRepository inversionistaRepo,
                                IIntegracionAlpaca alpaca, SaldoService saldoService,
                                PortafolioService portafolioService, IAuditLog auditLog) {
         this.ordenRepo = ordenRepo;
         this.usuarioRepo = usuarioRepo;
+        this.inversionistaRepo = inversionistaRepo;
         this.alpaca = alpaca;
         this.saldoService = saldoService;
         this.portafolioService = portafolioService;
@@ -104,6 +109,8 @@ public class ColaOrdenesService {
         }
 
         if (esSimboloUs(orden.getSimbolo())) {
+            Inversionista inversionista = inversionistaRepo.findByUsuarioId(usuario.getId())
+                    .orElseThrow(() -> new IllegalStateException("Inversionista no encontrado para usuario " + usuario.getId()));
             // Mercado US → Alpaca
             String tipoAlpaca = toAlpacaTipo(orden.getTipoOrden());
             String ladoAlpaca = orden.getLado() == TipoLado.COMPRA ? "buy" : "sell";
@@ -111,7 +118,7 @@ public class ColaOrdenesService {
             String precioStop = orden.getPrecioStop() != null ? orden.getPrecioStop().toPlainString() : null;
 
             String alpacaOrderId = alpaca.crearOrden(
-                    usuario.getAlpacaAccountId(), orden.getSimbolo(), tipoAlpaca,
+                    inversionista.getAlpacaAccountId(), orden.getSimbolo(), tipoAlpaca,
                     ladoAlpaca, orden.getCantidad().toPlainString(), precioLimite, precioStop);
 
             if (alpacaOrderId != null) {

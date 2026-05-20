@@ -33,6 +33,7 @@ export interface Perfil {
   estiloTrading?: string;
   rangoIngresos?: string;
   solicitaComisionista?: boolean;
+  comisionistaAsignado?: ComisionistaAsignado | null;
   mfaHabilitado?: boolean;
   planSuscripcion?: string;
   esPremium?: boolean;
@@ -42,6 +43,16 @@ export interface Perfil {
   tiposNotificacion?: string[];
   tipoOrdenDefault?: string;
   vistaPortafolio?: string;
+}
+
+export interface ComisionistaAsignado {
+  id: number;
+  nombreCompleto?: string;
+  correo?: string;
+  especialidadesMercado?: string[];
+  fechaAsignacion?: string;
+  interesesCoincidentes?: string;
+  motivo?: string;
 }
 
 export interface Cotizacion {
@@ -80,7 +91,23 @@ export interface Orden {
   montoTotal?: number;
   comision?: number;
   montoNeto?: number;
+  comisionistaId?: number;
+  comentarioComisionista?: string;
+  comentarioInversionista?: string;
   creadaEn?: string;
+  aprobadaEn?: string;
+  rechazadaEn?: string;
+  firmadaEn?: string;
+}
+
+export interface ClienteAsignado {
+  id: number;
+  nombreCompleto?: string;
+  correo?: string;
+  nivelExperiencia?: string;
+  interesesMercado?: string[];
+  fechaAsignacion?: string;
+  interesesCoincidentes?: string;
 }
 
 export interface Holding {

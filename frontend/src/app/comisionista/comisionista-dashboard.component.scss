@@ -1,0 +1,5 @@
+@use '../dashboard/dashboard.component.scss';
+
+.wide {
+  grid-column: 1 / -1;
+}

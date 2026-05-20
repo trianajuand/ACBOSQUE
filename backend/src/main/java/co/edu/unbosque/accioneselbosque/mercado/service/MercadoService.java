@@ -118,18 +118,6 @@ public class MercadoService implements IVerificacionMercado {
         String sim = normalizarSimbolo(simbolo != null ? simbolo.toUpperCase() : null);
         validarFormato(sim, simbolo);
         Optional<PrecioCache> cacheOpt = cacheRepo.findBySimbolo(sim);
-
-        if (cacheOpt.isPresent()) {
-            PrecioCache cached = cacheOpt.get();
-            int ttlMinutos = esSimboloUs(sim) ? 3 : 60;
-            if (cached.getActualizadoEn().isAfter(LocalDateTime.now().minusMinutes(ttlMinutos))) {
-                return mapearCache(cached);
-            }
-            if (!esMercadoAbierto(detectarMercado(sim))) {
-                return mapearCache(cached);
-            }
-        }
-
         return refrescarYRetornar(sim, cacheOpt.orElse(null));
     }
 
@@ -157,14 +145,16 @@ public class MercadoService implements IVerificacionMercado {
         if (esSimboloUs(simbolo)) {
             rellenarDetalleDesdeAlpaca(dto, simbolo);
         } else {
-            boolean precioDesdeCache = false;
             Optional<PrecioCache> cacheOpt = cacheRepo.findBySimbolo(simbolo);
-            if (cacheOpt.isPresent()
-                    && cacheOpt.get().getActualizadoEn().isAfter(LocalDateTime.now().minusMinutes(60))) {
-                copiarCacheADetalle(dto, cacheOpt.get());
-                precioDesdeCache = true;
+            try {
+                rellenarDetalleDesdeAlphaVantage(dto, simbolo, false);
+                if (dto.getPrecioActual() == null) {
+                    cacheOpt.ifPresent(cached -> copiarCacheADetalle(dto, cached));
+                }
+            } catch (Exception e) {
+                log.warn("No se pudo refrescar detalle de {} desde Alpha Vantage: {}", simbolo, e.getMessage());
+                cacheOpt.ifPresent(cached -> copiarCacheADetalle(dto, cached));
             }
-            rellenarDetalleDesdeAlphaVantage(dto, simbolo, precioDesdeCache);
         }
         return dto;
     }
@@ -195,28 +185,36 @@ public class MercadoService implements IVerificacionMercado {
         PrecioCache cache = existente != null ? existente : new PrecioCache();
         cache.setSimbolo(simbolo);
         cache.setMercado(detectarMercado(simbolo));
-        cache.setActualizadoEn(LocalDateTime.now());
 
         try {
+            boolean actualizado;
             if (esSimboloUs(simbolo)) {
-                rellenarCacheDesdeAlpaca(cache, simbolo);
+                actualizado = rellenarCacheDesdeAlpaca(cache, simbolo);
                 cache.setFuente("ALPACA");
             } else {
-                rellenarCacheDesdeAlphaVantage(cache, simbolo);
+                actualizado = rellenarCacheDesdeAlphaVantage(cache, simbolo);
                 cache.setFuente("ALPHAVANTAGE");
             }
+            if (!actualizado) {
+                return existente != null ? mapearCache(existente) : mapearCache(cache);
+            }
+            cache.setActualizadoEn(LocalDateTime.now());
+            cacheRepo.save(cache);
+            return mapearCache(cache);
         } catch (Exception e) {
             log.warn("No se pudo refrescar precio de {}: {}", simbolo, e.getMessage());
+            if (existente != null) {
+                return mapearCache(existente);
+            }
         }
 
-        cacheRepo.save(cache);
         return mapearCache(cache);
     }
 
     @SuppressWarnings("unchecked")
-    private void rellenarCacheDesdeAlpaca(PrecioCache cache, String simbolo) {
+    private boolean rellenarCacheDesdeAlpaca(PrecioCache cache, String simbolo) {
         Map<String, Object> snap = alpaca.obtenerSnapshot(simbolo);
-        if (snap.isEmpty()) return;
+        if (snap.isEmpty()) return false;
 
         Map<String, Object> latestTrade = (Map<String, Object>) snap.get("latestTrade");
         Map<String, Object> dailyBar = (Map<String, Object>) snap.get("dailyBar");
@@ -226,11 +224,12 @@ public class MercadoService implements IVerificacionMercado {
             cache.setPrecioActual(new BigDecimal(latestTrade.get("p").toString()));
         }
         rellenarOHLC(cache, dailyBar, prevDailyBar);
+        return cache.getPrecioActual() != null && cache.getPrecioActual().compareTo(BigDecimal.ZERO) > 0;
     }
 
-    private void rellenarCacheDesdeAlphaVantage(PrecioCache cache, String simbolo) {
+    private boolean rellenarCacheDesdeAlphaVantage(PrecioCache cache, String simbolo) {
         Map<String, Object> quote = alphaVantage.obtenerCotizacionGlobal(simboloParaAlphaVantage(simbolo));
-        if (quote.isEmpty()) return;
+        if (quote.isEmpty()) return false;
 
         if (quote.get("05. price") != null) cache.setPrecioActual(new BigDecimal(quote.get("05. price").toString()));
         if (quote.get("02. open") != null) cache.setPrecioApertura(new BigDecimal(quote.get("02. open").toString()));
@@ -244,6 +243,7 @@ public class MercadoService implements IVerificacionMercado {
             String pct = quote.get("10. change percent").toString().replace("%", "");
             cache.setVariacionPorcentual(new BigDecimal(pct).setScale(2, RoundingMode.HALF_UP));
         }
+        return cache.getPrecioActual() != null && cache.getPrecioActual().compareTo(BigDecimal.ZERO) > 0;
     }
 
     private void rellenarOHLC(PrecioCache cache, Map<String, Object> dailyBar, Map<String, Object> prevDailyBar) {
