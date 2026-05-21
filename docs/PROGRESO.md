@@ -9,7 +9,7 @@
 - **Fecha última actualización:** 2026-05-20
 - **Sprint actual:** Sprint 2 — Servicio de Mercado + Sprint 3 — Servicio de Órdenes (parcial)
 - **Sprints completados:** Sprint 1 (Autenticación + Perfil)
-- **Historias del MVP completadas:** 19 / 42
+- **Historias del MVP completadas:** 26 / 42
 - **Bloqueos actuales:** ninguno
 
 ---
@@ -269,17 +269,23 @@ Se reforzo `NormalizacionUsuarios3FnMigration` para recrear/asegurar el esquema 
 ### [2026-05-20] — Mercado con refresco por API y filtros de historial
 `MercadoService.obtenerCotizacion` ahora intenta refrescar desde Alpaca Market Data o Alpha Vantage antes de responder y usa `precio_cache` solo como respaldo si el proveedor falla. Tambien se implementaron filtros de historial de ordenes por periodo, tipo, activo y estado en `/api/ordenes/historial` y en el dashboard Angular.
 
+### [2026-05-20] — Modulo administrador con MFA obligatorio y configuracion en BD
+Se implemento el modulo administrador separado del inversionista y comisionista: tabla `administrador` para perfil manual, endpoints `/api/admin/*`, vista Angular `/admin`, gestion de mercados/horarios/feriados, parametros de comision y split desde BD, creacion de comisionistas con MFA obligatorio, asignacion de comisionistas, estados de cuenta, baja logica y estado `OPERACIONES_RESTRINGIDAS` para impedir nuevas ordenes. Tambien se agrego dashboard ejecutivo con filtros por periodo y tendencias por mercado.
+
+### [2026-05-21] — Ajuste visual y documentacion del modulo administrador
+Se separo visualmente `/admin` del dashboard de inversionista, se reforzo la redireccion por rol para evitar que un administrador cargue `/api/perfil`, se valido login admin con MFA y endpoint `/api/admin/dashboard`, y se actualizaron los SPEC de HU-33 a HU-39. Se agrego `docs/HU-48-dashboard-ejecutivo-metricas-admin/SPEC.md` para documentar el dashboard ejecutivo implementado.
+
 ---
 
 ## Métricas del proyecto
 
 | Métrica | Valor actual |
 |---|---|
-| Historias completadas | 19 / 42 |
+| Historias completadas | 26 / 42 |
 | Cobertura de tests (services) | — |
 | Cobertura de tests (global) | — |
-| Endpoints REST funcionando | ~20 (auth + perfil + mercado + órdenes + portafolio) |
-| Servicios con interfaces definidas | 4 / 6 (Auth, Mercado, Órdenes, Trazabilidad) |
+| Endpoints REST funcionando | ~35 (auth + perfil + mercado + órdenes + portafolio + comisionista + admin) |
+| Servicios con interfaces definidas | 5 / 6 (Auth, Mercado, Órdenes, Administración, Trazabilidad) |
 | Eventos auditables registrados | ✅ vía `AuditLogService` (consola + archivo) |
 
 ---

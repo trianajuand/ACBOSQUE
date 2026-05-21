@@ -1,65 +1,68 @@
 # Historia de Usuario
 
 ## Titulo
-Configuracion de parametros de comision.
+Configuracion de porcentaje y split de comision.
 
 ## Descripcion
 Como administrador
-Quiero modificar porcentaje y split de comision
-Para ajustar reglas comerciales sin redespliegue.
+Quiero modificar el porcentaje de comision y su distribucion
+Para mantener actualizados los parametros financieros aplicables a transacciones futuras.
 
 ## Contexto
-HU-35 cubre EC-18. Hoy la comision sale de propiedades.
+HU-35 cubre EC-18. La comision ya se muestra al inversionista en la previsualizacion de orden y ahora se obtiene desde BD mediante `IAdministracion`.
 
 ## Flujo funcional
-1. El actor abre la funcionalidad correspondiente.
-2. El frontend envia la solicitud al backend.
-3. El backend valida rol, relacion y datos.
-4. El servicio de dominio ejecuta la operacion.
-5. Se registra auditoria y se retorna respuesta DTO.
+1. El administrador entra al panel Comisiones.
+2. Angular solicita `GET /api/admin/comisiones`.
+3. El administrador modifica porcentaje, split plataforma y split comisionista.
+4. Frontend valida que el split sume 100.
+5. Backend recibe `PUT /api/admin/comisiones`.
+6. `AdministracionService` desactiva parametros anteriores y crea un parametro activo nuevo.
+7. Ordenes futuras usan los nuevos valores.
 
 ## Reglas de negocio
-- Respetar rol autorizado para la HU.
-- Validar propiedad o asignacion antes de consultar/modificar datos.
-- No exponer entidades JPA ni datos sensibles.
+- El split plataforma + comisionista debe sumar 100%.
+- Los cambios no recalculan ordenes ya ejecutadas.
+- Siempre existe fallback 2% y split 60/40 si no hay parametro activo.
+- Solo administradores pueden cambiar parametros financieros.
 
 ## Componentes involucrados
-- Frontend Angular del rol correspondiente.
-- Servicio backend segun SOA.
-- Repositorios/modelos del dominio.
-- IAuditLog para eventos sensibles.
+- `frontend/src/app/admin/admin-dashboard.component.*`
+- `backend/.../administracion/controller/AdminController.java`
+- `backend/.../administracion/service/AdministracionService.java`
+- `backend/.../administracion/model/ParametroComision.java`
+- `backend/.../ordenes/service/OrdenService.java`
 
 ## Backend
-Pendiente parametros administrables en BD y consumo desde Ordenes.
+`AdministracionService.obtenerPorcentajeComision`, `obtenerSplitPlataforma` y `obtenerSplitComisionista` implementan `IAdministracion` y son consumidos por `OrdenService`.
 
 ## Frontend
-Pendiente o existente segun estado; debe mostrar confirmacion, errores y estado vacio.
+El panel Comisiones muestra los valores activos y una barra de split para validar visualmente la distribucion.
 
 ## Base de datos
-Usa o requiere tablas del dominio asociado.
+Tabla `parametro_comision`: porcentaje, split plataforma, split comisionista, activo y actualizado en.
 
 ## API / Endpoints
-- Pendiente: GET/PUT /api/admin/comisiones
+- `GET /api/admin/comisiones`
+- `PUT /api/admin/comisiones`
 
 ## Validaciones
-- JWT y rol requerido.
-- Datos obligatorios con formato valido.
-- Relacion comisionista-cliente cuando aplique.
+- JWT y rol `ADMINISTRADOR`.
+- Perfil manual en tabla `administrador`.
+- Porcentajes entre 0 y 100.
+- Split total igual a 100.
 
 ## Seguridad
-Control de acceso por rol y relacion, con auditoria de accesos denegados.
+Evento auditado como `PARAMETRO_ADMIN_ACTUALIZADO`.
 
 ## Consideraciones tecnicas
-Debe seguir la arquitectura SOA consolidada y consumir otros servicios por interfaces.
+El patron de versionado por `activo` conserva historico simple de parametros previos.
 
 ## Dependencias
-Depende de los servicios relacionados y trazabilidad.
+Depende de Administracion, Ordenes y Trazabilidad.
 
 ## Criterios de aceptacion
-- [ ] Flujo principal cumple la HU.
-- [ ] Usuario sin permiso recibe rechazo.
-- [ ] Respuesta no filtra datos sensibles.
-- [ ] Evento relevante queda auditado.
-
-## Notas
-Spec creado para la carpeta numerada de la HU.
+- [x] Admin consulta parametros activos.
+- [x] Admin actualiza comision y split.
+- [x] Split invalido se rechaza.
+- [x] Ordenes futuras usan la nueva configuracion.

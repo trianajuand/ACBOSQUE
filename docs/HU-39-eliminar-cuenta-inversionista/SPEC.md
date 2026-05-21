@@ -1,65 +1,68 @@
 # Historia de Usuario
 
 ## Titulo
-Eliminacion de cuenta de inversionista.
+Baja logica de inversionistas y comisionistas.
 
 ## Descripcion
 Como administrador
-Quiero eliminar o dar de baja una cuenta de inversionista
-Para retirar cuentas que no deben operar.
+Quiero dar de baja cuentas de inversionistas o comisionistas
+Para retirar usuarios que no deben operar sin perder trazabilidad historica.
 
 ## Contexto
-HU-39 debe preferir baja logica para preservar trazabilidad financiera.
+HU-39 se implementa como baja logica: la cuenta pasa a `INACTIVA`. No se elimina fisicamente para conservar historial financiero, ordenes, comisiones y auditoria.
 
 ## Flujo funcional
-1. El actor autorizado abre la funcionalidad.
-2. El frontend envia la solicitud al backend.
-3. Backend valida rol, estado y datos de entrada.
-4. El servicio aplica la regla de negocio y persiste cambios si corresponde.
-5. Se audita el evento y se notifica cuando aplica.
+1. Admin entra a `/admin`.
+2. Selecciona un usuario no administrador en la tabla de usuarios.
+3. Pulsa Dar baja.
+4. Frontend llama `DELETE /api/admin/usuarios/{usuarioId}`.
+5. Backend valida administrador.
+6. Si el usuario no es admin, cambia estado a `INACTIVA`.
+7. Si era inversionista con asignacion activa, la desactiva.
+8. Audita la baja.
 
 ## Reglas de negocio
-- Operacion protegida por rol.
-- Mantener integridad historica y trazabilidad.
-- No exponer datos sensibles.
+- No se eliminan administradores desde este modulo.
+- La baja es logica.
+- El usuario inactivo no puede operar ni acceder normalmente.
+- Las asignaciones activas del inversionista quedan inactivas.
 
 ## Componentes involucrados
-- Frontend Angular del rol correspondiente.
-- Servicio backend propietario de la funcionalidad.
-- Modelos y repositorios del dominio.
-- IAuditLog e INotificacion cuando aplique.
+- `frontend/src/app/admin/admin-dashboard.component.*`
+- `backend/.../administracion/controller/AdminController.java`
+- `backend/.../administracion/service/AdministracionService.java`
+- `backend/.../autenticacion/model/Usuario.java`
+- `backend/.../autenticacion/model/AsignacionComisionista.java`
 
 ## Backend
-Pendiente estrategia de baja logica y bloqueo de acceso.
+`eliminarUsuario` cambia `estadoCuenta` a `INACTIVA`, desactiva asignaciones de inversionista y registra `USUARIO_ADMIN_GESTIONADO`.
 
 ## Frontend
-Debe presentar controles de accion, confirmacion para cambios criticos y mensajes claros.
+La accion Dar baja se muestra para usuarios no administradores.
 
 ## Base de datos
-Usa tablas del dominio y conserva registros historicos cuando sea necesario.
+Tabla `usuario` conserva el registro con estado `INACTIVA`. Tabla `asignacion_comisionista` conserva historico.
 
 ## API / Endpoints
-- Pendiente: DELETE /api/admin/inversionistas/{id}
+- `DELETE /api/admin/usuarios/{usuarioId}`
 
 ## Validaciones
 - JWT requerido.
-- Rol correcto.
-- Datos obligatorios y transicion de estado valida.
+- Rol `ADMINISTRADOR`.
+- Usuario existente.
+- Rechaza baja de administradores.
 
 ## Seguridad
-Control de acceso por rol. Eventos criticos auditados sin registrar secretos.
+Conserva evidencia y evita borrado fisico de datos financieros.
 
 ## Consideraciones tecnicas
-Debe alinearse con los servicios SOA y consumir integraciones por interfaces.
+La accion retorna mensaje de exito y la UI recarga la lista de usuarios.
 
 ## Dependencias
-Depende de Autenticacion, Administracion, Integracion y Trazabilidad segun caso.
+Depende de Administracion, Autenticacion y Trazabilidad.
 
 ## Criterios de aceptacion
-- [ ] Flujo principal completado.
-- [ ] Acceso no autorizado rechazado.
-- [ ] Persistencia o consulta coherente.
-- [ ] Auditoria registrada.
-
-## Notas
-Spec creado para completar carpeta numerada del backlog.
+- [x] Admin da baja logica a inversionista.
+- [x] Admin da baja logica a comisionista.
+- [x] Admin no puede eliminar administradores desde UI.
+- [x] Evento queda auditado.

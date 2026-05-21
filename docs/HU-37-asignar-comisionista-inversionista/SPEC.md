@@ -1,65 +1,68 @@
 # Historia de Usuario
 
 ## Titulo
-Asignacion de comisionista a inversionista.
+Asignacion manual de comisionista a inversionista.
 
 ## Descripcion
 Como administrador
 Quiero asignar un comisionista a un inversionista
-Para habilitar seguimiento y propuestas asesoradas.
+Para habilitar seguimiento, consulta de portafolio y propuestas asesoradas.
 
 ## Contexto
-HU-37 es base para el control por relacion de HU-28 a HU-32.
+HU-37 es la base del control por relacion usado por HU-28 a HU-32. La asignacion manual se gestiona desde el modulo administrador.
 
 ## Flujo funcional
-1. El actor autorizado abre la funcionalidad.
-2. El frontend envia la solicitud al backend.
-3. Backend valida rol, estado y datos de entrada.
-4. El servicio aplica la regla de negocio y persiste cambios si corresponde.
-5. Se audita el evento y se notifica cuando aplica.
+1. Admin accede a `/admin` con MFA.
+2. Angular carga usuarios con `GET /api/admin/usuarios`.
+3. En el panel Asignaciones selecciona un comisionista para un inversionista.
+4. Frontend llama `PUT /api/admin/inversionistas/{inversionistaId}/comisionista/{comisionistaId}`.
+5. Backend valida que el destino sea inversionista y el comisionista este activo.
+6. Desactiva asignacion anterior si existe.
+7. Crea nueva asignacion activa.
+8. Audita `COMISIONISTA_ASIGNADO`.
 
 ## Reglas de negocio
-- Operacion protegida por rol.
-- Mantener integridad historica y trazabilidad.
-- No exponer datos sensibles.
+- Solo inversionistas pueden recibir comisionista.
+- Solo comisionistas activos pueden asignarse.
+- Un inversionista tiene una asignacion activa a la vez.
+- Asignaciones anteriores se conservan como historico inactivo.
 
 ## Componentes involucrados
-- Frontend Angular del rol correspondiente.
-- Servicio backend propietario de la funcionalidad.
-- Modelos y repositorios del dominio.
-- IAuditLog e INotificacion cuando aplique.
+- `frontend/src/app/admin/admin-dashboard.component.*`
+- `backend/.../administracion/controller/AdminController.java`
+- `backend/.../administracion/service/AdministracionService.java`
+- `backend/.../autenticacion/model/AsignacionComisionista.java`
+- `backend/.../autenticacion/repository/AsignacionComisionistaRepository.java`
 
 ## Backend
-Pendiente modelo de asignacion y consulta por IControlAcceso.
+`asignarComisionista` valida tipos de usuario y estado, actualiza la asignacion activa y retorna el inversionista como `UsuarioAdminDTO`.
 
 ## Frontend
-Debe presentar controles de accion, confirmacion para cambios criticos y mensajes claros.
+El panel Usuarios muestra inversionistas, comisionista actual y selector de comisionistas activos.
 
 ## Base de datos
-Usa tablas del dominio y conserva registros historicos cuando sea necesario.
+Tabla `asignacion_comisionista`: inversionista, comisionista, motivo, estado activo y fecha.
 
 ## API / Endpoints
-- Pendiente: PUT /api/admin/inversionistas/{id}/comisionista/{comisionistaId}
+- `GET /api/admin/usuarios`
+- `PUT /api/admin/inversionistas/{inversionistaId}/comisionista/{comisionistaId}`
 
 ## Validaciones
-- JWT requerido.
-- Rol correcto.
-- Datos obligatorios y transicion de estado valida.
+- JWT y rol `ADMINISTRADOR`.
+- Inversionista y comisionista existentes.
+- Comisionista con estado `ACTIVA`.
 
 ## Seguridad
-Control de acceso por rol. Eventos criticos auditados sin registrar secretos.
+El control por relacion se valida en backend y no depende de lo que oculte el frontend.
 
 ## Consideraciones tecnicas
-Debe alinearse con los servicios SOA y consumir integraciones por interfaces.
+La asignacion alimenta endpoints del modulo comisionista y evita acceso a clientes no asignados.
 
 ## Dependencias
-Depende de Autenticacion, Administracion, Integracion y Trazabilidad segun caso.
+Depende de Administracion, Autenticacion, Comisionista y Trazabilidad.
 
 ## Criterios de aceptacion
-- [ ] Flujo principal completado.
-- [ ] Acceso no autorizado rechazado.
-- [ ] Persistencia o consulta coherente.
-- [ ] Auditoria registrada.
-
-## Notas
-Spec creado para completar carpeta numerada del backlog.
+- [x] Admin lista inversionistas y comisionistas.
+- [x] Admin asigna comisionista activo.
+- [x] Asignacion anterior queda inactiva.
+- [x] Evento queda auditado.

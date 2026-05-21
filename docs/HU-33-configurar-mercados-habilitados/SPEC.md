@@ -1,65 +1,69 @@
 # Historia de Usuario
 
 ## Titulo
-Configuracion de mercados habilitados.
+Configuracion de mercados habilitados y horarios.
 
 ## Descripcion
 Como administrador
-Quiero activar o desactivar mercados y horarios
-Para controlar donde puede operar la plataforma.
+Quiero activar o desactivar mercados y ajustar sus horarios
+Para controlar en que mercados puede operar la plataforma y aplicar cierres anticipados.
 
 ## Contexto
-HU-33 pertenece a Administracion. Hoy los horarios estan en codigo/propiedad sandbox.
+HU-33 pertenece al Servicio de Administracion. La configuracion se persiste en BD en `mercado_config` y es consumida por Mercado mediante la interfaz `IAdministracion`.
 
 ## Flujo funcional
-1. El actor abre la funcionalidad correspondiente.
-2. El frontend envia la solicitud al backend.
-3. El backend valida rol, relacion y datos.
-4. El servicio de dominio ejecuta la operacion.
-5. Se registra auditoria y se retorna respuesta DTO.
+1. El administrador inicia sesion con MFA obligatorio.
+2. Angular carga `/admin` y solicita `GET /api/admin/mercados`.
+3. Selecciona un mercado y modifica estado, zona horaria, apertura, cierre o cierre anticipado.
+4. Frontend envia `PUT /api/admin/mercados/{codigo}`.
+5. Backend valida rol `ADMINISTRADOR`, cuenta activa, MFA habilitado y perfil en tabla `administrador`.
+6. `AdministracionService` guarda la configuracion y audita el cambio.
+7. Mercado usa esa configuracion para determinar si un mercado esta abierto.
 
 ## Reglas de negocio
-- Respetar rol autorizado para la HU.
-- Validar propiedad o asignacion antes de consultar/modificar datos.
-- No exponer entidades JPA ni datos sensibles.
+- Solo un usuario con rol `ADMINISTRADOR` y perfil manual en `administrador` puede modificar mercados.
+- `habilitado=false` impide considerar el mercado abierto.
+- `cierreAnticipado` reemplaza temporalmente la hora regular de cierre.
+- Los cambios aplican a operaciones futuras.
 
 ## Componentes involucrados
-- Frontend Angular del rol correspondiente.
-- Servicio backend segun SOA.
-- Repositorios/modelos del dominio.
-- IAuditLog para eventos sensibles.
+- `frontend/src/app/admin/admin-dashboard.component.*`
+- `backend/.../administracion/controller/AdminController.java`
+- `backend/.../administracion/service/AdministracionService.java`
+- `backend/.../administracion/model/MercadoConfig.java`
+- `backend/.../administracion/repository/MercadoConfigRepository.java`
+- `backend/.../mercado/service/MercadoService.java`
 
 ## Backend
-Pendiente persistir mercados habilitados y horarios en BD.
+`AdminController` expone `GET /api/admin/mercados` y `PUT /api/admin/mercados/{codigo}`. `AdministracionService` implementa `IAdministracion.obtenerConfiguracionMercado`, usado por `MercadoService`.
 
 ## Frontend
-Pendiente o existente segun estado; debe mostrar confirmacion, errores y estado vacio.
+La vista de administrador tiene panel propio de mercados, listado de mercados y formulario para horario, zona horaria, estado y cierre anticipado.
 
 ## Base de datos
-Usa o requiere tablas del dominio asociado.
+Tabla `mercado_config`: codigo, nombre, zona horaria, hora de apertura, hora de cierre, habilitado y cierre anticipado.
 
 ## API / Endpoints
-- Pendiente: GET/PUT /api/admin/mercados
+- `GET /api/admin/mercados`
+- `PUT /api/admin/mercados/{codigo}`
 
 ## Validaciones
-- JWT y rol requerido.
-- Datos obligatorios con formato valido.
-- Relacion comisionista-cliente cuando aplique.
+- JWT requerido.
+- Rol `ADMINISTRADOR`.
+- Perfil existente en tabla `administrador`.
+- DTO con codigo/nombre/zona/horarios obligatorios.
 
 ## Seguridad
-Control de acceso por rol y relacion, con auditoria de accesos denegados.
+El administrador no se auto-registra; se crea manualmente en BD. MFA es obligatorio para login y para acceder al modulo.
 
 ## Consideraciones tecnicas
-Debe seguir la arquitectura SOA consolidada y consumir otros servicios por interfaces.
+La configuracion se consume por interfaz para respetar la arquitectura SOA consolidada.
 
 ## Dependencias
-Depende de los servicios relacionados y trazabilidad.
+Depende de Autenticacion, Administracion, Mercado y Trazabilidad.
 
 ## Criterios de aceptacion
-- [ ] Flujo principal cumple la HU.
-- [ ] Usuario sin permiso recibe rechazo.
-- [ ] Respuesta no filtra datos sensibles.
-- [ ] Evento relevante queda auditado.
-
-## Notas
-Spec creado para la carpeta numerada de la HU.
+- [x] Admin lista mercados desde BD.
+- [x] Admin activa o desactiva mercados.
+- [x] Admin modifica horarios y cierre anticipado.
+- [x] Cambios quedan auditados.

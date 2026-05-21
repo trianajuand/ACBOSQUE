@@ -62,7 +62,8 @@ public class AutenticacionService implements IAutenticacion {
             throw new AccountLockedException("Cuenta bloqueada. Contacta al administrador.");
         }
 
-        if (usuario.getEstadoCuenta() != EstadoCuenta.ACTIVA) {
+        if (usuario.getEstadoCuenta() != EstadoCuenta.ACTIVA
+                && usuario.getEstadoCuenta() != EstadoCuenta.OPERACIONES_RESTRINGIDAS) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "La cuenta aun no esta activa. Verifica tu correo y completa el pago si elegiste premium.");
         }

@@ -12,14 +12,18 @@ export const authGuard: CanActivateFn = (_route, state) => {
     return false;
   }
 
-  const rol = obtenerRol(token);
+  const rol = api.obtenerRolActual() || obtenerRol(token);
   const url = state.url;
-  if (url.startsWith('/comisionista') && rol !== 'COMISIONISTA') {
-    router.navigateByUrl('/dashboard');
+  if (url.startsWith('/admin') && rol !== 'ADMINISTRADOR') {
+    router.navigateByUrl(rol === 'COMISIONISTA' ? '/comisionista' : '/dashboard');
     return false;
   }
-  if (url.startsWith('/dashboard') && rol === 'COMISIONISTA') {
-    router.navigateByUrl('/comisionista');
+  if (url.startsWith('/comisionista') && rol !== 'COMISIONISTA') {
+    router.navigateByUrl(rol === 'ADMINISTRADOR' ? '/admin' : '/dashboard');
+    return false;
+  }
+  if (url.startsWith('/dashboard') && (rol === 'COMISIONISTA' || rol === 'ADMINISTRADOR')) {
+    router.navigateByUrl(rol === 'COMISIONISTA' ? '/comisionista' : '/admin');
     return false;
   }
 

@@ -6,6 +6,7 @@ import { RegistroComponent } from './auth/registro.component';
 import { ResetPasswordComponent } from './auth/reset-password.component';
 import { VerificarRegistroComponent } from './auth/verificar-registro.component';
 import { authGuard } from './core/auth.guard';
+import { AdminDashboardComponent } from './admin/admin-dashboard.component';
 import { ComisionistaDashboardComponent } from './comisionista/comisionista-dashboard.component';
 import { DashboardComponent } from './dashboard/dashboard.component';
 
@@ -24,5 +25,6 @@ export const routes: Routes = [
   },
   { path: 'dashboard', component: DashboardComponent, canActivate: [authGuard] },
   { path: 'comisionista', component: ComisionistaDashboardComponent, canActivate: [authGuard] },
+  { path: 'admin', component: AdminDashboardComponent, canActivate: [authGuard] },
   { path: '**', redirectTo: 'login' },
 ];

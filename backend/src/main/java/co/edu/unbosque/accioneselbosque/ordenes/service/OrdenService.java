@@ -1,6 +1,8 @@
 package co.edu.unbosque.accioneselbosque.ordenes.service;
 
+import co.edu.unbosque.accioneselbosque.administracion.interfaces.IAdministracion;
 import co.edu.unbosque.accioneselbosque.autenticacion.interfaces.IAsignacionComisionista;
+import co.edu.unbosque.accioneselbosque.autenticacion.model.EstadoCuenta;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Inversionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.InversionistaRepository;
@@ -17,7 +19,6 @@ import co.edu.unbosque.accioneselbosque.shared.exceptions.OrdenNoEncontradaExcep
 import co.edu.unbosque.accioneselbosque.shared.exceptions.SimboloInvalidoException;
 import co.edu.unbosque.accioneselbosque.trazabilidad.interfaces.IAuditLog;
 import co.edu.unbosque.accioneselbosque.trazabilidad.model.TipoEvento;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,22 +46,15 @@ public class OrdenService implements IOrden {
     private final PortafolioService portafolioService;
     private final IAuditLog auditLog;
     private final IAsignacionComisionista asignacionComisionista;
-
-    @Value("${app.comision.porcentaje:2.0}")
-    private BigDecimal porcentajeComision;
-
-    @Value("${app.comision.split-plataforma:60.0}")
-    private BigDecimal splitPlataforma;
-
-    @Value("${app.comision.split-comisionista:40.0}")
-    private BigDecimal splitComisionista;
+    private final IAdministracion administracion;
 
     public OrdenService(OrdenRepository ordenRepo, ComisionRepository comisionRepo,
                         UsuarioRepository usuarioRepo, InversionistaRepository inversionistaRepo,
                         IIntegracionAlpaca alpaca,
                         MercadoService mercadoService, SaldoService saldoService,
                         PortafolioService portafolioService, IAuditLog auditLog,
-                        IAsignacionComisionista asignacionComisionista) {
+                        IAsignacionComisionista asignacionComisionista,
+                        IAdministracion administracion) {
         this.ordenRepo = ordenRepo;
         this.comisionRepo = comisionRepo;
         this.usuarioRepo = usuarioRepo;
@@ -71,6 +65,7 @@ public class OrdenService implements IOrden {
         this.portafolioService = portafolioService;
         this.auditLog = auditLog;
         this.asignacionComisionista = asignacionComisionista;
+        this.administracion = administracion;
     }
 
     // =========================================================
@@ -80,6 +75,7 @@ public class OrdenService implements IOrden {
     @Override
     @Transactional
     public ResumenComisionDTO previsualizarOrden(Long usuarioId, CrearOrdenRequestDTO req) {
+        validarUsuarioPuedeOperar(usuarioId);
         String simbolo = req.getSimbolo().toUpperCase();
         TipoOrden tipoOrden = parseTipoOrden(req.getTipoOrden());
         TipoLado lado = parseTipoLado(req.getLado());
@@ -92,14 +88,14 @@ public class OrdenService implements IOrden {
 
         BigDecimal montoBase = precioEfectivo.multiply(req.getCantidad()).setScale(4, RoundingMode.HALF_UP);
         BigDecimal montoComision = montoBase
-                .multiply(porcentajeComision)
+                .multiply(porcentajeComision())
                 .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
 
         Usuario usuario = usuarioRepo.findById(usuarioId).orElseThrow();
         boolean tieneComisionista = asignacionComisionista.usuarioTieneComisionista(usuario.getId());
 
         BigDecimal montoPlatf = montoComision
-                .multiply(splitPlataforma)
+                .multiply(splitPlataforma())
                 .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
         BigDecimal montoComisionistaParte = tieneComisionista
                 ? montoComision.subtract(montoPlatf)
@@ -113,7 +109,7 @@ public class OrdenService implements IOrden {
         res.setCantidad(req.getCantidad());
         res.setPrecioEstimado(precioEfectivo);
         res.setMontoBase(montoBase);
-        res.setPorcentajeComision(porcentajeComision);
+        res.setPorcentajeComision(porcentajeComision());
         res.setMontoComision(montoComision);
         res.setMontoPlataforma(montoPlatf);
         res.setMontoComisionista(montoComisionistaParte);
@@ -137,6 +133,7 @@ public class OrdenService implements IOrden {
     @Override
     @Transactional
     public OrdenDTO crearOrden(Long usuarioId, CrearOrdenRequestDTO req, String ipOrigen) {
+        validarUsuarioPuedeOperar(usuarioId);
         String simbolo = req.getSimbolo().toUpperCase();
         TipoOrden tipoOrden = parseTipoOrden(req.getTipoOrden());
         TipoLado lado = parseTipoLado(req.getLado());
@@ -149,7 +146,7 @@ public class OrdenService implements IOrden {
         BigDecimal precioEfectivo = precioEfectivo(tipoOrden, req.getPrecioLimite(), req.getPrecioStop(), precioRef);
 
         BigDecimal montoBase = precioEfectivo.multiply(req.getCantidad()).setScale(4, RoundingMode.HALF_UP);
-        BigDecimal montoComision = montoBase.multiply(porcentajeComision)
+        BigDecimal montoComision = montoBase.multiply(porcentajeComision())
                 .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
 
         // Validaciones previas
@@ -351,6 +348,7 @@ public class OrdenService implements IOrden {
     @Override
     @Transactional
     public OrdenDTO crearPropuestaOrden(Long comisionistaId, Long clienteId, CrearPropuestaOrdenDTO dto, String ipOrigen) {
+        validarUsuarioPuedeOperar(clienteId);
         asignacionComisionista.validarClienteAsignado(comisionistaId, clienteId);
 
         TipoOrden tipoOrden = parseTipoOrden(dto.getTipoOrden());
@@ -444,6 +442,7 @@ public class OrdenService implements IOrden {
         Orden orden = ordenRepo.findByIdAndComisionistaId(propuestaId, comisionistaId)
                 .orElseThrow(() -> new OrdenNoEncontradaException("Propuesta no encontrada: " + propuestaId));
         asignacionComisionista.validarClienteAsignado(comisionistaId, orden.getUsuarioId());
+        validarUsuarioPuedeOperar(orden.getUsuarioId());
         if (orden.getEstado() != EstadoOrden.APROBADA) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Solo se pueden firmar propuestas aprobadas");
         }
@@ -620,8 +619,31 @@ public class OrdenService implements IOrden {
     }
 
     private BigDecimal calcularComision(BigDecimal montoBase) {
-        return montoBase.multiply(porcentajeComision)
+        return montoBase.multiply(porcentajeComision())
                 .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal porcentajeComision() {
+        return administracion.obtenerPorcentajeComision();
+    }
+
+    private BigDecimal splitPlataforma() {
+        return administracion.obtenerSplitPlataforma();
+    }
+
+    private void validarUsuarioPuedeOperar(Long usuarioId) {
+        Usuario usuario = usuarioRepo.findById(usuarioId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+        if (usuario.getEstadoCuenta() == EstadoCuenta.OPERACIONES_RESTRINGIDAS) {
+            auditLog.registrar(TipoEvento.OPERACION_RESTRINGIDA_BLOQUEADA, usuario.getCorreo(),
+                    "Intento de crear o enviar una nueva orden con operaciones restringidas");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "La cuenta tiene operaciones restringidas y no puede colocar nuevas ordenes");
+        }
+        if (usuario.getEstadoCuenta() != EstadoCuenta.ACTIVA) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "La cuenta no esta activa para operar");
+        }
     }
 
     private String enviarAAlpaca(String alpacaAccountId, Orden orden) {
@@ -703,7 +725,7 @@ public class OrdenService implements IOrden {
 
     private void confirmarEjecucion(Long usuarioId, Orden orden, BigDecimal precioEjecucion) {
         BigDecimal montoReal = precioEjecucion.multiply(orden.getCantidad()).setScale(4, RoundingMode.HALF_UP);
-        BigDecimal comisionReal = montoReal.multiply(porcentajeComision)
+        BigDecimal comisionReal = montoReal.multiply(porcentajeComision())
                 .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
 
         if (orden.getLado() == TipoLado.COMPRA) {
@@ -718,14 +740,14 @@ public class OrdenService implements IOrden {
 
         // Registrar comisión
         BigDecimal montoPlatf = orden.getComisionistaId() != null
-                ? comisionReal.multiply(splitPlataforma).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)
+                ? comisionReal.multiply(splitPlataforma()).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)
                 : comisionReal;
         Comision comisionEnt = new Comision();
         comisionEnt.setOrdenId(orden.getId());
         comisionEnt.setUsuarioId(usuarioId);
         comisionEnt.setComisionistaId(orden.getComisionistaId());
         comisionEnt.setMontoBase(montoReal);
-        comisionEnt.setPorcentajeComision(porcentajeComision);
+        comisionEnt.setPorcentajeComision(porcentajeComision());
         comisionEnt.setMontoComision(comisionReal);
         comisionEnt.setMontoPlataforma(montoPlatf);
         comisionEnt.setMontoComisionista(orden.getComisionistaId() != null ? comisionReal.subtract(montoPlatf) : BigDecimal.ZERO);

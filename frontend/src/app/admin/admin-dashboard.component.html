@@ -1,0 +1,302 @@
+<main class="admin-shell">
+  <aside class="admin-sidebar">
+    <div class="brand-block">
+      <span class="brand-mark">AE</span>
+      <div>
+        <strong>Administrador</strong>
+        <small>Acceso manual con MFA</small>
+      </div>
+    </div>
+
+    <nav class="admin-nav">
+      <button type="button" [class.active]="panel() === 'dashboard'" (click)="seleccionar('dashboard')">
+        <span></span> Dashboard ejecutivo
+      </button>
+      <button type="button" [class.active]="panel() === 'mercados'" (click)="seleccionar('mercados')">
+        <span></span> Mercados
+      </button>
+      <button type="button" [class.active]="panel() === 'comisiones'" (click)="seleccionar('comisiones')">
+        <span></span> Comisiones
+      </button>
+      <button type="button" [class.active]="panel() === 'usuarios'" (click)="seleccionar('usuarios')">
+        <span></span> Usuarios
+      </button>
+    </nav>
+
+    <div class="admin-status">
+      <small>Mercados activos</small>
+      <strong>{{ totalMercadosHabilitados() }}/{{ mercados().length || 0 }}</strong>
+      <small>Usuarios restringidos</small>
+      <strong>{{ usuariosRestringidos() }}</strong>
+    </div>
+
+    <button class="ghost logout" type="button" (click)="cerrarSesion()">Cerrar sesion</button>
+  </aside>
+
+  <section class="admin-workspace">
+    <header class="admin-header">
+      <div>
+        <small>Modulo de control central</small>
+        <h1>{{ tituloPanel() }}</h1>
+      </div>
+      <div class="header-actions">
+        <button class="ghost" type="button" (click)="cargarMetricas()">Actualizar metricas</button>
+      </div>
+    </header>
+
+    @if (cargando()) {
+      <section class="loading-state">Cargando consola administrativa...</section>
+    } @else {
+      @if (errorCarga()) {
+        <section class="alert">{{ errorCarga() }}</section>
+      }
+
+      @if (panel() === 'dashboard') {
+        <section class="admin-section">
+          <form class="filter-bar" [formGroup]="filtroMetricasForm" (ngSubmit)="cargarMetricas()">
+            <label>
+              <span>Desde</span>
+              <input type="date" formControlName="desde" />
+            </label>
+            <label>
+              <span>Hasta</span>
+              <input type="date" formControlName="hasta" />
+            </label>
+            <label>
+              <span>Mercado</span>
+              <input formControlName="mercado" placeholder="NYSE, NASDAQ, TSE" />
+            </label>
+            <button class="primary" type="submit">Filtrar</button>
+          </form>
+
+          <div class="metric-strip">
+            <article>
+              <span>Usuarios activos</span>
+              <strong>{{ metricas()?.usuariosActivos || 0 }}</strong>
+            </article>
+            <article>
+              <span>Crecimiento</span>
+              <strong>{{ metricas()?.crecimientoUsuarios || 0 }}</strong>
+            </article>
+            <article>
+              <span>Transacciones</span>
+              <strong>{{ metricas()?.transacciones || 0 }}</strong>
+            </article>
+            <article>
+              <span>Volumen</span>
+              <strong>{{ dinero(metricas()?.volumenTransacciones) }}</strong>
+            </article>
+            <article>
+              <span>Comisiones</span>
+              <strong>{{ dinero(metricas()?.comisionesGeneradas) }}</strong>
+            </article>
+          </div>
+
+          <section class="control-panel">
+            <div class="panel-heading">
+              <div>
+                <small>Operacion por mercado</small>
+                <h2>Tendencias y comisiones</h2>
+              </div>
+            </div>
+            <div class="trend-stack">
+              @for (t of metricas()?.tendenciasPorMercado || []; track t.mercado) {
+                <article class="trend-row">
+                  <div class="trend-main">
+                    <strong>{{ t.mercado }}</strong>
+                    <span>{{ t.operaciones }} operaciones</span>
+                  </div>
+                  <div class="trend-meter">
+                    <span [style.width]="anchoTendencia(t.volumen)"></span>
+                  </div>
+                  <div class="trend-numbers">
+                    <span>{{ dinero(t.volumen) }}</span>
+                    <span>{{ dinero(t.comisiones) }}</span>
+                  </div>
+                </article>
+              } @empty {
+                <p class="empty">Sin datos para el periodo seleccionado.</p>
+              }
+            </div>
+          </section>
+        </section>
+      }
+
+      @if (panel() === 'mercados') {
+        <section class="admin-section two-col">
+          <section class="control-panel">
+            <div class="panel-heading">
+              <div>
+                <small>Activacion y horarios</small>
+                <h2>Mercados habilitados</h2>
+              </div>
+            </div>
+            <div class="market-stack">
+              @for (m of mercados(); track m.codigo) {
+                <button class="market-card" type="button" [class.active]="mercadoSeleccionado()?.codigo === m.codigo" (click)="editarMercado(m)">
+                  <strong>{{ m.codigo }}</strong>
+                  <span [class.ok]="m.habilitado" [class.danger]="!m.habilitado">{{ m.habilitado ? 'Habilitado' : 'Deshabilitado' }}</span>
+                  <small>{{ m.horaApertura }} - {{ m.cierreAnticipado || m.horaCierre }}</small>
+                </button>
+              }
+            </div>
+          </section>
+
+          <form class="control-panel form-grid" [formGroup]="mercadoForm" (ngSubmit)="guardarMercado()">
+            <div class="panel-heading wide">
+              <div>
+                <small>{{ mercadoSeleccionado()?.codigo || 'Nuevo mercado' }}</small>
+                <h2>Configuracion operativa</h2>
+              </div>
+            </div>
+            <label><span>Codigo</span><input formControlName="codigo" /></label>
+            <label><span>Nombre</span><input formControlName="nombre" /></label>
+            <label><span>Zona horaria</span><input formControlName="zonaHoraria" /></label>
+            <label><span>Apertura</span><input type="time" formControlName="horaApertura" /></label>
+            <label><span>Cierre regular</span><input type="time" formControlName="horaCierre" /></label>
+            <label><span>Cierre anticipado</span><input type="time" formControlName="cierreAnticipado" /></label>
+            <label class="toggle wide"><input type="checkbox" formControlName="habilitado" /> Mercado habilitado para nuevas ordenes</label>
+            <button class="primary wide" type="submit">Guardar mercado</button>
+          </form>
+        </section>
+
+        <section class="control-panel">
+          <div class="panel-heading">
+            <div>
+              <small>Calendario {{ mercadoSeleccionado()?.codigo || '' }}</small>
+              <h2>Feriados de mercado</h2>
+            </div>
+          </div>
+          <form class="filter-bar" [formGroup]="feriadoForm" (ngSubmit)="agregarFeriado()">
+            <label><span>Fecha</span><input type="date" formControlName="fecha" /></label>
+            <label class="grow"><span>Descripcion</span><input formControlName="descripcion" /></label>
+            <button class="primary" type="submit">Agregar feriado</button>
+          </form>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Fecha</th><th>Descripcion</th><th></th></tr></thead>
+              <tbody>
+                @for (f of feriados(); track f.id) {
+                  <tr>
+                    <td>{{ f.fecha }}</td>
+                    <td>{{ f.descripcion }}</td>
+                    <td><button class="ghost danger-text" type="button" (click)="eliminarFeriado(f.id)">Eliminar</button></td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="3" class="empty">Sin feriados configurados.</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+
+      @if (panel() === 'comisiones') {
+        <section class="admin-section">
+          <form class="control-panel commission-panel" [formGroup]="comisionForm" (ngSubmit)="guardarComisiones()">
+            <div class="panel-heading">
+              <div>
+                <small>Parametros para transacciones futuras</small>
+                <h2>Comision y split</h2>
+              </div>
+            </div>
+            <div class="commission-grid">
+              <label><span>Comision %</span><input type="number" formControlName="porcentajeComision" /></label>
+              <label><span>Plataforma %</span><input type="number" formControlName="splitPlataforma" /></label>
+              <label><span>Comisionista %</span><input type="number" formControlName="splitComisionista" /></label>
+            </div>
+            <div class="split-preview">
+              <span [style.width.%]="comisionForm.controls.splitPlataforma.value">Plataforma</span>
+              <span [style.width.%]="comisionForm.controls.splitComisionista.value">Comisionista</span>
+            </div>
+            <button class="primary" type="submit">Actualizar parametros</button>
+          </form>
+        </section>
+      }
+
+      @if (panel() === 'usuarios') {
+        <section class="admin-section two-col">
+          <form class="control-panel form-grid" [formGroup]="comisionistaForm" (ngSubmit)="crearComisionista()">
+            <div class="panel-heading wide">
+              <div>
+                <small>Cuenta creada por administrador</small>
+                <h2>Nuevo comisionista</h2>
+              </div>
+            </div>
+            <label class="wide"><span>Nombre</span><input formControlName="nombreCompleto" /></label>
+            <label><span>Correo</span><input formControlName="correo" /></label>
+            <label><span>Contrasenia inicial</span><input type="password" formControlName="contrasenia" /></label>
+            <label class="wide"><span>Especialidades</span><input formControlName="especialidadesMercado" /></label>
+            <button class="primary wide" type="submit">Crear comisionista con MFA</button>
+          </form>
+
+          <section class="control-panel">
+            <div class="panel-heading">
+              <div>
+                <small>Relacion comisionista-cliente</small>
+                <h2>Asignaciones</h2>
+              </div>
+            </div>
+            <div class="table-wrap compact-table">
+              <table>
+                <thead><tr><th>Inversionista</th><th>Actual</th><th>Nuevo</th></tr></thead>
+                <tbody>
+                  @for (i of inversionistas(); track i.id) {
+                    <tr>
+                      <td>{{ i.nombreCompleto }}<br /><small>{{ i.correo }}</small></td>
+                      <td>{{ i.comisionistaAsignado || '-' }}</td>
+                      <td>
+                        <select (change)="asignarComisionista(i.id, $any($event.target).value)">
+                          <option value="">Seleccionar</option>
+                          @for (c of comisionistas(); track c.id) {
+                            <option [value]="c.id">{{ c.nombreCompleto }}</option>
+                          }
+                        </select>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="3" class="empty">No hay inversionistas disponibles.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="control-panel">
+          <div class="panel-heading">
+            <div>
+              <small>Ciclo de vida de accesos</small>
+              <h2>Usuarios de la plataforma</h2>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th>MFA</th><th>Acciones</th></tr></thead>
+              <tbody>
+                @for (u of usuarios(); track u.id) {
+                  <tr>
+                    <td><strong>{{ u.nombreCompleto }}</strong><br /><small>{{ u.correo }}</small></td>
+                    <td>{{ u.rol }}</td>
+                    <td><span class="status" [class.ok]="estadoClase(u.estadoCuenta) === 'ok'" [class.warn]="estadoClase(u.estadoCuenta) === 'warn'" [class.danger]="estadoClase(u.estadoCuenta) === 'danger'">{{ u.estadoCuenta }}</span></td>
+                    <td>{{ u.mfaHabilitado ? 'Si' : 'No' }}</td>
+                    <td class="actions">
+                      <button class="ghost" type="button" (click)="cambiarEstado(u, 'ACTIVA')">Activar</button>
+                      <button class="ghost" type="button" (click)="cambiarEstado(u, 'INACTIVA')">Suspender</button>
+                      <button class="ghost warn-text" type="button" (click)="cambiarEstado(u, 'OPERACIONES_RESTRINGIDAS')">Restringir</button>
+                      @if (u.rol !== 'ADMINISTRADOR') {
+                        <button class="ghost danger-text" type="button" (click)="eliminarUsuario(u)">Dar baja</button>
+                      }
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="5" class="empty">No hay usuarios para mostrar.</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+    }
+  </section>
+</main>

@@ -1,65 +1,68 @@
 # Historia de Usuario
 
 ## Titulo
-Suspension o reactivacion de cuenta de inversionista.
+Suspension, reactivacion y restriccion operativa de cuentas.
 
 ## Descripcion
 Como administrador
-Quiero suspender o reactivar una cuenta de inversionista
-Para controlar acceso por reglas operativas.
+Quiero cambiar el estado de una cuenta de inversionista o comisionista
+Para controlar accesos y bloquear nuevas operaciones ante irregularidades.
 
 ## Contexto
-HU-38 usa estados de cuenta que login ya respeta parcialmente.
+HU-38 cubre suspension/reactivacion y se extiende con el estado `OPERACIONES_RESTRINGIDAS`, requerido para impedir nuevas ordenes sin eliminar la cuenta.
 
 ## Flujo funcional
-1. El actor autorizado abre la funcionalidad.
-2. El frontend envia la solicitud al backend.
-3. Backend valida rol, estado y datos de entrada.
-4. El servicio aplica la regla de negocio y persiste cambios si corresponde.
-5. Se audita el evento y se notifica cuando aplica.
+1. Admin entra al panel Usuarios.
+2. Angular lista usuarios desde `GET /api/admin/usuarios`.
+3. Admin elige Activar, Suspender o Restringir.
+4. Frontend llama `PUT /api/admin/usuarios/{usuarioId}/estado`.
+5. Backend valida administrador.
+6. Cambia `estado_cuenta` y actualiza fecha.
+7. Audita `CAMBIO_ESTADO_CUENTA`.
 
 ## Reglas de negocio
-- Operacion protegida por rol.
-- Mantener integridad historica y trazabilidad.
-- No exponer datos sensibles.
+- `ACTIVA` permite acceso normal.
+- `INACTIVA` bloquea login.
+- `OPERACIONES_RESTRINGIDAS` mantiene la cuenta bajo investigacion e impide nuevas ordenes.
+- El cambio debe conservar trazabilidad.
 
 ## Componentes involucrados
-- Frontend Angular del rol correspondiente.
-- Servicio backend propietario de la funcionalidad.
-- Modelos y repositorios del dominio.
-- IAuditLog e INotificacion cuando aplique.
+- `frontend/src/app/admin/admin-dashboard.component.*`
+- `backend/.../administracion/controller/AdminController.java`
+- `backend/.../administracion/service/AdministracionService.java`
+- `backend/.../administracion/dto/CambiarEstadoCuentaDTO.java`
+- `backend/.../autenticacion/model/EstadoCuenta.java`
+- `backend/.../ordenes/service/OrdenService.java`
 
 ## Backend
-Pendiente endpoint administrativo y notificacion al usuario.
+`cambiarEstadoUsuario` actualiza el estado de `Usuario`. `OrdenService` valida estados antes de nuevas ordenes y bloquea cuentas no habilitadas para operar.
 
 ## Frontend
-Debe presentar controles de accion, confirmacion para cambios criticos y mensajes claros.
+La tabla de usuarios muestra estado y acciones rapidas para activar, suspender o restringir.
 
 ## Base de datos
-Usa tablas del dominio y conserva registros historicos cuando sea necesario.
+Tabla `usuario`: columna `estado_cuenta`.
 
 ## API / Endpoints
-- Pendiente: PUT /api/admin/inversionistas/{id}/suspender o reactivar
+- `PUT /api/admin/usuarios/{usuarioId}/estado`
 
 ## Validaciones
 - JWT requerido.
-- Rol correcto.
-- Datos obligatorios y transicion de estado valida.
+- Rol `ADMINISTRADOR`.
+- Estado valido en enum `EstadoCuenta`.
+- Usuario existente.
 
 ## Seguridad
-Control de acceso por rol. Eventos criticos auditados sin registrar secretos.
+Evento sensible auditado. No se registra informacion sensible en logs.
 
 ## Consideraciones tecnicas
-Debe alinearse con los servicios SOA y consumir integraciones por interfaces.
+La vista usa `UsuarioAdminDTO`; no expone entidades JPA.
 
 ## Dependencias
-Depende de Autenticacion, Administracion, Integracion y Trazabilidad segun caso.
+Depende de Administracion, Autenticacion, Ordenes y Trazabilidad.
 
 ## Criterios de aceptacion
-- [ ] Flujo principal completado.
-- [ ] Acceso no autorizado rechazado.
-- [ ] Persistencia o consulta coherente.
-- [ ] Auditoria registrada.
-
-## Notas
-Spec creado para completar carpeta numerada del backlog.
+- [x] Admin activa una cuenta.
+- [x] Admin suspende una cuenta.
+- [x] Admin asigna `OPERACIONES_RESTRINGIDAS`.
+- [x] El cambio queda auditado.

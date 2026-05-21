@@ -100,6 +100,8 @@ export class LoginComponent implements OnInit {
   }
 
   private rutaPorRol(rol?: string): string {
-    return rol === 'COMISIONISTA' ? '/comisionista' : '/dashboard';
+    if (rol === 'COMISIONISTA') return '/comisionista';
+    if (rol === 'ADMINISTRADOR') return '/admin';
+    return '/dashboard';
   }
 }

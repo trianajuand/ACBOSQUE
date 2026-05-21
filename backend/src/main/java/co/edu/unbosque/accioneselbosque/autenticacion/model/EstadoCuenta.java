@@ -4,5 +4,6 @@ public enum EstadoCuenta {
     ACTIVA,
     BLOQUEADA,
     PENDIENTE_VERIFICACION,
-    INACTIVA
+    INACTIVA,
+    OPERACIONES_RESTRINGIDAS
 }

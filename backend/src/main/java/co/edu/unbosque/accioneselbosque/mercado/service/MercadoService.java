@@ -1,5 +1,7 @@
 package co.edu.unbosque.accioneselbosque.mercado.service;
 
+import co.edu.unbosque.accioneselbosque.administracion.dto.MercadoConfigDTO;
+import co.edu.unbosque.accioneselbosque.administracion.interfaces.IAdministracion;
 import co.edu.unbosque.accioneselbosque.integracion.adaptadores.alpaca.IIntegracionAlpaca;
 import co.edu.unbosque.accioneselbosque.integracion.adaptadores.alphavantage.IAlphaVantage;
 import co.edu.unbosque.accioneselbosque.mercado.dto.CotizacionDTO;
@@ -18,7 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -64,19 +70,26 @@ public class MercadoService implements IVerificacionMercado {
     private final IAlphaVantage alphaVantage;
     private final PrecioCacheRepository cacheRepo;
     private final IAuditLog auditLog;
+    private final IAdministracion administracion;
 
     public MercadoService(IIntegracionAlpaca alpaca, IAlphaVantage alphaVantage,
-                          PrecioCacheRepository cacheRepo, IAuditLog auditLog) {
+                          PrecioCacheRepository cacheRepo, IAuditLog auditLog,
+                          IAdministracion administracion) {
         this.alpaca = alpaca;
         this.alphaVantage = alphaVantage;
         this.cacheRepo = cacheRepo;
         this.auditLog = auditLog;
+        this.administracion = administracion;
     }
 
     @Override
     public boolean esMercadoAbierto(String mercado) {
-        if (sandboxSiempreAbierto) return true;
         if (mercado == null) return false;
+        Optional<MercadoConfigDTO> config = administracion.obtenerConfiguracionMercado(mercado);
+        if (config.isPresent()) {
+            return esMercadoConfiguradoAbierto(config.get());
+        }
+        if (sandboxSiempreAbierto) return true;
         return switch (mercado.toUpperCase()) {
             case "NYSE", "NASDAQ", "AMEX", "US", "NYSE/NASDAQ" -> esMercadoUsAbierto();
             case "TSE", "TOKYO" -> esMercadoTokioAbierto();
@@ -498,5 +511,27 @@ public class MercadoService implements IVerificacionMercado {
         if (diaSemana >= 6) return false;
         int totalMinutos = ahora.getHour() * 60 + ahora.getMinute();
         return totalMinutos >= 10 * 60 && totalMinutos < 16 * 60;
+    }
+
+    private boolean esMercadoConfiguradoAbierto(MercadoConfigDTO config) {
+        if (!config.isHabilitado()) {
+            return false;
+        }
+        if (sandboxSiempreAbierto) {
+            return true;
+        }
+        ZonedDateTime ahora = ZonedDateTime.now(ZoneId.of(config.getZonaHoraria()));
+        if (ahora.getDayOfWeek().getValue() >= 6) {
+            return false;
+        }
+        LocalDate fecha = ahora.toLocalDate();
+        if (administracion.esFeriadoMercado(config.getCodigo(), fecha)) {
+            return false;
+        }
+        LocalTime cierre = config.getCierreAnticipado() != null
+                ? config.getCierreAnticipado()
+                : config.getHoraCierre();
+        LocalTime hora = ahora.toLocalTime();
+        return !hora.isBefore(config.getHoraApertura()) && hora.isBefore(cierre);
     }
 }

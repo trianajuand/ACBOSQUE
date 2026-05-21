@@ -252,6 +252,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   });
 
   async ngOnInit(): Promise<void> {
+    const rol = this.api.obtenerRolActual();
+    if (rol === 'ADMINISTRADOR') {
+      await this.router.navigateByUrl('/admin');
+      return;
+    }
+    if (rol === 'COMISIONISTA') {
+      await this.router.navigateByUrl('/comisionista');
+      return;
+    }
     this.tick();
     this.relojId = window.setInterval(() => this.tick(), 1000);
     await this.cargarTodo();

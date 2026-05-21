@@ -151,3 +151,54 @@ export interface ResumenComision {
   mercadoAbierto?: boolean;
   advertencia?: string;
 }
+
+export interface MercadoAdmin {
+  id?: number;
+  codigo: string;
+  nombre: string;
+  zonaHoraria: string;
+  horaApertura: string;
+  horaCierre: string;
+  habilitado: boolean;
+  cierreAnticipado?: string | null;
+}
+
+export interface FeriadoMercado {
+  id?: number;
+  mercadoCodigo?: string;
+  fecha: string;
+  descripcion: string;
+}
+
+export interface ParametroComision {
+  porcentajeComision: number;
+  splitPlataforma: number;
+  splitComisionista: number;
+}
+
+export interface UsuarioAdmin {
+  id: number;
+  nombreCompleto?: string;
+  correo?: string;
+  rol?: string;
+  estadoCuenta?: string;
+  mfaHabilitado?: boolean;
+  comisionistaAsignado?: string;
+  fechaCreacion?: string;
+}
+
+export interface DashboardEjecutivo {
+  usuariosActivos?: number;
+  crecimientoUsuarios?: number;
+  transacciones?: number;
+  volumenTransacciones?: number;
+  comisionesGeneradas?: number;
+  tendenciasPorMercado?: TendenciaMercado[];
+}
+
+export interface TendenciaMercado {
+  mercado?: string;
+  operaciones?: number;
+  volumen?: number;
+  comisiones?: number;
+}
