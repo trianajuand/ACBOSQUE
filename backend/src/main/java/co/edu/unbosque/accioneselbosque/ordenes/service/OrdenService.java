@@ -1,15 +1,15 @@
 package co.edu.unbosque.accioneselbosque.ordenes.service;
 
-import co.edu.unbosque.accioneselbosque.administracion.interfaces.IAdministracion;
+import co.edu.unbosque.accioneselbosque.administracion.interfaces.IGestorParametros;
 import co.edu.unbosque.accioneselbosque.autenticacion.interfaces.IAsignacionComisionista;
-import co.edu.unbosque.accioneselbosque.autenticacion.model.EstadoCuenta;
+import co.edu.unbosque.accioneselbosque.autenticacion.interfaces.IConsultaInversionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Inversionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.InversionistaRepository;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
 import co.edu.unbosque.accioneselbosque.integracion.adaptadores.alpaca.IIntegracionAlpaca;
 import co.edu.unbosque.accioneselbosque.mercado.dto.CotizacionDTO;
-import co.edu.unbosque.accioneselbosque.mercado.service.MercadoService;
+import co.edu.unbosque.accioneselbosque.mercado.interfaces.IVerificacionMercado;
 import co.edu.unbosque.accioneselbosque.ordenes.dto.*;
 import co.edu.unbosque.accioneselbosque.ordenes.interfaces.IOrden;
 import co.edu.unbosque.accioneselbosque.ordenes.model.*;
@@ -28,33 +28,35 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class OrdenService implements IOrden {
 
     private final OrdenRepository ordenRepo;
     private final ComisionRepository comisionRepo;
+    // Estos dos repos permanecen por el flujo on-demand de cuenta Alpaca
+    // que requiere pasar Usuario e Inversionista a IIntegracionAlpaca.crearCuenta
     private final UsuarioRepository usuarioRepo;
     private final InversionistaRepository inversionistaRepo;
     private final IIntegracionAlpaca alpaca;
-    private final MercadoService mercadoService;
+    private final IVerificacionMercado mercadoService;
     private final SaldoService saldoService;
     private final PortafolioService portafolioService;
     private final IAuditLog auditLog;
     private final IAsignacionComisionista asignacionComisionista;
-    private final IAdministracion administracion;
+    private final IGestorParametros administracion;
+    private final IConsultaInversionista consultaInversionista;
 
     public OrdenService(OrdenRepository ordenRepo, ComisionRepository comisionRepo,
                         UsuarioRepository usuarioRepo, InversionistaRepository inversionistaRepo,
                         IIntegracionAlpaca alpaca,
-                        MercadoService mercadoService, SaldoService saldoService,
+                        IVerificacionMercado mercadoService, SaldoService saldoService,
                         PortafolioService portafolioService, IAuditLog auditLog,
                         IAsignacionComisionista asignacionComisionista,
-                        IAdministracion administracion) {
+                        IGestorParametros administracion,
+                        IConsultaInversionista consultaInversionista) {
         this.ordenRepo = ordenRepo;
         this.comisionRepo = comisionRepo;
         this.usuarioRepo = usuarioRepo;
@@ -66,6 +68,7 @@ public class OrdenService implements IOrden {
         this.auditLog = auditLog;
         this.asignacionComisionista = asignacionComisionista;
         this.administracion = administracion;
+        this.consultaInversionista = consultaInversionista;
     }
 
     // =========================================================
@@ -178,6 +181,28 @@ public class OrdenService implements IOrden {
             // HU-23: encolar para apertura
             orden.setEstado(EstadoOrden.EN_COLA);
             orden = ordenRepo.save(orden);
+
+            // Para símbolos US: enviar ya a Alpaca — registra "accepted" en el broker
+            // aunque el mercado esté cerrado. El ColaOrdenesService lo sincroniza al abrir.
+            if (esSimboloUs(simbolo)) {
+                Usuario usuario = usuarioRepo.findById(usuarioId).orElseThrow();
+                Inversionista inversionista = obtenerInversionista(usuarioId);
+                if (consultaInversionista.necesitaCuentaAlpaca(usuarioId)) {
+                    String nuevoId = alpaca.crearCuenta(usuario, inversionista);
+                    if (nuevoId != null) {
+                        consultaInversionista.actualizarAlpacaAccountId(usuarioId, nuevoId);
+                    }
+                }
+                String alpacaAccountId = consultaInversionista.obtenerAlpacaAccountId(usuarioId);
+                String alpacaOrderId = enviarAAlpaca(alpacaAccountId, orden);
+                if (alpacaOrderId != null) {
+                    orden.setAlpacaOrderId(alpacaOrderId);
+                    orden = ordenRepo.save(orden);
+                    auditLog.registrar(TipoEvento.ORDEN_ENVIADA_ALPACA, usuarioId.toString(),
+                            "Orden encolada enviada a Alpaca (mercado cerrado): " + alpacaOrderId + " | " + simbolo);
+                }
+            }
+
             auditLog.registrar(TipoEvento.ORDEN_ENCOLADA, usuarioId.toString(),
                     "Orden encolada: " + simbolo + " " + lado + " " + req.getCantidad());
             return mapearOrden(orden);
@@ -186,29 +211,30 @@ public class OrdenService implements IOrden {
         orden.setEstado(EstadoOrden.PENDIENTE);
         orden = ordenRepo.save(orden);
 
+        // Estos dos objetos solo se usan para alpaca.crearCuenta que requiere las entidades completas
         Usuario usuario = usuarioRepo.findById(usuarioId).orElseThrow();
         Inversionista inversionista = obtenerInversionista(usuarioId);
 
-        // Si el usuario no tiene cuenta Alpaca, intentar crearla ahora
-        if (inversionista.getAlpacaAccountId() == null && esSimboloUs(simbolo)) {
+        if (consultaInversionista.necesitaCuentaAlpaca(usuarioId) && esSimboloUs(simbolo)) {
             String nuevoId = alpaca.crearCuenta(usuario, inversionista);
             if (nuevoId != null) {
-                inversionista.setAlpacaAccountId(nuevoId);
-                inversionista.setPendienteCuentaAlpaca(false);
-                inversionistaRepo.save(inversionista);
-                auditLog.registrar(TipoEvento.ORDEN_ENVIADA_ALPACA, usuarioId.toString(), "Cuenta Alpaca creada on-demand: " + nuevoId);
+                consultaInversionista.actualizarAlpacaAccountId(usuarioId, nuevoId);
+                auditLog.registrar(TipoEvento.ORDEN_ENVIADA_ALPACA, usuarioId.toString(),
+                        "Cuenta Alpaca creada on-demand: " + nuevoId);
             }
         }
 
+        String alpacaAccountId = consultaInversionista.obtenerAlpacaAccountId(usuarioId);
+
         if (esSimboloUs(simbolo)) {
             // --- Mercado US: ejecutar vía Alpaca ---
-            String alpacaOrderId = enviarAAlpaca(inversionista.getAlpacaAccountId(), orden);
+            String alpacaOrderId = enviarAAlpaca(alpacaAccountId, orden);
             if (alpacaOrderId != null) {
                 orden.setAlpacaOrderId(alpacaOrderId);
                 orden.setEstado(EstadoOrden.ENVIADA);
                 auditLog.registrar(TipoEvento.ORDEN_ENVIADA_ALPACA, usuarioId.toString(),
                         "Orden enviada a Alpaca: " + alpacaOrderId + " | " + simbolo + " " + lado);
-                confirmarSiAlpacaReportaFill(usuarioId, inversionista.getAlpacaAccountId(), orden, precioRef);
+                confirmarSiAlpacaReportaFill(usuarioId, alpacaAccountId, orden, precioRef);
             } else {
                 auditLog.registrar(TipoEvento.ORDEN_FALLO_ALPACA, usuarioId.toString(),
                         "Fallo al enviar a Alpaca: " + simbolo + " " + lado);
@@ -260,8 +286,10 @@ public class OrdenService implements IOrden {
 
         // Cancelar en Alpaca si tiene ID
         if (orden.getAlpacaOrderId() != null) {
-            Inversionista inversionista = obtenerInversionista(usuarioId);
-            alpaca.cancelarOrden(inversionista.getAlpacaAccountId(), orden.getAlpacaOrderId());
+            String alpacaAccountId = consultaInversionista.obtenerAlpacaAccountId(usuarioId);
+            if (alpacaAccountId != null) {
+                alpaca.cancelarOrden(alpacaAccountId, orden.getAlpacaOrderId());
+            }
         }
 
         // Liberar fondos reservados para compras
@@ -330,8 +358,65 @@ public class OrdenService implements IOrden {
     @Transactional
     public PortafolioDTO obtenerPortafolio(Long usuarioId) {
         sincronizarOrdenesEnviadasConAlpaca(usuarioId);
-        Inversionista inversionista = obtenerInversionista(usuarioId);
-        return portafolioService.obtenerPortafolio(usuarioId, inversionista.getVistaPortafolio());
+        return portafolioService.obtenerPortafolio(usuarioId,
+                consultaInversionista.obtenerVistaPortafolio(usuarioId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ResumenNegocioDTO obtenerResumenNegocio(LocalDateTime desde, LocalDateTime hasta,
+                                                    String mercadoFiltro) {
+        ResumenNegocioDTO resumen = new ResumenNegocioDTO();
+        Map<String, ResumenMercadoDTO> porMercado = new TreeMap<>();
+
+        for (Orden orden : ordenRepo.findAll()) {
+            if (!enRango(orden.getCreadaEn(), desde, hasta)) continue;
+            String mercado = mercadoService.detectarMercado(orden.getSimbolo());
+            if (mercadoFiltro != null && !mercadoFiltro.isBlank()
+                    && !mercado.equalsIgnoreCase(mercadoFiltro)) continue;
+
+            resumen.setTransacciones(resumen.getTransacciones() + 1);
+            resumen.setVolumenTransacciones(
+                    resumen.getVolumenTransacciones().add(safe(orden.getMontoTotal())));
+
+            ResumenMercadoDTO rm = porMercado.computeIfAbsent(mercado, k -> {
+                ResumenMercadoDTO t = new ResumenMercadoDTO();
+                t.setMercado(k);
+                return t;
+            });
+            rm.setOperaciones(rm.getOperaciones() + 1);
+            rm.setVolumen(rm.getVolumen().add(safe(orden.getMontoTotal())));
+        }
+
+        for (Comision comision : comisionRepo.findAll()) {
+            if (!enRango(comision.getCreadaEn(), desde, hasta)) continue;
+            resumen.setComisionesGeneradas(
+                    resumen.getComisionesGeneradas().add(safe(comision.getMontoComision())));
+            ordenRepo.findById(comision.getOrdenId()).ifPresent(orden -> {
+                String mercado = mercadoService.detectarMercado(orden.getSimbolo());
+                if (mercadoFiltro == null || mercadoFiltro.isBlank()
+                        || mercado.equalsIgnoreCase(mercadoFiltro)) {
+                    ResumenMercadoDTO rm = porMercado.computeIfAbsent(mercado, k -> {
+                        ResumenMercadoDTO t = new ResumenMercadoDTO();
+                        t.setMercado(k);
+                        return t;
+                    });
+                    rm.setComisiones(rm.getComisiones().add(safe(comision.getMontoComision())));
+                }
+            });
+        }
+
+        resumen.setTendenciasPorMercado(new ArrayList<>(porMercado.values()));
+        return resumen;
+    }
+
+    private boolean enRango(LocalDateTime fecha, LocalDateTime desde, LocalDateTime hasta) {
+        if (fecha == null) return false;
+        return !fecha.isBefore(desde) && !fecha.isAfter(hasta);
+    }
+
+    private BigDecimal safe(BigDecimal v) {
+        return v != null ? v : BigDecimal.ZERO;
     }
 
     @Override
@@ -484,26 +569,27 @@ public class OrdenService implements IOrden {
 
         orden.setEstado(EstadoOrden.PENDIENTE);
         orden = ordenRepo.save(orden);
+        // Solo necesarios para alpaca.crearCuenta que requiere las entidades completas
         Usuario usuario = usuarioRepo.findById(usuarioId).orElseThrow();
         Inversionista inversionista = obtenerInversionista(usuarioId);
 
-        if (inversionista.getAlpacaAccountId() == null && esSimboloUs(orden.getSimbolo())) {
+        if (consultaInversionista.necesitaCuentaAlpaca(usuarioId) && esSimboloUs(orden.getSimbolo())) {
             String nuevoId = alpaca.crearCuenta(usuario, inversionista);
             if (nuevoId != null) {
-                inversionista.setAlpacaAccountId(nuevoId);
-                inversionista.setPendienteCuentaAlpaca(false);
-                inversionistaRepo.save(inversionista);
+                consultaInversionista.actualizarAlpacaAccountId(usuarioId, nuevoId);
             }
         }
 
+        String alpacaAccountId = consultaInversionista.obtenerAlpacaAccountId(usuarioId);
+
         if (esSimboloUs(orden.getSimbolo())) {
-            String alpacaOrderId = enviarAAlpaca(inversionista.getAlpacaAccountId(), orden);
+            String alpacaOrderId = enviarAAlpaca(alpacaAccountId, orden);
             if (alpacaOrderId != null) {
                 orden.setAlpacaOrderId(alpacaOrderId);
                 orden.setEstado(EstadoOrden.ENVIADA);
                 auditLog.registrar(TipoEvento.ORDEN_ENVIADA_ALPACA, usuarioId.toString(),
                         "Orden asesorada enviada a Alpaca: " + alpacaOrderId);
-                confirmarSiAlpacaReportaFill(usuarioId, inversionista.getAlpacaAccountId(), orden, precioRef);
+                confirmarSiAlpacaReportaFill(usuarioId, alpacaAccountId, orden, precioRef);
             } else {
                 if (orden.getLado() == TipoLado.COMPRA) {
                     saldoService.liberarFondosReservados(usuarioId, orden.getMontoNeto());
@@ -632,18 +718,7 @@ public class OrdenService implements IOrden {
     }
 
     private void validarUsuarioPuedeOperar(Long usuarioId) {
-        Usuario usuario = usuarioRepo.findById(usuarioId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
-        if (usuario.getEstadoCuenta() == EstadoCuenta.OPERACIONES_RESTRINGIDAS) {
-            auditLog.registrar(TipoEvento.OPERACION_RESTRINGIDA_BLOQUEADA, usuario.getCorreo(),
-                    "Intento de crear o enviar una nueva orden con operaciones restringidas");
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "La cuenta tiene operaciones restringidas y no puede colocar nuevas ordenes");
-        }
-        if (usuario.getEstadoCuenta() != EstadoCuenta.ACTIVA) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "La cuenta no esta activa para operar");
-        }
+        consultaInversionista.validarPuedeOperar(usuarioId);
     }
 
     private String enviarAAlpaca(String alpacaAccountId, Orden orden) {
@@ -682,19 +757,14 @@ public class OrdenService implements IOrden {
     }
 
     private void sincronizarOrdenesEnviadasConAlpaca(Long usuarioId) {
-        Inversionista inversionista = obtenerInversionista(usuarioId);
-        if (inversionista.getAlpacaAccountId() == null) {
-            return;
-        }
+        String alpacaAccountId = consultaInversionista.obtenerAlpacaAccountId(usuarioId);
+        if (alpacaAccountId == null) return;
 
         List<Orden> enviadas = ordenRepo.findByUsuarioIdAndEstadoOrderByCreadaEnDesc(usuarioId, EstadoOrden.ENVIADA);
         for (Orden orden : enviadas) {
-            if (orden.getAlpacaOrderId() == null || !esSimboloUs(orden.getSimbolo())) {
-                continue;
-            }
-
+            if (orden.getAlpacaOrderId() == null || !esSimboloUs(orden.getSimbolo())) continue;
             BigDecimal precioRef = precioReferenciaOrden(orden);
-            confirmarSiAlpacaReportaFill(usuarioId, inversionista.getAlpacaAccountId(), orden, precioRef);
+            confirmarSiAlpacaReportaFill(usuarioId, alpacaAccountId, orden, precioRef);
             if (orden.getEstado() == EstadoOrden.EJECUTADA) {
                 ordenRepo.save(orden);
             }

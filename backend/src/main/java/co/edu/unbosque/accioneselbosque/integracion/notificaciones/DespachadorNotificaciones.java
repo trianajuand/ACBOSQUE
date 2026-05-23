@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
-public class DespachadorNotificaciones {
+public class DespachadorNotificaciones implements INotificacion {
 
     private static final Logger log = LoggerFactory.getLogger(DespachadorNotificaciones.class);
     private final EmailSender emailSender;

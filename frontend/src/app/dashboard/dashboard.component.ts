@@ -5,7 +5,7 @@ import { ApiService } from '../core/api.service';
 import { Cotizacion, DetalleAccion, Orden, Perfil, Portafolio, ResumenComision, Saldo } from '../core/models';
 import { ToastService } from '../core/toast.service';
 
-type Panel = 'dashboard' | 'mercado' | 'ordenes' | 'portafolio' | 'propuestas' | 'perfil' | 'configuracion';
+type Panel = 'dashboard' | 'mercado' | 'ordenes' | 'portafolio' | 'propuestas' | 'perfil' | 'configuracion' | 'reporte';
 
 interface SymbolOption {
   simbolo: string;
@@ -249,6 +249,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     tipoOrden: [''],
     simbolo: [''],
     estado: [''],
+  });
+
+  readonly reporteForm = this.fb.nonNullable.group({
+    desde: [new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)],
+    hasta: [new Date().toISOString().slice(0, 10)],
   });
 
   async ngOnInit(): Promise<void> {
@@ -641,6 +646,38 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return false;
     }
     return true;
+  }
+
+  async cancelarPremium(): Promise<void> {
+    const confirmar = window.confirm(
+      '¿Estas seguro de que quieres cancelar tu suscripcion premium?\n' +
+      'Tu plan volvera a BASICO y perderan los beneficios premium inmediatamente.',
+    );
+    if (!confirmar) return;
+    const res = await this.api.delete('/api/perfil/suscripcion');
+    this.toast.mostrar(
+      res.ok ? 'Suscripcion cancelada. Tu plan es ahora BASICO.' : res.error || 'No se pudo cancelar',
+      res.ok ? 'success' : 'error',
+    );
+    if (res.ok) {
+      await this.cargarPerfil();
+    }
+  }
+
+  async generarReporte(): Promise<void> {
+    const raw = this.reporteForm.getRawValue();
+    const url = `/api/ordenes/reporte?desde=${raw.desde}&hasta=${raw.hasta}`;
+    const blob = await this.api.getBlob(url);
+    if (!blob) {
+      this.toast.mostrar('No se pudo generar el reporte', 'error');
+      return;
+    }
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `reporte_${raw.desde}_${raw.hasta}.pdf`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    this.toast.mostrar('Reporte descargado', 'success');
   }
 
   async cerrarSesion(): Promise<void> {

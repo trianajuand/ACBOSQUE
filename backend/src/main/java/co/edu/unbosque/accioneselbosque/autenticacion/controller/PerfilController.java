@@ -9,6 +9,7 @@ import co.edu.unbosque.accioneselbosque.shared.dto.RespuestaDTO;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -56,6 +57,12 @@ public class PerfilController {
         perfilService.toggleMfa(correoAutenticado(), activar);
         String msg = activar ? "MFA activado exitosamente" : "MFA desactivado exitosamente";
         return ResponseEntity.ok(new RespuestaDTO(msg));
+    }
+
+    @DeleteMapping("/suscripcion")
+    public ResponseEntity<RespuestaDTO> cancelarSuscripcion() {
+        perfilService.cancelarSuscripcion(correoAutenticado());
+        return ResponseEntity.ok(new RespuestaDTO("Suscripcion premium cancelada. Tu plan volvio a BASICO."));
     }
 
     @PutMapping("/comisionista/solicitar")

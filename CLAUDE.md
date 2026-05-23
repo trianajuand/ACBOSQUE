@@ -11,7 +11,7 @@
 | `docs/REQUERIMIENTOS.md` | Antes de implementar una feature, para validar qué RF/RNF cubre. |
 | `docs/ESCENARIOS_CALIDAD.md` | Para conocer los 23 escenarios de calidad (EC-01 a EC-23) y las tácticas asociadas. **Cada vez que un cambio toque seguridad, rendimiento, disponibilidad o trazabilidad, revisar acá.** |
 | `docs/HISTORIAS_USUARIO.md` | Para el detalle de cada HU (criterios de aceptación, prioridad, épica). |
-| `docs/ARQUITECTURA.md` | Para la estructura de los 6 servicios SOA, interfaces expuestas, despliegue, y estructura de carpetas. **Consultar antes de crear cualquier archivo nuevo.** |
+| `docs/ARQUITECTURA.md` | Para la estructura de los 6 módulos del Monolito Modular, interfaces expuestas, despliegue, y estructura de carpetas. **Consultar antes de crear cualquier archivo nuevo.** |
 | `docs/CONVENCIONES.md` | Para reglas de naming, estilo Java, Angular, manejo de errores, secretos, y mejoras vs. el proyecto Malwatcher previo. **Consultar antes de escribir código.** |
 | `docs/PROGRESO.md` | Para saber qué quedó hecho, qué está en progreso, y qué sigue. **Actualizar siempre al terminar una historia.** |
 
@@ -22,14 +22,14 @@
 - **Producto:** broker digital de day trading (compra/venta de acciones en mercados internacionales).
 - **Cliente académico:** Universidad El Bosque, Ingeniería de Software 2, mayo 2026.
 - **Stack:** Java 17 + Spring Boot 3 (Maven, war), PostgreSQL, JWT + BCrypt, Jakarta Mail / Angular (TypeScript) / sin Docker.
-- **Arquitectura:** SOA con 6 servicios desplegados de forma consolidada en un mismo runtime Spring Boot.
+- **Arquitectura:** Monolito Modular con 6 módulos de dominio en un único runtime Spring Boot, comunicados exclusivamente por interfaces `I...`.
 - **Integraciones externas:** Alpaca (órdenes), Alpha Vantage (datos), Stripe (premium), SMTP/SMS/WhatsApp (notificaciones).
 
 ---
 
-## Los 6 servicios
+## Los 6 módulos
 
-| Servicio | Responsabilidad core |
+| Módulo | Responsabilidad core |
 |---|---|
 | **Autenticación** | Registro inversionista, login, MFA, recuperación contraseña, monitor de intentos. |
 | **Órdenes** | Market/Limit/Stop Loss/Take Profit, fondos, holdings, comisiones, cola fuera de horario, flujo comisionistas. |
@@ -44,9 +44,9 @@
 
 ## Reglas duras (NO negociables)
 
-1. **Organización por servicio, NO por capas.** Cada servicio replica internamente `controller/service/repository/model/dto/interfaces`. La raíz del proyecto agrupa por servicio.
-2. **Comunicación entre servicios solo por interfaz `I...`.** Un servicio nunca importa clases internas de otro.
-3. **Trazabilidad transversal.** Cualquier evento auditable se registra vía `IAuditLog`. No se reimplementa lógica de logs por servicio.
+1. **Organización por módulo, NO por capas.** Cada módulo replica internamente `controller/service/repository/model/dto/interfaces`. La raíz del proyecto agrupa por módulo.
+2. **Comunicación entre módulos solo por interfaz `I...`.** Un módulo nunca importa clases internas de otro.
+3. **Trazabilidad transversal.** Cualquier evento auditable se registra vía `IAuditLog`. No se reimplementa lógica de logs por módulo.
 4. **Solo el rol `INVERSIONISTA` se auto-registra.** El resto de roles los crea un Administrador autenticado.
 5. **Contraseñas con BCrypt.** Texto plano está prohibido (mejora vs. proyecto Malwatcher previo).
 6. **JWT firmado, claim de rol, expiración 1h.** Tokens revocados van a tabla en BD (necesario para HU-5).
@@ -70,7 +70,7 @@
 2. **Antes de implementar una historia:** lee la HU completa en `docs/HISTORIAS_USUARIO.md` (criterios de aceptación incluidos).
 3. **Trabaja en pasos pequeños y verificables.** Compila después de cada bloque significativo.
 4. **No hardcodees secretos jamás.** Si necesitas una API key, una contraseña o una URL externa, declárala en `application.properties` con placeholder y avisa al desarrollador.
-5. **No mezcles servicios.** Si trabajas en `autenticacion/`, no toques `ordenes/`. Si necesitas algo de otro servicio, hazlo a través de su interfaz `I...`.
+5. **No mezcles módulos.** Si trabajas en `autenticacion/`, no toques `ordenes/`. Si necesitas algo de otro módulo, hazlo a través de su interfaz `I...`.
 6. **Cada vez que termines una historia, actualiza `docs/PROGRESO.md`** marcando el checkbox y agregando una nota breve.
 7. **Si introduces una decisión técnica nueva** (cambio de librería, ajuste arquitectónico, nuevo patrón), documéntala en `docs/CONVENCIONES.md` o `docs/ARQUITECTURA.md` según corresponda.
 8. **Ante la duda entre dos enfoques**, prefiere el que se parezca al estilo del proyecto Malwatcher previo (descrito en `docs/CONVENCIONES.md`), excepto donde dicho proyecto tenga malas prácticas explícitamente listadas como "mejoradas".
@@ -89,7 +89,7 @@
 | EC | Escenario de Calidad |
 | MVP | Producto Mínimo Viable (42 historias Must Have) |
 | MFA | Multi-Factor Authentication |
-| SOA | Service-Oriented Architecture |
+| MM | Monolito Modular |
 
 ---
 

@@ -10,6 +10,7 @@ C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accionesel
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\administracion\dto\TendenciaMercadoDTO.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\administracion\dto\UsuarioAdminDTO.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\administracion\interfaces\IAdministracion.java
+C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\administracion\interfaces\IGestorParametros.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\administracion\model\Administrador.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\administracion\model\FeriadoMercado.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\administracion\model\MercadoConfig.java
@@ -39,9 +40,12 @@ C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accionesel
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\dto\RecuperarPasswordDTO.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\dto\RegistroInversionistaDTO.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\dto\ResetPasswordDTO.java
+C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\dto\UsuarioGestionDTO.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\interfaces\IAsignacionComisionista.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\interfaces\IAutenticacion.java
+C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\interfaces\IConsultaInversionista.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\interfaces\IControlAcceso.java
+C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\interfaces\IGestionCuentas.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\model\AsignacionComisionista.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\model\CodigoVerificacion.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\model\Comisionista.java
@@ -62,8 +66,10 @@ C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accionesel
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\security\SecurityConfig.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\service\AsignacionComisionistaService.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\service\AutenticacionService.java
+C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\service\ConsultaInversionistaService.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\service\DatosInicialesComisionistas.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\service\DatosInicialesPerfilesRol.java
+C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\service\GestionCuentasService.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\service\MFAService.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\service\MonitorIntentosService.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\autenticacion\service\NormalizacionUsuarios3FnMigration.java
@@ -78,6 +84,7 @@ C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accionesel
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\integracion\adaptadores\stripe\StripeAdapter.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\integracion\notificaciones\canales\EmailSender.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\integracion\notificaciones\DespachadorNotificaciones.java
+C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\integracion\notificaciones\INotificacion.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\integracion\orquestadores\OrquestadorRegistro.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\integracion\orquestadores\OrquestadorSuscripcion.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\mercado\controller\MercadoController.java
@@ -91,6 +98,7 @@ C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accionesel
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\controller\OrdenController.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\controller\PortafolioController.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\controller\PropuestaController.java
+C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\controller\ReporteController.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\dto\ComisionDetalleDTO.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\dto\CrearOrdenRequestDTO.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\dto\CrearPropuestaOrdenDTO.java
@@ -99,6 +107,8 @@ C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accionesel
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\dto\OrdenDTO.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\dto\PortafolioDTO.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\dto\ResumenComisionDTO.java
+C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\dto\ResumenMercadoDTO.java
+C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\dto\ResumenNegocioDTO.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\dto\SaldoDTO.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\interfaces\IOrden.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\model\Comision.java
@@ -115,6 +125,7 @@ C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accionesel
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\service\ColaOrdenesService.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\service\OrdenService.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\service\PortafolioService.java
+C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\service\ReporteService.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ordenes\service\SaldoService.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\ServletInitializer.java
 C:\Users\juand\Desktop\ACBOSQUE\backend\src\main\java\co\edu\unbosque\accioneselbosque\shared\config\CorsConfig.java

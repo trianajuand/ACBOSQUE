@@ -4,7 +4,7 @@ import co.edu.unbosque.accioneselbosque.autenticacion.model.CodigoVerificacion.T
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.CodigoVerificacionRepository;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
-import co.edu.unbosque.accioneselbosque.integracion.notificaciones.DespachadorNotificaciones;
+import co.edu.unbosque.accioneselbosque.integracion.notificaciones.INotificacion;
 import co.edu.unbosque.accioneselbosque.shared.exceptions.InvalidTokenException;
 import co.edu.unbosque.accioneselbosque.shared.exceptions.UsuarioNoEncontradoException;
 import co.edu.unbosque.accioneselbosque.trazabilidad.interfaces.IAuditLog;
@@ -25,7 +25,7 @@ public class RecuperacionPasswordService {
 
     private final UsuarioRepository usuarioRepository;
     private final CodigoVerificacionRepository codigoVerificacionRepository;
-    private final DespachadorNotificaciones despachador;
+    private final INotificacion despachador;
     private final IAuditLog auditLog;
     private final PasswordEncoder passwordEncoder;
     private final int expiracionMinutos;
@@ -34,7 +34,7 @@ public class RecuperacionPasswordService {
     public RecuperacionPasswordService(
             UsuarioRepository usuarioRepository,
             CodigoVerificacionRepository codigoVerificacionRepository,
-            DespachadorNotificaciones despachador,
+            INotificacion despachador,
             IAuditLog auditLog,
             PasswordEncoder passwordEncoder,
             @Value("${app.seguridad.recuperacion-expiracion-minutos}") int expiracionMinutos) {

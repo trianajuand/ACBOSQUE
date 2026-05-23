@@ -2,6 +2,7 @@ package co.edu.unbosque.accioneselbosque.ordenes.interfaces;
 
 import co.edu.unbosque.accioneselbosque.ordenes.dto.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface IOrden {
@@ -34,4 +35,7 @@ public interface IOrden {
     OrdenDTO rechazarPropuesta(Long usuarioId, Long propuestaId, String comentario);
 
     OrdenDTO firmarYEnviarPropuesta(Long comisionistaId, Long propuestaId, String ipOrigen);
+
+    /** Retorna resumen agregado de órdenes y comisiones para el dashboard ejecutivo del admin. */
+    ResumenNegocioDTO obtenerResumenNegocio(LocalDateTime desde, LocalDateTime hasta, String mercadoFiltro);
 }

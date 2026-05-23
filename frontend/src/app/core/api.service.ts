@@ -61,6 +61,18 @@ export class ApiService {
     return this.request<T>(endpoint, { method: 'DELETE' }, true);
   }
 
+  async getBlob(endpoint: string): Promise<Blob | null> {
+    const headers: Record<string, string> = {};
+    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+    try {
+      const res = await fetch(this.baseUrl + endpoint, { method: 'GET', headers });
+      if (!res.ok) return null;
+      return await res.blob();
+    } catch {
+      return null;
+    }
+  }
+
   private async request<T>(endpoint: string, init: RequestInit, auth: boolean): Promise<ApiResult<T>> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (auth && this.token) {

@@ -10,6 +10,7 @@ import co.edu.unbosque.accioneselbosque.autenticacion.model.Rol;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.InversionistaRepository;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
+import co.edu.unbosque.accioneselbosque.integracion.adaptadores.stripe.IIntegracionStripe;
 import co.edu.unbosque.accioneselbosque.shared.exceptions.UsuarioNoEncontradoException;
 import co.edu.unbosque.accioneselbosque.trazabilidad.interfaces.IAuditLog;
 import co.edu.unbosque.accioneselbosque.trazabilidad.model.TipoEvento;
@@ -29,15 +30,18 @@ public class PerfilService {
     private final UsuarioRepository usuarioRepository;
     private final InversionistaRepository inversionistaRepository;
     private final IAsignacionComisionista asignacionComisionista;
+    private final IIntegracionStripe stripe;
     private final IAuditLog auditLog;
 
     public PerfilService(UsuarioRepository usuarioRepository,
                          InversionistaRepository inversionistaRepository,
                          IAsignacionComisionista asignacionComisionista,
+                         IIntegracionStripe stripe,
                          IAuditLog auditLog) {
         this.usuarioRepository = usuarioRepository;
         this.inversionistaRepository = inversionistaRepository;
         this.asignacionComisionista = asignacionComisionista;
+        this.stripe = stripe;
         this.auditLog = auditLog;
     }
 
@@ -117,6 +121,31 @@ public class PerfilService {
         usuarioRepository.save(u);
         TipoEvento evento = activar ? TipoEvento.MFA_ACTIVADO : TipoEvento.MFA_DESACTIVADO;
         auditLog.registrar(evento, correo, "MFA " + (activar ? "activado" : "desactivado") + " por el usuario");
+    }
+
+    // HU-11 cancelacion
+    @Transactional
+    public void cancelarSuscripcion(String correo) {
+        Usuario u = buscarPorCorreo(correo);
+        Inversionista inversionista = obtenerOCrearInversionista(u);
+        if (!Boolean.TRUE.equals(inversionista.isEsPremium())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No tienes una suscripcion premium activa");
+        }
+        if (inversionista.getStripeSuscripcionId() != null) {
+            try {
+                stripe.cancelarSuscripcion(inversionista.getStripeSuscripcionId());
+            } catch (Exception ignored) {
+                // Stripe puede estar en modo placeholder; se cancela igual localmente
+            }
+        }
+        inversionista.setEsPremium(false);
+        inversionista.setPlanSuscripcion("BASICO");
+        inversionista.setStripeSuscripcionId(null);
+        inversionista.setFechaExpiracionPremium(null);
+        inversionista.setFechaActualizacion(java.time.LocalDateTime.now());
+        inversionistaRepository.save(inversionista);
+        auditLog.registrar(TipoEvento.SUSCRIPCION_PREMIUM_CANCELADA, correo,
+                "Suscripcion premium cancelada por el usuario");
     }
 
     @Transactional

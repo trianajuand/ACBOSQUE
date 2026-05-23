@@ -143,7 +143,7 @@ Eventos que SIEMPRE deben pasar por `IAuditLog`:
 
 ### 3.1 Estructura
 
-- Por **feature** (alineada con servicios del backend): `features/autenticacion/`, `features/mercado/`, etc.
+- Por **feature** (alineada con módulos del backend): `features/autenticacion/`, `features/mercado/`, etc.
 - Componentes **standalone** (Angular 15+ moderno).
 - Servicios HTTP en `core/services/`.
 

@@ -11,7 +11,7 @@ import co.edu.unbosque.accioneselbosque.autenticacion.model.Rol;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.InversionistaRepository;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
-import co.edu.unbosque.accioneselbosque.integracion.notificaciones.DespachadorNotificaciones;
+import co.edu.unbosque.accioneselbosque.integracion.notificaciones.INotificacion;
 import co.edu.unbosque.accioneselbosque.integracion.orquestadores.OrquestadorRegistro;
 import co.edu.unbosque.accioneselbosque.integracion.orquestadores.OrquestadorSuscripcion;
 import co.edu.unbosque.accioneselbosque.shared.exceptions.EmailAlreadyExistsException;
@@ -33,7 +33,7 @@ public class RegistroService {
     private final UsuarioRepository usuarioRepository;
     private final InversionistaRepository inversionistaRepository;
     private final MFAService mfaService;
-    private final DespachadorNotificaciones despachador;
+    private final INotificacion despachador;
     private final IAuditLog auditLog;
     private final PasswordEncoder passwordEncoder;
     private final OrquestadorRegistro orquestadorRegistro;
@@ -44,7 +44,7 @@ public class RegistroService {
             UsuarioRepository usuarioRepository,
             InversionistaRepository inversionistaRepository,
             MFAService mfaService,
-            DespachadorNotificaciones despachador,
+            INotificacion despachador,
             IAuditLog auditLog,
             PasswordEncoder passwordEncoder,
             OrquestadorRegistro orquestadorRegistro,

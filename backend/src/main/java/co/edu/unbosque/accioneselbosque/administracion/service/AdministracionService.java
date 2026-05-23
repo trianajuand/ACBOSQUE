@@ -2,6 +2,7 @@ package co.edu.unbosque.accioneselbosque.administracion.service;
 
 import co.edu.unbosque.accioneselbosque.administracion.dto.*;
 import co.edu.unbosque.accioneselbosque.administracion.interfaces.IAdministracion;
+import co.edu.unbosque.accioneselbosque.administracion.interfaces.IGestorParametros;
 import co.edu.unbosque.accioneselbosque.administracion.model.FeriadoMercado;
 import co.edu.unbosque.accioneselbosque.administracion.model.MercadoConfig;
 import co.edu.unbosque.accioneselbosque.administracion.model.ParametroComision;
@@ -9,19 +10,14 @@ import co.edu.unbosque.accioneselbosque.administracion.repository.AdministradorR
 import co.edu.unbosque.accioneselbosque.administracion.repository.FeriadoMercadoRepository;
 import co.edu.unbosque.accioneselbosque.administracion.repository.MercadoConfigRepository;
 import co.edu.unbosque.accioneselbosque.administracion.repository.ParametroComisionRepository;
-import co.edu.unbosque.accioneselbosque.autenticacion.model.*;
-import co.edu.unbosque.accioneselbosque.autenticacion.repository.AsignacionComisionistaRepository;
-import co.edu.unbosque.accioneselbosque.autenticacion.repository.ComisionistaRepository;
-import co.edu.unbosque.accioneselbosque.autenticacion.repository.InversionistaRepository;
-import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
-import co.edu.unbosque.accioneselbosque.ordenes.model.Comision;
-import co.edu.unbosque.accioneselbosque.ordenes.model.Orden;
-import co.edu.unbosque.accioneselbosque.ordenes.repository.ComisionRepository;
-import co.edu.unbosque.accioneselbosque.ordenes.repository.OrdenRepository;
+import co.edu.unbosque.accioneselbosque.autenticacion.dto.UsuarioGestionDTO;
+import co.edu.unbosque.accioneselbosque.autenticacion.interfaces.IGestionCuentas;
+import co.edu.unbosque.accioneselbosque.ordenes.dto.ResumenNegocioDTO;
+import co.edu.unbosque.accioneselbosque.ordenes.interfaces.IOrden;
 import co.edu.unbosque.accioneselbosque.trazabilidad.interfaces.IAuditLog;
 import co.edu.unbosque.accioneselbosque.trazabilidad.model.TipoEvento;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -32,7 +28,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
-public class AdministracionService implements IAdministracion {
+public class AdministracionService implements IAdministracion, IGestorParametros {
 
     private static final BigDecimal COMISION_DEFAULT = BigDecimal.valueOf(2.0);
     private static final BigDecimal SPLIT_PLATAFORMA_DEFAULT = BigDecimal.valueOf(60.0);
@@ -42,40 +38,29 @@ public class AdministracionService implements IAdministracion {
     private final MercadoConfigRepository mercadoRepo;
     private final FeriadoMercadoRepository feriadoRepo;
     private final ParametroComisionRepository parametroRepo;
-    private final UsuarioRepository usuarioRepo;
-    private final InversionistaRepository inversionistaRepo;
-    private final ComisionistaRepository comisionistaRepo;
-    private final AsignacionComisionistaRepository asignacionRepo;
-    private final OrdenRepository ordenRepo;
-    private final ComisionRepository comisionRepo;
-    private final PasswordEncoder passwordEncoder;
+    private final IGestionCuentas gestionCuentas;
+    private final IOrden ordenService;
     private final IAuditLog auditLog;
 
     public AdministracionService(AdministradorRepository administradorRepo,
-                                 MercadoConfigRepository mercadoRepo,
-                                 FeriadoMercadoRepository feriadoRepo,
-                                 ParametroComisionRepository parametroRepo,
-                                 UsuarioRepository usuarioRepo,
-                                 InversionistaRepository inversionistaRepo,
-                                 ComisionistaRepository comisionistaRepo,
-                                 AsignacionComisionistaRepository asignacionRepo,
-                                 OrdenRepository ordenRepo,
-                                 ComisionRepository comisionRepo,
-                                 PasswordEncoder passwordEncoder,
-                                 IAuditLog auditLog) {
+                                  MercadoConfigRepository mercadoRepo,
+                                  FeriadoMercadoRepository feriadoRepo,
+                                  ParametroComisionRepository parametroRepo,
+                                  IGestionCuentas gestionCuentas,
+                                  @Lazy IOrden ordenService,
+                                  IAuditLog auditLog) {
         this.administradorRepo = administradorRepo;
         this.mercadoRepo = mercadoRepo;
         this.feriadoRepo = feriadoRepo;
         this.parametroRepo = parametroRepo;
-        this.usuarioRepo = usuarioRepo;
-        this.inversionistaRepo = inversionistaRepo;
-        this.comisionistaRepo = comisionistaRepo;
-        this.asignacionRepo = asignacionRepo;
-        this.ordenRepo = ordenRepo;
-        this.comisionRepo = comisionRepo;
-        this.passwordEncoder = passwordEncoder;
+        this.gestionCuentas = gestionCuentas;
+        this.ordenService = ordenService;
         this.auditLog = auditLog;
     }
+
+    // =========================================================
+    // IGestorParametros — lecturas de parámetros de comisión
+    // =========================================================
 
     @Override
     @Transactional(readOnly = true)
@@ -95,6 +80,10 @@ public class AdministracionService implements IAdministracion {
         return parametroActivo().map(ParametroComision::getSplitComisionista).orElse(SPLIT_COMISIONISTA_DEFAULT);
     }
 
+    // =========================================================
+    // IAdministracion — configuración de mercados y feriados
+    // =========================================================
+
     @Override
     @Transactional(readOnly = true)
     public Optional<MercadoConfigDTO> obtenerConfiguracionMercado(String mercado) {
@@ -107,25 +96,23 @@ public class AdministracionService implements IAdministracion {
         return feriadoRepo.existsByMercadoCodigoIgnoreCaseAndFecha(codigoMercado(mercado), fecha);
     }
 
+    // =========================================================
+    // Validación de administrador
+    // =========================================================
+
     @Transactional(readOnly = true)
     public void validarAdministrador(String correo) {
-        Usuario usuario = usuarioRepo.findByCorreo(correo)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado"));
-        if (usuario.getRol() != Rol.ADMINISTRADOR) {
-            auditLog.registrar(TipoEvento.ACCESO_DENEGADO_ADMIN, correo, "Intento de acceso al modulo administrador");
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Requiere rol ADMINISTRADOR");
-        }
-        if (usuario.getEstadoCuenta() != EstadoCuenta.ACTIVA) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "La cuenta administradora no esta activa");
-        }
-        if (!usuario.isMfaHabilitado()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "MFA es obligatorio para administrador");
-        }
-        if (administradorRepo.findByUsuarioId(usuario.getId()).isEmpty()) {
+        if (!gestionCuentas.esAdministradorActivo(correo)) {
+            auditLog.registrar(TipoEvento.ACCESO_DENEGADO_ADMIN, correo,
+                    "Acceso denegado al modulo administrador");
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "El perfil administrador debe crearse manualmente en la tabla administrador");
+                    "Requiere rol ADMINISTRADOR activo con MFA habilitado");
         }
     }
+
+    // =========================================================
+    // Gestión de mercados
+    // =========================================================
 
     @Transactional(readOnly = true)
     public List<MercadoConfigDTO> listarMercados() {
@@ -181,6 +168,10 @@ public class AdministracionService implements IAdministracion {
                 "Feriado eliminado: " + feriado.getMercadoCodigo() + " " + feriado.getFecha());
     }
 
+    // =========================================================
+    // Gestión de parámetros de comisión
+    // =========================================================
+
     @Transactional(readOnly = true)
     public ParametroComisionDTO obtenerParametrosComision() {
         ParametroComisionDTO dto = new ParametroComisionDTO();
@@ -212,165 +203,89 @@ public class AdministracionService implements IAdministracion {
         return obtenerParametrosComision();
     }
 
+    // =========================================================
+    // Gestión de usuarios — delegado a IGestionCuentas
+    // =========================================================
+
     @Transactional
     public UsuarioAdminDTO crearComisionista(CrearComisionistaDTO dto, String adminCorreo) {
-        if (usuarioRepo.existsByCorreo(dto.getCorreo())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "El correo ya esta registrado");
-        }
-        Usuario usuario = new Usuario();
-        usuario.setNombreCompleto(dto.getNombreCompleto());
-        usuario.setCorreo(dto.getCorreo().trim().toLowerCase(Locale.ROOT));
-        usuario.setContrasenia(passwordEncoder.encode(dto.getContrasenia()));
-        usuario.setRol(Rol.COMISIONISTA);
-        usuario.setEstadoCuenta(EstadoCuenta.ACTIVA);
-        usuario.setMfaHabilitado(true);
-        usuario.setFechaCreacion(LocalDateTime.now());
-        usuario.setFechaActualizacion(LocalDateTime.now());
-        usuario = usuarioRepo.save(usuario);
-
-        Comisionista comisionista = new Comisionista();
-        comisionista.setUsuarioId(usuario.getId());
-        comisionista.setEspecialidadesMercado(normalizarCsv(dto.getEspecialidadesMercado()));
-        comisionista.setFechaCreacion(LocalDateTime.now());
-        comisionista.setFechaActualizacion(LocalDateTime.now());
-        comisionistaRepo.save(comisionista);
-
-        auditLog.registrar(TipoEvento.USUARIO_ADMIN_GESTIONADO, adminCorreo,
-                "Comisionista creado: " + usuario.getCorreo());
-        return mapearUsuario(usuario);
+        UsuarioGestionDTO result = gestionCuentas.crearComisionista(
+                dto.getNombreCompleto(), dto.getCorreo(),
+                dto.getContrasenia(), dto.getEspecialidadesMercado(), adminCorreo);
+        return mapearDesdeGestion(result);
     }
 
     @Transactional(readOnly = true)
     public List<UsuarioAdminDTO> listarUsuarios(String rol) {
-        List<UsuarioAdminDTO> usuarios = new ArrayList<>();
-        for (Usuario usuario : usuarioRepo.findAll()) {
-            if (rol == null || rol.isBlank() || usuario.getRol().name().equalsIgnoreCase(rol)) {
-                usuarios.add(mapearUsuario(usuario));
-            }
-        }
-        usuarios.sort(Comparator.comparing(UsuarioAdminDTO::getFechaCreacion,
-                Comparator.nullsLast(Comparator.reverseOrder())));
-        return usuarios;
+        return gestionCuentas.listarUsuarios(rol)
+                .stream()
+                .map(this::mapearDesdeGestion)
+                .toList();
     }
 
     @Transactional
-    public UsuarioAdminDTO asignarComisionista(Long inversionistaId, Long comisionistaId, String adminCorreo) {
-        Usuario inversionista = usuarioRepo.findById(inversionistaId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Inversionista no encontrado"));
-        Usuario comisionista = usuarioRepo.findById(comisionistaId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comisionista no encontrado"));
-        if (inversionista.getRol() != Rol.INVERSIONISTA && inversionista.getRol() != Rol.INVERSIONISTA_PREMIUM) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El usuario destino debe ser inversionista");
-        }
-        if (comisionista.getRol() != Rol.COMISIONISTA || comisionista.getEstadoCuenta() != EstadoCuenta.ACTIVA) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El comisionista debe estar activo");
-        }
-
-        asignacionRepo.findByInversionistaIdAndActivaTrue(inversionistaId).ifPresent(actual -> {
-            actual.setActiva(false);
-            asignacionRepo.save(actual);
-        });
-        AsignacionComisionista asignacion = new AsignacionComisionista();
-        asignacion.setInversionistaId(inversionistaId);
-        asignacion.setComisionistaId(comisionistaId);
-        asignacion.setMotivo("Asignacion manual por administrador");
-        asignacion.setInteresesCoincidentes("");
-        asignacion.setActiva(true);
-        asignacion.setFechaAsignacion(LocalDateTime.now());
-        asignacionRepo.save(asignacion);
-
-        auditLog.registrar(TipoEvento.COMISIONISTA_ASIGNADO, adminCorreo,
-                "Asignacion manual: " + inversionista.getCorreo() + " -> " + comisionista.getCorreo());
-        return mapearUsuario(inversionista);
+    public UsuarioAdminDTO asignarComisionista(Long inversionistaId, Long comisionistaId,
+                                               String adminCorreo) {
+        UsuarioGestionDTO result = gestionCuentas.asignarComisionista(
+                inversionistaId, comisionistaId, adminCorreo);
+        return mapearDesdeGestion(result);
     }
 
     @Transactional
-    public UsuarioAdminDTO cambiarEstadoUsuario(Long usuarioId, CambiarEstadoCuentaDTO dto, String adminCorreo) {
-        Usuario usuario = usuarioRepo.findById(usuarioId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
-        EstadoCuenta nuevoEstado = EstadoCuenta.valueOf(dto.getEstado().trim().toUpperCase(Locale.ROOT));
-        usuario.setEstadoCuenta(nuevoEstado);
-        usuario.setFechaActualizacion(LocalDateTime.now());
-        usuario = usuarioRepo.save(usuario);
-        auditLog.registrar(TipoEvento.CAMBIO_ESTADO_CUENTA, adminCorreo,
-                "Usuario " + usuario.getCorreo() + " -> " + nuevoEstado + " | " + Objects.toString(dto.getMotivo(), ""));
-        return mapearUsuario(usuario);
+    public UsuarioAdminDTO cambiarEstadoUsuario(Long usuarioId, CambiarEstadoCuentaDTO dto,
+                                                String adminCorreo) {
+        UsuarioGestionDTO result = gestionCuentas.cambiarEstadoUsuario(
+                usuarioId, dto.getEstado(), dto.getMotivo(), adminCorreo);
+        return mapearDesdeGestion(result);
     }
 
     @Transactional
     public void eliminarUsuario(Long usuarioId, String adminCorreo) {
-        Usuario usuario = usuarioRepo.findById(usuarioId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
-        if (usuario.getRol() == Rol.ADMINISTRADOR) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se elimina administradores desde este modulo");
-        }
-        usuario.setEstadoCuenta(EstadoCuenta.INACTIVA);
-        usuario.setFechaActualizacion(LocalDateTime.now());
-        usuarioRepo.save(usuario);
-        asignacionRepo.findByInversionistaIdAndActivaTrue(usuarioId).ifPresent(a -> {
-            a.setActiva(false);
-            asignacionRepo.save(a);
-        });
-        auditLog.registrar(TipoEvento.USUARIO_ADMIN_GESTIONADO, adminCorreo,
-                "Baja logica de usuario: " + usuario.getCorreo());
+        gestionCuentas.eliminarUsuario(usuarioId, adminCorreo);
     }
+
+    // =========================================================
+    // Dashboard ejecutivo — agrega datos de usuarios + ordenes
+    // =========================================================
 
     @Transactional(readOnly = true)
     public DashboardEjecutivoDTO obtenerDashboard(String desde, String hasta, String mercadoFiltro) {
         LocalDateTime inicio = parseInicio(desde);
         LocalDateTime fin = parseFin(hasta);
-        DashboardEjecutivoDTO dto = new DashboardEjecutivoDTO();
-        Map<String, TendenciaMercadoDTO> tendencias = new TreeMap<>();
 
-        for (Usuario usuario : usuarioRepo.findAll()) {
-            if (usuario.getEstadoCuenta() == EstadoCuenta.ACTIVA) {
+        DashboardEjecutivoDTO dto = new DashboardEjecutivoDTO();
+        List<UsuarioGestionDTO> usuarios = gestionCuentas.listarUsuarios(null);
+        for (UsuarioGestionDTO u : usuarios) {
+            if ("ACTIVA".equals(u.getEstadoCuenta())) {
                 dto.setUsuariosActivos(dto.getUsuariosActivos() + 1);
             }
-            if (enRango(usuario.getFechaCreacion(), inicio, fin)) {
+            if (u.getFechaCreacion() != null && enRango(u.getFechaCreacion(), inicio, fin)) {
                 dto.setCrecimientoUsuarios(dto.getCrecimientoUsuarios() + 1);
             }
         }
 
-        for (Orden orden : ordenRepo.findAll()) {
-            if (!enRango(orden.getCreadaEn(), inicio, fin)) {
-                continue;
-            }
-            String mercado = detectarMercado(orden.getSimbolo());
-            if (mercadoFiltro != null && !mercadoFiltro.isBlank()
-                    && !mercado.equalsIgnoreCase(codigoMercado(mercadoFiltro))) {
-                continue;
-            }
-            dto.setTransacciones(dto.getTransacciones() + 1);
-            dto.setVolumenTransacciones(dto.getVolumenTransacciones().add(valor(orden.getMontoTotal())));
-            TendenciaMercadoDTO tendencia = tendencias.computeIfAbsent(mercado, key -> {
-                TendenciaMercadoDTO t = new TendenciaMercadoDTO();
-                t.setMercado(key);
-                return t;
-            });
-            tendencia.setOperaciones(tendencia.getOperaciones() + 1);
-            tendencia.setVolumen(tendencia.getVolumen().add(valor(orden.getMontoTotal())));
-        }
+        ResumenNegocioDTO resumen = ordenService.obtenerResumenNegocio(inicio, fin, mercadoFiltro);
+        dto.setTransacciones((int) resumen.getTransacciones());
+        dto.setVolumenTransacciones(resumen.getVolumenTransacciones());
+        dto.setComisionesGeneradas(resumen.getComisionesGeneradas());
 
-        for (Comision comision : comisionRepo.findAll()) {
-            if (!enRango(comision.getCreadaEn(), inicio, fin)) {
-                continue;
-            }
-            dto.setComisionesGeneradas(dto.getComisionesGeneradas().add(valor(comision.getMontoComision())));
-            ordenRepo.findById(comision.getOrdenId()).ifPresent(orden -> {
-                String mercado = detectarMercado(orden.getSimbolo());
-                if (mercadoFiltro == null || mercadoFiltro.isBlank()
-                        || mercado.equalsIgnoreCase(codigoMercado(mercadoFiltro))) {
-                    tendencias.computeIfAbsent(mercado, key -> {
-                        TendenciaMercadoDTO t = new TendenciaMercadoDTO();
-                        t.setMercado(key);
-                        return t;
-                    }).setComisiones(tendencias.get(mercado).getComisiones().add(valor(comision.getMontoComision())));
-                }
-            });
-        }
-        dto.setTendenciasPorMercado(new ArrayList<>(tendencias.values()));
+        List<TendenciaMercadoDTO> tendencias = resumen.getTendenciasPorMercado().stream()
+                .map(rm -> {
+                    TendenciaMercadoDTO t = new TendenciaMercadoDTO();
+                    t.setMercado(rm.getMercado());
+                    t.setOperaciones(rm.getOperaciones());
+                    t.setVolumen(rm.getVolumen());
+                    t.setComisiones(rm.getComisiones());
+                    return t;
+                })
+                .toList();
+        dto.setTendenciasPorMercado(tendencias);
         return dto;
     }
+
+    // =========================================================
+    // Helpers privados
+    // =========================================================
 
     private Optional<ParametroComision> parametroActivo() {
         return parametroRepo.findFirstByActivoTrueOrderByActualizadoEnDesc();
@@ -379,9 +294,7 @@ public class AdministracionService implements IAdministracion {
     private Optional<MercadoConfig> buscarMercado(String mercado) {
         String codigo = codigoMercado(mercado);
         Optional<MercadoConfig> directo = mercadoRepo.findByCodigoIgnoreCase(codigo);
-        if (directo.isPresent()) {
-            return directo;
-        }
+        if (directo.isPresent()) return directo;
         if ("NYSE/NASDAQ".equalsIgnoreCase(codigo)) {
             return mercadoRepo.findByCodigoIgnoreCase("NYSE");
         }
@@ -410,74 +323,38 @@ public class AdministracionService implements IAdministracion {
         return dto;
     }
 
-    private UsuarioAdminDTO mapearUsuario(Usuario usuario) {
+    private UsuarioAdminDTO mapearDesdeGestion(UsuarioGestionDTO g) {
         UsuarioAdminDTO dto = new UsuarioAdminDTO();
-        dto.setId(usuario.getId());
-        dto.setNombreCompleto(usuario.getNombreCompleto());
-        dto.setCorreo(usuario.getCorreo());
-        dto.setRol(usuario.getRol().name());
-        dto.setEstadoCuenta(usuario.getEstadoCuenta().name());
-        dto.setMfaHabilitado(usuario.isMfaHabilitado());
-        dto.setFechaCreacion(usuario.getFechaCreacion());
-        asignacionRepo.findByInversionistaIdAndActivaTrue(usuario.getId())
-                .flatMap(a -> usuarioRepo.findById(a.getComisionistaId()))
-                .ifPresent(c -> dto.setComisionistaAsignado(c.getNombreCompleto()));
+        dto.setId(g.getId());
+        dto.setNombreCompleto(g.getNombreCompleto());
+        dto.setCorreo(g.getCorreo());
+        dto.setRol(g.getRol());
+        dto.setEstadoCuenta(g.getEstadoCuenta());
+        dto.setMfaHabilitado(g.isMfaHabilitado());
+        dto.setFechaCreacion(g.getFechaCreacion());
+        dto.setComisionistaAsignado(g.getComisionistaAsignado());
         return dto;
     }
 
     private String codigoMercado(String mercado) {
-        if (mercado == null || mercado.isBlank()) {
-            return "NYSE";
-        }
+        if (mercado == null || mercado.isBlank()) return "NYSE";
         String codigo = mercado.trim().toUpperCase(Locale.ROOT);
-        if ("US".equals(codigo) || "NYSE/NASDAQ".equals(codigo)) {
-            return "NYSE";
-        }
+        if ("US".equals(codigo) || "NYSE/NASDAQ".equals(codigo)) return "NYSE";
         return codigo;
     }
 
-    private String normalizarCsv(String csv) {
-        if (csv == null || csv.isBlank()) {
-            return "";
-        }
-        return String.join(",", Arrays.stream(csv.split("[,;\\s]+"))
-                .map(v -> v.trim().toUpperCase(Locale.ROOT))
-                .filter(v -> !v.isBlank())
-                .distinct()
-                .toList());
-    }
-
-    private String detectarMercado(String simbolo) {
-        if (simbolo == null) return "DESCONOCIDO";
-        String s = simbolo.toUpperCase(Locale.ROOT);
-        if (s.endsWith(".T")) return "TSE";
-        if (s.endsWith(".L")) return "LSE";
-        if (s.endsWith(".AX")) return "ASX";
-        return "NYSE";
-    }
-
     private boolean enRango(LocalDateTime fecha, LocalDateTime inicio, LocalDateTime fin) {
-        if (fecha == null) {
-            return false;
-        }
+        if (fecha == null) return false;
         return !fecha.isBefore(inicio) && !fecha.isAfter(fin);
     }
 
     private LocalDateTime parseInicio(String valor) {
-        if (valor == null || valor.isBlank()) {
-            return LocalDate.now().minusMonths(1).atStartOfDay();
-        }
+        if (valor == null || valor.isBlank()) return LocalDate.now().minusMonths(1).atStartOfDay();
         return LocalDate.parse(valor).atStartOfDay();
     }
 
     private LocalDateTime parseFin(String valor) {
-        if (valor == null || valor.isBlank()) {
-            return LocalDate.now().atTime(23, 59, 59);
-        }
+        if (valor == null || valor.isBlank()) return LocalDate.now().atTime(23, 59, 59);
         return LocalDate.parse(valor).atTime(23, 59, 59);
-    }
-
-    private BigDecimal valor(BigDecimal valor) {
-        return valor != null ? valor : BigDecimal.ZERO;
     }
 }

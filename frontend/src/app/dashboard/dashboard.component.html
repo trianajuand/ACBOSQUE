@@ -16,6 +16,7 @@
       <button [class.active]="panel() === 'propuestas'" (click)="seleccionar('propuestas')">Propuestas</button>
       <button [class.active]="panel() === 'perfil'" (click)="seleccionar('perfil')">Perfil</button>
       <button [class.active]="panel() === 'configuracion'" (click)="seleccionar('configuracion')">Configuracion</button>
+      <button [class.active]="panel() === 'reporte'" (click)="seleccionar('reporte')">Reporte</button>
     </nav>
 
     <div class="user-box">
@@ -451,6 +452,26 @@
           </section>
         }
 
+        @if (panel() === 'reporte') {
+          <section class="panel">
+            <div class="panel-title"><h2>Reporte de actividad (PDF)</h2></div>
+            <form [formGroup]="reporteForm" (ngSubmit)="generarReporte()" class="form-grid two" style="max-width:480px">
+              <div class="field">
+                <label>Desde</label>
+                <input type="date" formControlName="desde" />
+              </div>
+              <div class="field">
+                <label>Hasta</label>
+                <input type="date" formControlName="hasta" />
+              </div>
+              <button class="btn" type="submit" style="grid-column:1/-1">Descargar PDF</button>
+            </form>
+            <p style="margin-top:12px;color:var(--muted);font-size:.85rem">
+              El reporte incluye ganancias/perdidas, comisiones pagadas y activos mas operados en el periodo.
+            </p>
+          </section>
+        }
+
         @if (panel() === 'propuestas') {
           <section class="panel">
             <div class="panel-title">
@@ -534,6 +555,11 @@
                 <div><span>Plan</span><strong>{{ perfil()?.planSuscripcion || 'BASICO' }}</strong></div>
                 <div><span>Premium</span><strong>{{ perfil()?.esPremium ? 'Activo' : 'No activo' }}</strong></div>
               </div>
+              @if (perfil()?.esPremium) {
+                <button class="btn danger" type="button" (click)="cancelarPremium()" style="margin-top:12px">
+                  Cancelar suscripcion premium
+                </button>
+              }
             </div>
           </section>
         }

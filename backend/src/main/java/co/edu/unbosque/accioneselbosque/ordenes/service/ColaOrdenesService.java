@@ -109,6 +109,16 @@ public class ColaOrdenesService {
         }
 
         if (esSimboloUs(orden.getSimbolo())) {
+            // Si ya tiene alpacaOrderId fue enviada al crearla (mercado estaba cerrado).
+            // Solo se promueve a ENVIADA para que sincronizarOrdenesEnviadasConAlpaca la procese.
+            if (orden.getAlpacaOrderId() != null) {
+                orden.setEstado(EstadoOrden.ENVIADA);
+                ordenRepo.save(orden);
+                auditLog.registrar(TipoEvento.ORDEN_ENVIADA_ALPACA, orden.getUsuarioId().toString(),
+                        "Orden encolada promovida a ENVIADA (ya en Alpaca): " + orden.getAlpacaOrderId());
+                return;
+            }
+
             Inversionista inversionista = inversionistaRepo.findByUsuarioId(usuario.getId())
                     .orElseThrow(() -> new IllegalStateException("Inversionista no encontrado para usuario " + usuario.getId()));
             // Mercado US → Alpaca

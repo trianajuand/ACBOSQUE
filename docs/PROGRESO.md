@@ -6,17 +6,17 @@
 
 ## Estado general
 
-- **Fecha última actualización:** 2026-05-20
-- **Sprint actual:** Sprint 2 — Servicio de Mercado + Sprint 3 — Servicio de Órdenes (parcial)
+- **Fecha última actualización:** 2026-05-22
+- **Sprint actual:** Sprint 2 — Módulo de Mercado + Sprint 3 — Módulo de Órdenes (parcial)
 - **Sprints completados:** Sprint 1 (Autenticación + Perfil)
 - **Historias del MVP completadas:** 26 / 42
 - **Bloqueos actuales:** ninguno
 
 ---
 
-## Sprint actual: Sprint 1 — Servicio de Autenticación
+## Sprint actual: Sprint 1 — Módulo de Autenticación
 
-**Objetivo:** Tener el Servicio de Autenticación completamente funcional, con todos sus flujos validados end-to-end (registro, login, MFA, logout, recuperación de contraseña, bloqueo).
+**Objetivo:** Tener el Módulo de Autenticación completamente funcional, con todos sus flujos validados end-to-end (registro, login, MFA, logout, recuperación de contraseña, bloqueo).
 
 ### Historias incluidas
 
@@ -40,7 +40,7 @@
 ### Tareas técnicas de soporte (no son HU pero son necesarias)
 
 - [ ] Bootstrap proyecto Spring Boot con Maven, Java 17, packaging war
-- [ ] Estructura de carpetas SOA según `ARQUITECTURA.md`
+- [ ] Estructura de carpetas de Monolito Modular según `ARQUITECTURA.md`
 - [ ] Configuración PostgreSQL local (placeholders en `application.properties`)
 - [ ] Configuración SMTP Gmail con app password (placeholders)
 - [ ] Configuración JWT secret de 256 bits
@@ -64,9 +64,9 @@ Todas las historias se consideran cerradas cuando:
 
 ---
 
-## Sprint 1 — Servicio de Autenticación ✅ COMPLETADO
+## Sprint 1 — Módulo de Autenticación ✅ COMPLETADO
 
-**Resultado:** Servicio de Autenticación completamente funcional end-to-end.
+**Resultado:** Módulo de Autenticación completamente funcional end-to-end.
 
 | ID | Historia | Estado | Notas |
 |---|---|:-:|---|
@@ -89,7 +89,7 @@ Todas las historias se consideran cerradas cuando:
 
 ## Sprint actual: Sprint 2 + 3 — Mercado y Órdenes (en validación)
 
-**Objetivo:** Tener el Servicio de Mercado y el Servicio de Órdenes funcionales con APIs reales (Alpaca + Alpha Vantage).
+**Objetivo:** Tener el Módulo de Mercado y el Módulo de Órdenes funcionales con APIs reales (Alpaca + Alpha Vantage).
 
 ### Historias implementadas (backend completo, pendiente validación end-to-end)
 
@@ -180,7 +180,7 @@ Todas las historias se consideran cerradas cuando:
 
 ## Sprints futuros (alta granularidad — refinar al iniciar cada uno)
 
-### Sprint 2 — Servicio de Mercado
+### Sprint 2 — Módulo de Mercado
 - HU-13: Dashboard de acciones de interés.
 - HU-14: Detalle de acción.
 - HU-8, HU-9: Preferencias de notificación y operación (parte que toca al usuario).
@@ -188,7 +188,7 @@ Todas las historias se consideran cerradas cuando:
 - Caché de precios (táctica Maintain Multiple Copies of Data).
 - Verificador de horarios de mercado.
 
-### Sprint 3 — Servicio de Órdenes (parte 1: inversionista)
+### Sprint 3 — Módulo de Órdenes (parte 1: inversionista)
 - HU-15: Visualización de portafolio.
 - HU-16: Saldo y comisiones.
 - HU-17: Orden Market.
@@ -199,12 +199,12 @@ Todas las historias se consideran cerradas cuando:
 - Integración con Alpaca (Adapter en `integracion/adaptadores/alpaca/`).
 - HU-2: Integración Alpaca al registrar inversionista (orquestador de registro).
 
-### Sprint 4 — Servicio de Órdenes (parte 2: comisionista) + Trazabilidad real
+### Sprint 4 — Módulo de Órdenes (parte 2: comisionista) + Trazabilidad real
 - HU-28 a HU-32: flujo completo del comisionista (consulta, propuesta, aprobación, firma).
 - Integración real con Splunk o Elasticsearch para `IAuditLog`.
 - HU-40: Logs auditables de todas las operaciones críticas.
 
-### Sprint 5 — Servicio de Administración
+### Sprint 5 — Módulo de Administración
 - HU-33: Configurar mercados.
 - HU-34: Configurar feriados.
 - HU-35: Configurar comisiones (% y split).
@@ -225,8 +225,8 @@ Todas las historias se consideran cerradas cuando:
 
 > Anotar aquí las decisiones técnicas relevantes que se tomen durante el desarrollo, con fecha y motivo. Esto ayuda a recordar el porqué de elecciones que después parezcan obvias o cuestionables.
 
-### [Fecha] — Decisión inicial: estructura SOA por servicio
-Se rechazó la estructura por capas tradicional para alinear con la arquitectura del informe de ingeniería. Cada servicio replica internamente `controller/service/repository/model/dto/interfaces`.
+### [Fecha] — Decisión inicial: estructura Monolito Modular por módulo
+Se rechazó la estructura por capas tradicional para alinear con la arquitectura del informe de ingeniería. Cada módulo replica internamente `controller/service/repository/model/dto/interfaces` y se comunica con otros módulos únicamente a través de interfaces `I...`.
 
 ### [2026-05-06] — Alpha Vantage key configurada en application.properties
 Clave gratuita obtenida de alphavantage.co y colocada en `alphavantage.api-key`. Reemplaza el placeholder anterior `TU_ALPHA_VANTAGE_API_KEY`.
@@ -275,6 +275,56 @@ Se implemento el modulo administrador separado del inversionista y comisionista:
 ### [2026-05-21] — Ajuste visual y documentacion del modulo administrador
 Se separo visualmente `/admin` del dashboard de inversionista, se reforzo la redireccion por rol para evitar que un administrador cargue `/api/perfil`, se valido login admin con MFA y endpoint `/api/admin/dashboard`, y se actualizaron los SPEC de HU-33 a HU-39. Se agrego `docs/HU-48-dashboard-ejecutivo-metricas-admin/SPEC.md` para documentar el dashboard ejecutivo implementado.
 
+### [2026-05-22] — Mejoras funcionales: cancelación premium, reporte PDF, correcciones de cola
+
+**Cambios implementados:**
+
+1. **Comisionista por intereses** — Se auditó `AsignacionComisionistaService`; la lógica es correcta (ordena por coincidencias de intereses, desempate por menor carga). Si siempre se asigna el mismo comisionista es porque hay solo uno activo en el sistema o sus especialidades coinciden con todos los perfiles de prueba.
+
+2. **Portafolio completo** — Verificado: el frontend ya muestra los 6 campos requeridos (holdings, cantidad, precio promedio, precio mercado, valor total, ganancia/pérdida con %).
+
+3. **Cancelar suscripción premium** (HU-11 parcial):
+   - `PerfilService.cancelarSuscripcion(correo)` — cancela en Stripe (tolerante a placeholder) y pone `esPremium=false`, `planSuscripcion=BASICO`, borra `stripeSuscripcionId`.
+   - `DELETE /api/perfil/suscripcion` en `PerfilController`.
+   - Frontend: botón rojo "Cancelar suscripcion premium" visible solo si `perfil.esPremium`, con `window.confirm()` como confirmación.
+
+4. **Reporte PDF** (HU-27):
+   - Dependencia OpenPDF 1.3.43 añadida a `pom.xml`.
+   - `ReporteService` en módulo ordenes: genera PDF con resumen financiero, tabla de órdenes ejecutadas y top activos más operados.
+   - `GET /api/ordenes/reporte?desde=&hasta=` en `ReporteController`.
+   - Frontend: nuevo panel "Reporte" en el dashboard con selector de fechas y botón "Descargar PDF". `ApiService.getBlob()` para descarga binaria.
+
+5. **Cola + Alpaca** (sesión anterior) — Corrección: cuando el mercado está cerrado, las órdenes US se envían inmediatamente a Alpaca (estado `accepted`) y quedan EN_COLA localmente. Al abrir el mercado, `ColaOrdenesService` las promueve a ENVIADA sin reenviar.
+
+### [2026-05-22] — Refactoring arquitectónico: Monolito Modular completo y sin violaciones de módulo
+
+**Contexto:** El código venía de una implementación SOA. Se auditó todo el backend para garantizar que ningún módulo importe clases internas de otro. Se encontraron y corrigieron violaciones críticas de frontera.
+
+**Nuevos archivos creados (7):**
+
+| Archivo | Propósito |
+|---|---|
+| `autenticacion/dto/UsuarioGestionDTO.java` | DTO neutro que cruza la frontera autenticación → administración sin exponer entidades JPA. |
+| `autenticacion/interfaces/IGestionCuentas.java` | Expone gestión de ciclo de vida de usuarios (crear comisionista, asignar, suspender, eliminar) al módulo Administración. |
+| `autenticacion/interfaces/IConsultaInversionista.java` | Expone consultas de inversionista (validar, alpacaAccountId, portafolio) al módulo Órdenes. |
+| `autenticacion/service/GestionCuentasService.java` | Implementa `IGestionCuentas`; toda la lógica de usuario sigue dentro del módulo autenticación. |
+| `autenticacion/service/ConsultaInversionistaService.java` | Implementa `IConsultaInversionista`; encapsula acceso a `UsuarioRepository` e `InversionistaRepository`. |
+| `integracion/notificaciones/INotificacion.java` | Interfaz que `DespachadorNotificaciones` implementa; los servicios de autenticación la inyectan en lugar de la clase concreta. |
+| `ordenes/dto/ResumenNegocioDTO.java` + `ResumenMercadoDTO.java` | DTOs para que `IOrden.obtenerResumenNegocio()` entregue métricas al dashboard ejecutivo de Administración. |
+
+**Archivos modificados (8):**
+
+- `DespachadorNotificaciones` → añadido `implements INotificacion`.
+- `AutenticacionService`, `RegistroService`, `RecuperacionPasswordService` → inyectan `INotificacion` en lugar del tipo concreto.
+- `AdministracionService` → reescrito completamente; eliminados todos los imports de `autenticacion.*` y `ordenes.*`; inyecta `IGestionCuentas` e `IOrden`; constructor reducido de 12 a 7 parámetros.
+- `OrdenService` → eliminado import de `EstadoCuenta` (autenticación); `validarUsuarioPuedeOperar` delega a `IConsultaInversionista`; acceso a `alpacaAccountId` vía interfaz.
+- `IAdministracion` → limpiada de 3 métodos de comisión duplicados (ya presentes en `IGestorParametros`); queda solo como interfaz de lectura para el módulo Mercado.
+- `IOrden` → nuevo método `obtenerResumenNegocio(LocalDateTime, LocalDateTime, String)`.
+
+**Excepción pragmática documentada:** `IIntegracionAlpaca.crearCuenta(Usuario, Inversionista)` mantiene la firma original con tipos del módulo autenticación. El cambio de lógica de negocio estaba fuera del alcance y la creación on-demand de cuenta Alpaca ya funcionaba correctamente. Esto está anotado en `ARQUITECTURA.md` sección de interfaces.
+
+**Resultado:** todos los módulos se comunican exclusivamente vía interfaces `I...`. No quedan imports directos entre módulos.
+
 ---
 
 ## Métricas del proyecto
@@ -285,7 +335,7 @@ Se separo visualmente `/admin` del dashboard de inversionista, se reforzo la red
 | Cobertura de tests (services) | — |
 | Cobertura de tests (global) | — |
 | Endpoints REST funcionando | ~35 (auth + perfil + mercado + órdenes + portafolio + comisionista + admin) |
-| Servicios con interfaces definidas | 5 / 6 (Auth, Mercado, Órdenes, Administración, Trazabilidad) |
+| Módulos con interfaces definidas | 6 / 6 (Auth, Mercado, Órdenes, Administración, Integración, Trazabilidad) |
 | Eventos auditables registrados | ✅ vía `AuditLogService` (consola + archivo) |
 
 ---

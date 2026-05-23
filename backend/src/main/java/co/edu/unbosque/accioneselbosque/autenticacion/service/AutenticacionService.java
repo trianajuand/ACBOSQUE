@@ -10,7 +10,7 @@ import co.edu.unbosque.accioneselbosque.autenticacion.model.Rol;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
 import co.edu.unbosque.accioneselbosque.autenticacion.security.JwtUtil;
-import co.edu.unbosque.accioneselbosque.integracion.notificaciones.DespachadorNotificaciones;
+import co.edu.unbosque.accioneselbosque.integracion.notificaciones.INotificacion;
 import co.edu.unbosque.accioneselbosque.shared.exceptions.AccountLockedException;
 import co.edu.unbosque.accioneselbosque.shared.exceptions.UsuarioNoEncontradoException;
 import co.edu.unbosque.accioneselbosque.trazabilidad.interfaces.IAuditLog;
@@ -28,7 +28,7 @@ public class AutenticacionService implements IAutenticacion {
     private final JwtUtil jwtUtil;
     private final MonitorIntentosService monitorIntentos;
     private final MFAService mfaService;
-    private final DespachadorNotificaciones despachador;
+    private final INotificacion despachador;
     private final IAuditLog auditLog;
 
     public AutenticacionService(
@@ -37,7 +37,7 @@ public class AutenticacionService implements IAutenticacion {
             JwtUtil jwtUtil,
             MonitorIntentosService monitorIntentos,
             MFAService mfaService,
-            DespachadorNotificaciones despachador,
+            INotificacion despachador,
             IAuditLog auditLog) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
