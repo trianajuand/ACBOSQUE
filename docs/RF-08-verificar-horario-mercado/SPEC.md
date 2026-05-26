@@ -52,6 +52,11 @@ Endpoint protegido por JWT según configuración general.
 ## Consideraciones técnicas
 La implementación todavía no cumple EC-18/EC-19 de horarios configurables en BD.
 
+**Deuda técnica documentada (auditoría 2026-05-25):**
+- Los horarios de mercado están hardcodeados en `MercadoService` (switch/case por nombre de mercado). No se leen de `mercado_config` en BD, aunque esa tabla existe y el administrador puede editarla.
+- `ColaOrdenesService` tampoco verifica feriados de `feriado_mercado` antes de procesar la cola; solo verifica si el mercado US está abierto por hora del día.
+- Severidad: MEDIA — afecta correctitud en días festivos y en horarios modificados por el admin, pero no bloquea el sistema.
+
 ## Dependencias
 Depende de órdenes, dashboard y detalle de acción.
 

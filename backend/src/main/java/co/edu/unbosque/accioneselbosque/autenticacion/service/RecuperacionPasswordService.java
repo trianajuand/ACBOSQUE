@@ -93,7 +93,6 @@ public class RecuperacionPasswordService {
                 .orElseThrow(() -> new UsuarioNoEncontradoException(correo));
 
         usuario.setContrasenia(passwordEncoder.encode(nuevaContrasenia));
-        usuario.setFechaActualizacion(LocalDateTime.now());
         usuarioRepository.save(usuario);
 
         auditLog.registrar(TipoEvento.PASSWORD_RESETEADA, correo, "Contraseña restablecida exitosamente");

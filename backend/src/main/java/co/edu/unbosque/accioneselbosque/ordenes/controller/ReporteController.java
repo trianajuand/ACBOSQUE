@@ -34,7 +34,7 @@ public class ReporteController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
 
-        if (desde == null) desde = LocalDate.now().minusMonths(1);
+        if (desde == null) desde = LocalDate.now().minusYears(1);
         if (hasta == null) hasta = LocalDate.now();
 
         Usuario usuario = usuarioRepo.findByCorreo(correo)

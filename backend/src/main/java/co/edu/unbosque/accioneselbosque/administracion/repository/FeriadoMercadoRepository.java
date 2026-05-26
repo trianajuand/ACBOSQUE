@@ -8,7 +8,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface FeriadoMercadoRepository extends CrudRepository<FeriadoMercado, Long> {
-    boolean existsByMercadoCodigoIgnoreCaseAndFecha(String mercadoCodigo, LocalDate fecha);
-    List<FeriadoMercado> findByMercadoCodigoIgnoreCaseOrderByFechaAsc(String mercadoCodigo);
-    Optional<FeriadoMercado> findByIdAndMercadoCodigoIgnoreCase(Long id, String mercadoCodigo);
+
+    boolean existsByMercadoConfigIdAndFecha(Long mercadoConfigId, LocalDate fecha);
+
+    List<FeriadoMercado> findByMercadoConfigIdOrderByFechaAsc(Long mercadoConfigId);
+
+    Optional<FeriadoMercado> findByIdAndMercadoConfigId(Long id, Long mercadoConfigId);
 }

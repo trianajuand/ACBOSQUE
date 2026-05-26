@@ -1,13 +1,13 @@
 package co.edu.unbosque.accioneselbosque.mercado.controller;
 
-import co.edu.unbosque.accioneselbosque.autenticacion.model.Inversionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
-import co.edu.unbosque.accioneselbosque.autenticacion.repository.InversionistaRepository;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
 import co.edu.unbosque.accioneselbosque.mercado.dto.CotizacionDTO;
 import co.edu.unbosque.accioneselbosque.mercado.dto.DetalleAccionDTO;
 import co.edu.unbosque.accioneselbosque.mercado.service.MercadoService;
 import co.edu.unbosque.accioneselbosque.shared.dto.RespuestaDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -18,28 +18,24 @@ import java.util.List;
 @RequestMapping("/api/mercado")
 public class MercadoController {
 
+    private static final Logger log = LoggerFactory.getLogger(MercadoController.class);
+
     private final MercadoService mercadoService;
     private final UsuarioRepository usuarioRepo;
-    private final InversionistaRepository inversionistaRepo;
 
     public MercadoController(MercadoService mercadoService,
-                             UsuarioRepository usuarioRepo,
-                             InversionistaRepository inversionistaRepo) {
+                             UsuarioRepository usuarioRepo) {
         this.mercadoService = mercadoService;
         this.usuarioRepo = usuarioRepo;
-        this.inversionistaRepo = inversionistaRepo;
     }
 
     /** HU-13: Dashboard con acciones de interés del usuario. */
     @GetMapping("/dashboard")
     public ResponseEntity<RespuestaDTO> dashboard(
             @AuthenticationPrincipal String correo) {
-        Usuario usuario = usuarioRepo.findByCorreo(correo)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-        String intereses = inversionistaRepo.findByUsuarioId(usuario.getId())
-                .map(Inversionista::getInteresesMercado)
-                .orElse("");
-        List<CotizacionDTO> cotizaciones = mercadoService.obtenerDashboard(intereses);
+        log.info("GET /api/mercado/dashboard - usuario={}", correo);
+        List<CotizacionDTO> cotizaciones = mercadoService.obtenerDashboard("");
+        log.info("Dashboard devolviendo {} cotizaciones", cotizaciones.size());
         return ResponseEntity.ok(RespuestaDTO.exito(cotizaciones));
     }
 

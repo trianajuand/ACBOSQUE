@@ -8,17 +8,22 @@ import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.InversionistaRepository;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
 import co.edu.unbosque.accioneselbosque.integracion.adaptadores.alpaca.IIntegracionAlpaca;
+import co.edu.unbosque.accioneselbosque.integracion.notificaciones.ContextoNotificacion;
+import co.edu.unbosque.accioneselbosque.integracion.notificaciones.INotificacion;
+import co.edu.unbosque.accioneselbosque.mercado.model.Activo;
 import co.edu.unbosque.accioneselbosque.mercado.dto.CotizacionDTO;
 import co.edu.unbosque.accioneselbosque.mercado.interfaces.IVerificacionMercado;
+import co.edu.unbosque.accioneselbosque.mercado.repository.ActivoRepository;
 import co.edu.unbosque.accioneselbosque.ordenes.dto.*;
 import co.edu.unbosque.accioneselbosque.ordenes.interfaces.IOrden;
 import co.edu.unbosque.accioneselbosque.ordenes.model.*;
 import co.edu.unbosque.accioneselbosque.ordenes.repository.ComisionRepository;
 import co.edu.unbosque.accioneselbosque.ordenes.repository.OrdenRepository;
+import co.edu.unbosque.accioneselbosque.ordenes.repository.PropuestaOrdenRepository;
 import co.edu.unbosque.accioneselbosque.shared.exceptions.OrdenNoEncontradaException;
-import co.edu.unbosque.accioneselbosque.shared.exceptions.SimboloInvalidoException;
 import co.edu.unbosque.accioneselbosque.trazabilidad.interfaces.IAuditLog;
 import co.edu.unbosque.accioneselbosque.trazabilidad.model.TipoEvento;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,17 +34,16 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class OrdenService implements IOrden {
 
     private final OrdenRepository ordenRepo;
     private final ComisionRepository comisionRepo;
-    // Estos dos repos permanecen por el flujo on-demand de cuenta Alpaca
-    // que requiere pasar Usuario e Inversionista a IIntegracionAlpaca.crearCuenta
     private final UsuarioRepository usuarioRepo;
     private final InversionistaRepository inversionistaRepo;
+    private final ActivoRepository activoRepo;
+    private final PropuestaOrdenRepository propuestaRepo;
     private final IIntegracionAlpaca alpaca;
     private final IVerificacionMercado mercadoService;
     private final SaldoService saldoService;
@@ -48,19 +52,27 @@ public class OrdenService implements IOrden {
     private final IAsignacionComisionista asignacionComisionista;
     private final IGestorParametros administracion;
     private final IConsultaInversionista consultaInversionista;
+    private final INotificacion notificacion;
+
+    @Value("${app.ordenes.sandbox-ejecutar-sin-broker:false}")
+    private boolean sandboxEjecutarSinBroker;
 
     public OrdenService(OrdenRepository ordenRepo, ComisionRepository comisionRepo,
                         UsuarioRepository usuarioRepo, InversionistaRepository inversionistaRepo,
+                        ActivoRepository activoRepo, PropuestaOrdenRepository propuestaRepo,
                         IIntegracionAlpaca alpaca,
                         IVerificacionMercado mercadoService, SaldoService saldoService,
                         PortafolioService portafolioService, IAuditLog auditLog,
                         IAsignacionComisionista asignacionComisionista,
                         IGestorParametros administracion,
-                        IConsultaInversionista consultaInversionista) {
+                        IConsultaInversionista consultaInversionista,
+                        INotificacion notificacion) {
         this.ordenRepo = ordenRepo;
         this.comisionRepo = comisionRepo;
         this.usuarioRepo = usuarioRepo;
         this.inversionistaRepo = inversionistaRepo;
+        this.activoRepo = activoRepo;
+        this.propuestaRepo = propuestaRepo;
         this.alpaca = alpaca;
         this.mercadoService = mercadoService;
         this.saldoService = saldoService;
@@ -69,6 +81,7 @@ public class OrdenService implements IOrden {
         this.asignacionComisionista = asignacionComisionista;
         this.administracion = administracion;
         this.consultaInversionista = consultaInversionista;
+        this.notificacion = notificacion;
     }
 
     // =========================================================
@@ -152,17 +165,19 @@ public class OrdenService implements IOrden {
         BigDecimal montoComision = montoBase.multiply(porcentajeComision())
                 .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
 
+        Long activoId = portafolioService.resolverOCrearActivo(simbolo);
+
         // Validaciones previas
         if (lado == TipoLado.COMPRA) {
             saldoService.reservarFondos(usuarioId, montoBase.add(montoComision));
         } else {
-            portafolioService.verificarHolding(usuarioId, simbolo, req.getCantidad());
+            portafolioService.verificarHolding(usuarioId, activoId, req.getCantidad());
         }
 
         // Crear entidad Orden
         Orden orden = new Orden();
-        orden.setUsuarioId(usuarioId);
-        orden.setSimbolo(simbolo);
+        orden.setInversionistaId(usuarioId);
+        orden.setActivoId(activoId);
         orden.setTipoOrden(tipoOrden);
         orden.setLado(lado);
         orden.setCantidad(req.getCantidad());
@@ -174,7 +189,6 @@ public class OrdenService implements IOrden {
                 ? montoBase.add(montoComision)
                 : montoBase.subtract(montoComision));
         orden.setIpOrigen(ipOrigen);
-        orden.setComisionistaId(asignacionComisionista.obtenerComisionistaIdDeInversionista(usuarioId).orElse(null));
         orden.setCreadaEn(LocalDateTime.now());
 
         if (!mercadoAbierto) {
@@ -194,7 +208,7 @@ public class OrdenService implements IOrden {
                     }
                 }
                 String alpacaAccountId = consultaInversionista.obtenerAlpacaAccountId(usuarioId);
-                String alpacaOrderId = enviarAAlpaca(alpacaAccountId, orden);
+                String alpacaOrderId = enviarAAlpaca(alpacaAccountId, simbolo, orden);
                 if (alpacaOrderId != null) {
                     orden.setAlpacaOrderId(alpacaOrderId);
                     orden = ordenRepo.save(orden);
@@ -205,6 +219,9 @@ public class OrdenService implements IOrden {
 
             auditLog.registrar(TipoEvento.ORDEN_ENCOLADA, usuarioId.toString(),
                     "Orden encolada: " + simbolo + " " + lado + " " + req.getCantidad());
+            ContextoNotificacion ctxCola = ContextoNotificacion.desde(
+                    consultaInversionista.obtenerPreferenciasNotificacion(usuarioId));
+            notificacion.notificarOrdenEncolada(ctxCola, simbolo, tipoOrden.name(), lado.name());
             return mapearOrden(orden);
         }
 
@@ -228,25 +245,32 @@ public class OrdenService implements IOrden {
 
         if (esSimboloUs(simbolo)) {
             // --- Mercado US: ejecutar vía Alpaca ---
-            String alpacaOrderId = enviarAAlpaca(alpacaAccountId, orden);
+            String alpacaOrderId = enviarAAlpaca(alpacaAccountId, simbolo, orden);
             if (alpacaOrderId != null) {
                 orden.setAlpacaOrderId(alpacaOrderId);
                 orden.setEstado(EstadoOrden.ENVIADA);
                 auditLog.registrar(TipoEvento.ORDEN_ENVIADA_ALPACA, usuarioId.toString(),
                         "Orden enviada a Alpaca: " + alpacaOrderId + " | " + simbolo + " " + lado);
-                confirmarSiAlpacaReportaFill(usuarioId, alpacaAccountId, orden, precioRef);
+                confirmarSiAlpacaReportaFill(usuarioId, alpacaAccountId, simbolo, orden, precioRef);
             } else {
                 auditLog.registrar(TipoEvento.ORDEN_FALLO_ALPACA, usuarioId.toString(),
                         "Fallo al enviar a Alpaca: " + simbolo + " " + lado);
-                if (lado == TipoLado.COMPRA) {
-                    saldoService.liberarFondosReservados(usuarioId, montoBase.add(montoComision));
+                if (sandboxEjecutarSinBroker) {
+                    orden.setEstado(EstadoOrden.EJECUTADA);
+                    orden.setPrecioEjecucion(precioRef);
+                    orden.setEjecutadaEn(LocalDateTime.now());
+                    confirmarEjecucion(usuarioId, orden, precioRef);
+                    auditLog.registrar(TipoEvento.ORDEN_EJECUTADA, usuarioId.toString(),
+                            "Orden ejecutada localmente (sandbox sin broker): " + simbolo + " precio=" + precioRef);
+                } else {
+                    if (lado == TipoLado.COMPRA) {
+                        saldoService.liberarFondosReservados(usuarioId, montoBase.add(montoComision));
+                    }
+                    orden.setEstado(EstadoOrden.PENDIENTE);
                 }
-                orden.setEstado(EstadoOrden.PENDIENTE);
             }
         } else {
             // --- Mercado global (TSE, LSE, etc.): ejecucion interna con precio de Alpha Vantage ---
-            // Alpaca no soporta estos simbolos; el precio real viene de Alpha Vantage (ya en precioRef).
-            // Para LIMIT/STOP_LOSS/TAKE_PROFIT verificamos la condición de precio.
             boolean condicionCumplida = verificarCondicionPrecio(tipoOrden, lado, precioRef,
                     req.getPrecioLimite(), req.getPrecioStop());
             if (tipoOrden == TipoOrden.MARKET || condicionCumplida) {
@@ -267,6 +291,10 @@ public class OrdenService implements IOrden {
         orden = ordenRepo.save(orden);
         auditLog.registrar(TipoEvento.ORDEN_CREADA, usuarioId.toString(),
                 "Orden creada id=" + orden.getId() + " | " + simbolo + " " + tipoOrden + " " + lado);
+        ContextoNotificacion ctx = ContextoNotificacion.desde(
+                consultaInversionista.obtenerPreferenciasNotificacion(usuarioId));
+        notificacion.notificarOrdenCreada(ctx, simbolo, tipoOrden.name(), lado.name(),
+                montoBase, montoComision);
         return mapearOrden(orden);
     }
 
@@ -277,12 +305,14 @@ public class OrdenService implements IOrden {
     @Override
     @Transactional
     public boolean cancelarOrden(Long usuarioId, Long ordenId) {
-        Orden orden = ordenRepo.findByIdAndUsuarioId(ordenId, usuarioId)
+        Orden orden = ordenRepo.findByIdAndInversionistaId(ordenId, usuarioId)
                 .orElseThrow(() -> new OrdenNoEncontradaException("Orden no encontrada: " + ordenId));
 
         if (orden.getEstado() == EstadoOrden.EJECUTADA || orden.getEstado() == EstadoOrden.CANCELADA) {
             return false;
         }
+
+        String ticker = getTickerFromOrden(orden);
 
         // Cancelar en Alpaca si tiene ID
         if (orden.getAlpacaOrderId() != null) {
@@ -305,6 +335,10 @@ public class OrdenService implements IOrden {
         ordenRepo.save(orden);
         auditLog.registrar(TipoEvento.ORDEN_CANCELADA, usuarioId.toString(),
                 "Orden cancelada id=" + ordenId);
+        ContextoNotificacion ctxCancel = ContextoNotificacion.desde(
+                consultaInversionista.obtenerPreferenciasNotificacion(usuarioId));
+        notificacion.notificarOrdenCancelada(ctxCancel, ticker,
+                orden.getTipoOrden().name(), orden.getMontoNeto());
         return true;
     }
 
@@ -317,9 +351,8 @@ public class OrdenService implements IOrden {
     public List<OrdenDTO> obtenerOrdenesActivas(Long usuarioId) {
         sincronizarOrdenesEnviadasConAlpaca(usuarioId);
         List<OrdenDTO> resultado = new ArrayList<>();
-        for (EstadoOrden estado : List.of(EstadoOrden.PENDIENTE, EstadoOrden.ENVIADA,
-                EstadoOrden.EN_COLA, EstadoOrden.PENDIENTE_APROBACION)) {
-            ordenRepo.findByUsuarioIdAndEstadoOrderByCreadaEnDesc(usuarioId, estado)
+        for (EstadoOrden estado : List.of(EstadoOrden.PENDIENTE, EstadoOrden.ENVIADA, EstadoOrden.EN_COLA)) {
+            ordenRepo.findByInversionistaIdAndEstadoOrderByCreadaEnDesc(usuarioId, estado)
                     .forEach(o -> resultado.add(mapearOrden(o)));
         }
         return resultado;
@@ -343,13 +376,17 @@ public class OrdenService implements IOrden {
         String filtroSimbolo = normalizarFiltroSimbolo(simbolo);
 
         List<OrdenDTO> resultado = new ArrayList<>();
-        ordenRepo.findByUsuarioIdOrderByCreadaEnDesc(usuarioId)
+        ordenRepo.findByInversionistaIdOrderByCreadaEnDesc(usuarioId)
                 .stream()
                 .filter(o -> fechaDesde == null || !o.getCreadaEn().isBefore(fechaDesde))
                 .filter(o -> fechaHasta == null || !o.getCreadaEn().isAfter(fechaHasta))
                 .filter(o -> filtroTipo == null || o.getTipoOrden() == filtroTipo)
                 .filter(o -> filtroEstado == null || o.getEstado() == filtroEstado)
-                .filter(o -> filtroSimbolo == null || o.getSimbolo().toUpperCase(Locale.ROOT).contains(filtroSimbolo))
+                .filter(o -> {
+                    if (filtroSimbolo == null) return true;
+                    String tick = getTickerFromOrden(o);
+                    return tick.toUpperCase(Locale.ROOT).contains(filtroSimbolo);
+                })
                 .forEach(o -> resultado.add(mapearOrden(o)));
         return resultado;
     }
@@ -371,7 +408,9 @@ public class OrdenService implements IOrden {
 
         for (Orden orden : ordenRepo.findAll()) {
             if (!enRango(orden.getCreadaEn(), desde, hasta)) continue;
-            String mercado = mercadoService.detectarMercado(orden.getSimbolo());
+            String ticker = activoRepo.findById(orden.getActivoId())
+                    .map(Activo::getTicker).orElse("US");
+            String mercado = mercadoService.detectarMercado(ticker);
             if (mercadoFiltro != null && !mercadoFiltro.isBlank()
                     && !mercado.equalsIgnoreCase(mercadoFiltro)) continue;
 
@@ -393,7 +432,9 @@ public class OrdenService implements IOrden {
             resumen.setComisionesGeneradas(
                     resumen.getComisionesGeneradas().add(safe(comision.getMontoComision())));
             ordenRepo.findById(comision.getOrdenId()).ifPresent(orden -> {
-                String mercado = mercadoService.detectarMercado(orden.getSimbolo());
+                String ticker = activoRepo.findById(orden.getActivoId())
+                        .map(Activo::getTicker).orElse("US");
+                String mercado = mercadoService.detectarMercado(ticker);
                 if (mercadoFiltro == null || mercadoFiltro.isBlank()
                         || mercado.equalsIgnoreCase(mercadoFiltro)) {
                     ResumenMercadoDTO rm = porMercado.computeIfAbsent(mercado, k -> {
@@ -441,127 +482,146 @@ public class OrdenService implements IOrden {
         validarParametrosOrden(tipoOrden, lado, dto.getPrecioLimite(), dto.getPrecioStop());
         String simbolo = dto.getSimbolo().toUpperCase();
         CotizacionDTO cotizacion = mercadoService.validarSimboloOperable(simbolo);
-        BigDecimal precioRef = cotizacion.getPrecioActual();
-        BigDecimal precioEfectivo = precioEfectivo(tipoOrden, dto.getPrecioLimite(), dto.getPrecioStop(), precioRef);
-        BigDecimal montoBase = precioEfectivo.multiply(dto.getCantidad()).setScale(4, RoundingMode.HALF_UP);
-        BigDecimal montoComision = calcularComision(montoBase);
+        Long activoId = portafolioService.resolverOCrearActivo(simbolo);
 
-        Orden orden = new Orden();
-        orden.setUsuarioId(clienteId);
-        orden.setComisionistaId(comisionistaId);
-        orden.setSimbolo(simbolo);
-        orden.setTipoOrden(tipoOrden);
-        orden.setLado(lado);
-        orden.setEstado(EstadoOrden.PENDIENTE_APROBACION);
-        orden.setCantidad(dto.getCantidad());
-        orden.setPrecioLimite(dto.getPrecioLimite());
-        orden.setPrecioStop(dto.getPrecioStop());
-        orden.setMontoTotal(montoBase);
-        orden.setComision(montoComision);
-        orden.setMontoNeto(lado == TipoLado.COMPRA ? montoBase.add(montoComision) : montoBase.subtract(montoComision));
-        orden.setComentarioComisionista(dto.getComentarioComisionista());
-        orden.setIpOrigen(ipOrigen);
-        orden.setCreadaEn(LocalDateTime.now());
-        orden = ordenRepo.save(orden);
+        PropuestaOrden propuesta = new PropuestaOrden();
+        propuesta.setInversionistaId(clienteId);
+        propuesta.setComisionistaId(comisionistaId);
+        propuesta.setActivoId(activoId);
+        propuesta.setTipoOrden(tipoOrden);
+        propuesta.setLado(lado);
+        propuesta.setEstado(EstadoPropuesta.PENDIENTE_APROBACION);
+        propuesta.setCantidad(dto.getCantidad());
+        propuesta.setPrecioLimite(dto.getPrecioLimite());
+        propuesta.setPrecioStop(dto.getPrecioStop());
+        propuesta.setComentarioComisionista(dto.getComentarioComisionista());
+        propuesta.setCreadaEn(LocalDateTime.now());
+        propuesta = propuestaRepo.save(propuesta);
 
         auditLog.registrar(TipoEvento.PROPUESTA_ORDEN_CREADA, comisionistaId.toString(),
-                "Propuesta id=" + orden.getId() + " para inversionista=" + clienteId + " simbolo=" + simbolo);
-        return mapearOrden(orden);
+                "Propuesta id=" + propuesta.getId() + " para inversionista=" + clienteId + " simbolo=" + simbolo);
+        return mapearPropuesta(propuesta);
     }
 
     @Override
     @Transactional
     public List<OrdenDTO> obtenerPropuestasPendientesInversionista(Long usuarioId) {
-        return ordenRepo.findByUsuarioIdAndEstadoOrderByCreadaEnDesc(usuarioId, EstadoOrden.PENDIENTE_APROBACION)
+        return propuestaRepo.findByInversionistaIdAndEstado(usuarioId, EstadoPropuesta.PENDIENTE_APROBACION)
                 .stream()
-                .map(this::mapearOrden)
+                .map(this::mapearPropuesta)
                 .toList();
     }
 
     @Override
     @Transactional
     public List<OrdenDTO> obtenerPropuestasAprobadasComisionista(Long comisionistaId) {
-        return ordenRepo.findByComisionistaIdAndEstadoOrderByCreadaEnDesc(comisionistaId, EstadoOrden.APROBADA)
+        return propuestaRepo.findByComisionistaIdAndEstado(comisionistaId, EstadoPropuesta.APROBADA)
                 .stream()
-                .map(this::mapearOrden)
+                .map(this::mapearPropuesta)
                 .toList();
     }
 
     @Override
     @Transactional
     public OrdenDTO aprobarPropuesta(Long usuarioId, Long propuestaId, String comentario) {
-        Orden orden = ordenRepo.findByIdAndUsuarioId(propuestaId, usuarioId)
+        PropuestaOrden propuesta = propuestaRepo.findById(propuestaId)
+                .filter(p -> p.getInversionistaId().equals(usuarioId))
                 .orElseThrow(() -> new OrdenNoEncontradaException("Propuesta no encontrada: " + propuestaId));
-        if (orden.getEstado() != EstadoOrden.PENDIENTE_APROBACION) {
+        if (propuesta.getEstado() != EstadoPropuesta.PENDIENTE_APROBACION) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La propuesta ya fue decidida");
         }
-        orden.setEstado(EstadoOrden.APROBADA);
-        orden.setComentarioInversionista(comentario);
-        orden.setAprobadaEn(LocalDateTime.now());
-        ordenRepo.save(orden);
+        propuesta.setEstado(EstadoPropuesta.APROBADA);
+        propuesta.setAprobadaEn(LocalDateTime.now());
+        propuestaRepo.save(propuesta);
         auditLog.registrar(TipoEvento.PROPUESTA_ORDEN_APROBADA, usuarioId.toString(),
                 "Propuesta aprobada id=" + propuestaId);
-        return mapearOrden(orden);
+        return mapearPropuesta(propuesta);
     }
 
     @Override
     @Transactional
     public OrdenDTO rechazarPropuesta(Long usuarioId, Long propuestaId, String comentario) {
-        Orden orden = ordenRepo.findByIdAndUsuarioId(propuestaId, usuarioId)
+        PropuestaOrden propuesta = propuestaRepo.findById(propuestaId)
+                .filter(p -> p.getInversionistaId().equals(usuarioId))
                 .orElseThrow(() -> new OrdenNoEncontradaException("Propuesta no encontrada: " + propuestaId));
-        if (orden.getEstado() != EstadoOrden.PENDIENTE_APROBACION) {
+        if (propuesta.getEstado() != EstadoPropuesta.PENDIENTE_APROBACION) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La propuesta ya fue decidida");
         }
-        orden.setEstado(EstadoOrden.RECHAZADA);
-        orden.setComentarioInversionista(comentario);
-        orden.setRechazadaEn(LocalDateTime.now());
-        ordenRepo.save(orden);
+        propuesta.setEstado(EstadoPropuesta.RECHAZADA);
+        propuesta.setRechazadaEn(LocalDateTime.now());
+        propuestaRepo.save(propuesta);
         auditLog.registrar(TipoEvento.PROPUESTA_ORDEN_RECHAZADA, usuarioId.toString(),
                 "Propuesta rechazada id=" + propuestaId);
-        return mapearOrden(orden);
+        return mapearPropuesta(propuesta);
     }
 
     @Override
     @Transactional
     public OrdenDTO firmarYEnviarPropuesta(Long comisionistaId, Long propuestaId, String ipOrigen) {
-        Orden orden = ordenRepo.findByIdAndComisionistaId(propuestaId, comisionistaId)
+        PropuestaOrden propuesta = propuestaRepo.findById(propuestaId)
+                .filter(p -> p.getComisionistaId().equals(comisionistaId))
                 .orElseThrow(() -> new OrdenNoEncontradaException("Propuesta no encontrada: " + propuestaId));
-        asignacionComisionista.validarClienteAsignado(comisionistaId, orden.getUsuarioId());
-        validarUsuarioPuedeOperar(orden.getUsuarioId());
-        if (orden.getEstado() != EstadoOrden.APROBADA) {
+        asignacionComisionista.validarClienteAsignado(comisionistaId, propuesta.getInversionistaId());
+        validarUsuarioPuedeOperar(propuesta.getInversionistaId());
+        if (propuesta.getEstado() != EstadoPropuesta.APROBADA) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Solo se pueden firmar propuestas aprobadas");
         }
-        orden.setFirmadaEn(LocalDateTime.now());
-        orden.setIpOrigen(ipOrigen);
+        propuesta.setFirmadaEn(LocalDateTime.now());
+        propuesta.setEstado(EstadoPropuesta.FIRMADA);
+        propuestaRepo.save(propuesta);
         auditLog.registrar(TipoEvento.PROPUESTA_ORDEN_FIRMADA, comisionistaId.toString(),
-                "Propuesta firmada id=" + propuestaId + " inversionista=" + orden.getUsuarioId());
-        return enviarOrdenAprobada(orden);
+                "Propuesta firmada id=" + propuestaId + " inversionista=" + propuesta.getInversionistaId());
+        return enviarOrdenDesdePropuesta(propuesta, ipOrigen);
     }
 
     // =========================================================
     // Helpers privados
     // =========================================================
 
-    private OrdenDTO enviarOrdenAprobada(Orden orden) {
-        Long usuarioId = orden.getUsuarioId();
-        CotizacionDTO cotizacion = mercadoService.validarSimboloOperable(orden.getSimbolo());
+    /** Obtiene el ticker del activo asociado a la orden. */
+    private String getTickerFromOrden(Orden o) {
+        return activoRepo.findById(o.getActivoId())
+                .map(Activo::getTicker)
+                .orElse("?");
+    }
+
+    private OrdenDTO enviarOrdenDesdePropuesta(PropuestaOrden propuesta, String ipOrigen) {
+        Long usuarioId = propuesta.getInversionistaId();
+        String ticker = activoRepo.findById(propuesta.getActivoId())
+                .map(Activo::getTicker).orElse("?");
+        CotizacionDTO cotizacion = mercadoService.validarSimboloOperable(ticker);
         BigDecimal precioRef = cotizacion.getPrecioActual();
-        BigDecimal precioEfectivo = precioEfectivo(orden.getTipoOrden(), orden.getPrecioLimite(), orden.getPrecioStop(), precioRef);
-        BigDecimal montoBase = precioEfectivo.multiply(orden.getCantidad()).setScale(4, RoundingMode.HALF_UP);
+        BigDecimal precioEfectivo = precioEfectivo(propuesta.getTipoOrden(), propuesta.getPrecioLimite(),
+                propuesta.getPrecioStop(), precioRef);
+        BigDecimal montoBase = precioEfectivo.multiply(propuesta.getCantidad()).setScale(4, RoundingMode.HALF_UP);
         BigDecimal montoComision = calcularComision(montoBase);
+
+        if (propuesta.getLado() == TipoLado.COMPRA) {
+            saldoService.reservarFondos(usuarioId, montoBase.add(montoComision));
+        } else {
+            portafolioService.verificarHolding(usuarioId, propuesta.getActivoId(), propuesta.getCantidad());
+        }
+
+        // Crear Orden real desde la propuesta
+        Orden orden = new Orden();
+        orden.setInversionistaId(usuarioId);
+        orden.setActivoId(propuesta.getActivoId());
+        orden.setPropuestaOrdenId(propuesta.getId());
+        orden.setTipoOrden(propuesta.getTipoOrden());
+        orden.setLado(propuesta.getLado());
+        orden.setCantidad(propuesta.getCantidad());
+        orden.setPrecioLimite(propuesta.getPrecioLimite());
+        orden.setPrecioStop(propuesta.getPrecioStop());
         orden.setMontoTotal(montoBase);
         orden.setComision(montoComision);
-        orden.setMontoNeto(orden.getLado() == TipoLado.COMPRA ? montoBase.add(montoComision) : montoBase.subtract(montoComision));
-
-        if (orden.getLado() == TipoLado.COMPRA) {
-            saldoService.reservarFondos(usuarioId, orden.getMontoNeto());
-        } else {
-            portafolioService.verificarHolding(usuarioId, orden.getSimbolo(), orden.getCantidad());
-        }
+        orden.setMontoNeto(propuesta.getLado() == TipoLado.COMPRA
+                ? montoBase.add(montoComision) : montoBase.subtract(montoComision));
+        orden.setIpOrigen(ipOrigen);
+        orden.setCreadaEn(LocalDateTime.now());
 
         if (!cotizacion.isMercadoAbierto()) {
             orden.setEstado(EstadoOrden.EN_COLA);
-            ordenRepo.save(orden);
+            orden = ordenRepo.save(orden);
             auditLog.registrar(TipoEvento.ORDEN_ENCOLADA, usuarioId.toString(),
                     "Orden asesorada encolada id=" + orden.getId());
             return mapearOrden(orden);
@@ -569,11 +629,11 @@ public class OrdenService implements IOrden {
 
         orden.setEstado(EstadoOrden.PENDIENTE);
         orden = ordenRepo.save(orden);
-        // Solo necesarios para alpaca.crearCuenta que requiere las entidades completas
+
         Usuario usuario = usuarioRepo.findById(usuarioId).orElseThrow();
         Inversionista inversionista = obtenerInversionista(usuarioId);
 
-        if (consultaInversionista.necesitaCuentaAlpaca(usuarioId) && esSimboloUs(orden.getSimbolo())) {
+        if (consultaInversionista.necesitaCuentaAlpaca(usuarioId) && esSimboloUs(ticker)) {
             String nuevoId = alpaca.crearCuenta(usuario, inversionista);
             if (nuevoId != null) {
                 consultaInversionista.actualizarAlpacaAccountId(usuarioId, nuevoId);
@@ -582,14 +642,14 @@ public class OrdenService implements IOrden {
 
         String alpacaAccountId = consultaInversionista.obtenerAlpacaAccountId(usuarioId);
 
-        if (esSimboloUs(orden.getSimbolo())) {
-            String alpacaOrderId = enviarAAlpaca(alpacaAccountId, orden);
+        if (esSimboloUs(ticker)) {
+            String alpacaOrderId = enviarAAlpaca(alpacaAccountId, ticker, orden);
             if (alpacaOrderId != null) {
                 orden.setAlpacaOrderId(alpacaOrderId);
                 orden.setEstado(EstadoOrden.ENVIADA);
                 auditLog.registrar(TipoEvento.ORDEN_ENVIADA_ALPACA, usuarioId.toString(),
                         "Orden asesorada enviada a Alpaca: " + alpacaOrderId);
-                confirmarSiAlpacaReportaFill(usuarioId, alpacaAccountId, orden, precioRef);
+                confirmarSiAlpacaReportaFill(usuarioId, alpacaAccountId, ticker, orden, precioRef);
             } else {
                 if (orden.getLado() == TipoLado.COMPRA) {
                     saldoService.liberarFondosReservados(usuarioId, orden.getMontoNeto());
@@ -605,7 +665,7 @@ public class OrdenService implements IOrden {
                 orden.setEstado(EstadoOrden.EJECUTADA);
                 orden.setPrecioEjecucion(precioRef);
                 orden.setEjecutadaEn(LocalDateTime.now());
-                confirmarEjecucion(usuarioId, orden, precioRef);
+                confirmarEjecucion(usuarioId, orden, propuesta.getComisionistaId(), precioRef);
             } else {
                 orden.setEstado(EstadoOrden.ENVIADA);
             }
@@ -721,23 +781,24 @@ public class OrdenService implements IOrden {
         consultaInversionista.validarPuedeOperar(usuarioId);
     }
 
-    private String enviarAAlpaca(String alpacaAccountId, Orden orden) {
+    private String enviarAAlpaca(String alpacaAccountId, String simbolo, Orden orden) {
         if (alpacaAccountId == null) return null;
         String tipoAlpaca = toAlpacaTipo(orden.getTipoOrden());
         String ladoAlpaca = orden.getLado() == TipoLado.COMPRA ? "buy" : "sell";
         String precioLimite = orden.getPrecioLimite() != null ? orden.getPrecioLimite().toPlainString() : null;
         String precioStop = orden.getPrecioStop() != null ? orden.getPrecioStop().toPlainString() : null;
 
-        return alpaca.crearOrden(alpacaAccountId, orden.getSimbolo(), tipoAlpaca,
+        return alpaca.crearOrden(alpacaAccountId, simbolo, tipoAlpaca,
                 ladoAlpaca, orden.getCantidad().toPlainString(), precioLimite, precioStop);
     }
 
     private Inversionista obtenerInversionista(Long usuarioId) {
-        return inversionistaRepo.findByUsuarioId(usuarioId)
+        return inversionistaRepo.findById(usuarioId)
                 .orElseThrow(() -> new IllegalStateException("Inversionista no encontrado para usuario " + usuarioId));
     }
 
-    private void confirmarSiAlpacaReportaFill(Long usuarioId, String alpacaAccountId, Orden orden, BigDecimal precioRef) {
+    private void confirmarSiAlpacaReportaFill(Long usuarioId, String alpacaAccountId,
+                                               String simbolo, Orden orden, BigDecimal precioRef) {
         if (alpacaAccountId == null || orden.getAlpacaOrderId() == null) {
             return;
         }
@@ -753,18 +814,26 @@ public class OrdenService implements IOrden {
         orden.setEstado(EstadoOrden.EJECUTADA);
         orden.setPrecioEjecucion(precioEjecucion);
         orden.setEjecutadaEn(LocalDateTime.now());
-        confirmarEjecucion(usuarioId, orden, precioEjecucion);
+
+        // Look up comisionistaId via propuesta if available
+        Long comisionistaId = null;
+        if (orden.getPropuestaOrdenId() != null) {
+            comisionistaId = propuestaRepo.findById(orden.getPropuestaOrdenId())
+                    .map(PropuestaOrden::getComisionistaId).orElse(null);
+        }
+        confirmarEjecucion(usuarioId, orden, comisionistaId, precioEjecucion);
     }
 
     private void sincronizarOrdenesEnviadasConAlpaca(Long usuarioId) {
         String alpacaAccountId = consultaInversionista.obtenerAlpacaAccountId(usuarioId);
         if (alpacaAccountId == null) return;
 
-        List<Orden> enviadas = ordenRepo.findByUsuarioIdAndEstadoOrderByCreadaEnDesc(usuarioId, EstadoOrden.ENVIADA);
+        List<Orden> enviadas = ordenRepo.findByInversionistaIdAndEstadoOrderByCreadaEnDesc(usuarioId, EstadoOrden.ENVIADA);
         for (Orden orden : enviadas) {
-            if (orden.getAlpacaOrderId() == null || !esSimboloUs(orden.getSimbolo())) continue;
+            String ticker = getTickerFromOrden(orden);
+            if (orden.getAlpacaOrderId() == null || !esSimboloUs(ticker)) continue;
             BigDecimal precioRef = precioReferenciaOrden(orden);
-            confirmarSiAlpacaReportaFill(usuarioId, alpacaAccountId, orden, precioRef);
+            confirmarSiAlpacaReportaFill(usuarioId, alpacaAccountId, ticker, orden, precioRef);
             if (orden.getEstado() == EstadoOrden.EJECUTADA) {
                 ordenRepo.save(orden);
             }
@@ -794,38 +863,54 @@ public class OrdenService implements IOrden {
     }
 
     private void confirmarEjecucion(Long usuarioId, Orden orden, BigDecimal precioEjecucion) {
+        // Resolve comisionistaId from propuesta if linked
+        Long comisionistaId = null;
+        if (orden.getPropuestaOrdenId() != null) {
+            comisionistaId = propuestaRepo.findById(orden.getPropuestaOrdenId())
+                    .map(PropuestaOrden::getComisionistaId).orElse(null);
+        }
+        confirmarEjecucion(usuarioId, orden, comisionistaId, precioEjecucion);
+    }
+
+    private void confirmarEjecucion(Long usuarioId, Orden orden, Long comisionistaId, BigDecimal precioEjecucion) {
         BigDecimal montoReal = precioEjecucion.multiply(orden.getCantidad()).setScale(4, RoundingMode.HALF_UP);
         BigDecimal comisionReal = montoReal.multiply(porcentajeComision())
                 .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
 
         if (orden.getLado() == TipoLado.COMPRA) {
             saldoService.confirmarCompra(usuarioId, montoReal.add(comisionReal));
-            portafolioService.registrarCompra(usuarioId, orden.getSimbolo(),
+            portafolioService.registrarCompra(usuarioId, orden.getActivoId(),
                     orden.getCantidad(), precioEjecucion);
         } else {
             BigDecimal neto = montoReal.subtract(comisionReal);
             saldoService.confirmarVenta(usuarioId, neto);
-            portafolioService.registrarVenta(usuarioId, orden.getSimbolo(), orden.getCantidad());
+            portafolioService.registrarVenta(usuarioId, orden.getActivoId(), orden.getCantidad());
         }
 
         // Registrar comisión
-        BigDecimal montoPlatf = orden.getComisionistaId() != null
+        BigDecimal montoPlatf = comisionistaId != null
                 ? comisionReal.multiply(splitPlataforma()).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)
                 : comisionReal;
         Comision comisionEnt = new Comision();
         comisionEnt.setOrdenId(orden.getId());
         comisionEnt.setUsuarioId(usuarioId);
-        comisionEnt.setComisionistaId(orden.getComisionistaId());
+        comisionEnt.setComisionistaId(comisionistaId);
         comisionEnt.setMontoBase(montoReal);
         comisionEnt.setPorcentajeComision(porcentajeComision());
         comisionEnt.setMontoComision(comisionReal);
         comisionEnt.setMontoPlataforma(montoPlatf);
-        comisionEnt.setMontoComisionista(orden.getComisionistaId() != null ? comisionReal.subtract(montoPlatf) : BigDecimal.ZERO);
+        comisionEnt.setMontoComisionista(comisionistaId != null ? comisionReal.subtract(montoPlatf) : BigDecimal.ZERO);
         comisionEnt.setCreadaEn(LocalDateTime.now());
         comisionRepo.save(comisionEnt);
 
         auditLog.registrar(TipoEvento.ORDEN_EJECUTADA, usuarioId.toString(),
                 "Orden ejecutada id=" + orden.getId() + " precio=" + precioEjecucion);
+
+        String ticker = getTickerFromOrden(orden);
+        ContextoNotificacion ctxEjec = ContextoNotificacion.desde(
+                consultaInversionista.obtenerPreferenciasNotificacion(usuarioId));
+        notificacion.notificarOrdenEjecutada(ctxEjec, ticker, orden.getTipoOrden().name(),
+                orden.getLado().name(), precioEjecucion, orden.getCantidad(), comisionReal);
     }
 
     private boolean esSimboloUs(String simbolo) {
@@ -842,16 +927,12 @@ public class OrdenService implements IOrden {
         if (precioActual == null || precioActual.compareTo(BigDecimal.ZERO) == 0) return false;
         return switch (tipo) {
             case LIMIT ->
-                // Compra límite: ejecutar si precio actual ≤ límite
-                // Venta límite (take profit): ejecutar si precio actual ≥ límite
                     lado == TipoLado.COMPRA
                             ? precioActual.compareTo(precioLimite) <= 0
                             : precioActual.compareTo(precioLimite) >= 0;
             case STOP_LOSS ->
-                // Stop loss venta: ejecutar si precio actual ≤ stop
                     precioActual.compareTo(precioStop) <= 0;
             case TAKE_PROFIT ->
-                // Take profit venta: ejecutar si precio actual ≥ límite
                     precioActual.compareTo(precioLimite) >= 0;
             default -> false;
         };
@@ -869,7 +950,7 @@ public class OrdenService implements IOrden {
     private OrdenDTO mapearOrden(Orden o) {
         OrdenDTO dto = new OrdenDTO();
         dto.setId(o.getId());
-        dto.setSimbolo(o.getSimbolo());
+        dto.setSimbolo(getTickerFromOrden(o));
         dto.setTipoOrden(o.getTipoOrden());
         dto.setLado(o.getLado());
         dto.setEstado(o.getEstado());
@@ -881,14 +962,47 @@ public class OrdenService implements IOrden {
         dto.setComision(o.getComision());
         dto.setMontoNeto(o.getMontoNeto());
         dto.setAlpacaOrderId(o.getAlpacaOrderId());
-        dto.setComisionistaId(o.getComisionistaId());
-        dto.setComentarioComisionista(o.getComentarioComisionista());
-        dto.setComentarioInversionista(o.getComentarioInversionista());
         dto.setCreadaEn(o.getCreadaEn());
         dto.setEjecutadaEn(o.getEjecutadaEn());
-        dto.setAprobadaEn(o.getAprobadaEn());
-        dto.setRechazadaEn(o.getRechazadaEn());
-        dto.setFirmadaEn(o.getFirmadaEn());
+        // Populate proposal fields from PropuestaOrden if linked
+        if (o.getPropuestaOrdenId() != null) {
+            propuestaRepo.findById(o.getPropuestaOrdenId()).ifPresent(p -> {
+                dto.setComisionistaId(p.getComisionistaId());
+                dto.setComentarioComisionista(p.getComentarioComisionista());
+                dto.setAprobadaEn(p.getAprobadaEn());
+                dto.setRechazadaEn(p.getRechazadaEn());
+                dto.setFirmadaEn(p.getFirmadaEn());
+            });
+        }
         return dto;
+    }
+
+    private OrdenDTO mapearPropuesta(PropuestaOrden p) {
+        OrdenDTO dto = new OrdenDTO();
+        dto.setId(p.getId());
+        dto.setSimbolo(activoRepo.findById(p.getActivoId()).map(Activo::getTicker).orElse("?"));
+        dto.setTipoOrden(p.getTipoOrden());
+        dto.setLado(p.getLado());
+        // Map EstadoPropuesta to EstadoOrden for DTO compatibility
+        dto.setEstado(mapearEstadoPropuesta(p.getEstado()));
+        dto.setCantidad(p.getCantidad());
+        dto.setPrecioLimite(p.getPrecioLimite());
+        dto.setPrecioStop(p.getPrecioStop());
+        dto.setComisionistaId(p.getComisionistaId());
+        dto.setComentarioComisionista(p.getComentarioComisionista());
+        dto.setCreadaEn(p.getCreadaEn());
+        dto.setAprobadaEn(p.getAprobadaEn());
+        dto.setRechazadaEn(p.getRechazadaEn());
+        dto.setFirmadaEn(p.getFirmadaEn());
+        return dto;
+    }
+
+    private EstadoOrden mapearEstadoPropuesta(EstadoPropuesta estado) {
+        return switch (estado) {
+            case PENDIENTE_APROBACION -> EstadoOrden.PENDIENTE_APROBACION;
+            case APROBADA -> EstadoOrden.APROBADA;
+            case RECHAZADA -> EstadoOrden.RECHAZADA;
+            case FIRMADA -> EstadoOrden.ENVIADA;
+        };
     }
 }

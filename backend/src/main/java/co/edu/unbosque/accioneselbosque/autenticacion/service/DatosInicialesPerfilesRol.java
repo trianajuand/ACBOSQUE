@@ -40,34 +40,28 @@ public class DatosInicialesPerfilesRol implements CommandLineRunner {
     }
 
     private void crearInversionistaSiFalta(Usuario usuario) {
-        if (inversionistaRepository.findByUsuarioId(usuario.getId()).isPresent()) {
+        // Inversionista now uses shared PK: id = usuario.id
+        if (inversionistaRepository.findById(usuario.getId()).isPresent()) {
             return;
         }
         Inversionista inversionista = new Inversionista();
-        inversionista.setUsuarioId(usuario.getId());
+        inversionista.setId(usuario.getId());
         inversionista.setNivelExperiencia("PRINCIPIANTE");
-        inversionista.setInteresesMercado("AAPL,MSFT,TSLA");
         inversionista.setPais("CO");
         inversionista.setSolicitaComisionista(false);
-        inversionista.setNotificacionEmail(true);
-        inversionista.setNotificacionSms(false);
-        inversionista.setNotificacionWhatsapp(false);
-        inversionista.setTiposNotificacion("ORDENES,MERCADO,SEGURIDAD");
         inversionista.setTipoOrdenDefault("MARKET");
         inversionista.setVistaPortafolio("LISTA");
-        inversionista.setPlanSuscripcion("BASICO");
-        inversionista.setEsPremium(false);
-        inversionista.setPendienteCuentaAlpaca(false);
         inversionista.setFechaCreacion(LocalDateTime.now());
         inversionistaRepository.save(inversionista);
     }
 
     private void crearComisionistaSiFalta(Usuario usuario) {
-        if (comisionistaRepository.findByUsuarioId(usuario.getId()).isPresent()) {
+        // Comisionista now uses shared PK: id = usuario.id
+        if (comisionistaRepository.findById(usuario.getId()).isPresent()) {
             return;
         }
         Comisionista comisionista = new Comisionista();
-        comisionista.setUsuarioId(usuario.getId());
+        comisionista.setId(usuario.getId());
         comisionista.setFechaCreacion(LocalDateTime.now());
         comisionistaRepository.save(comisionista);
     }

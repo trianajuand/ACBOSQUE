@@ -27,12 +27,6 @@ public class AsignacionComisionista {
     @Column(name = "comisionista_id", nullable = false)
     private Long comisionistaId;
 
-    @Column(name = "intereses_coincidentes", length = 500)
-    private String interesesCoincidentes;
-
-    @Column(name = "motivo", length = 500)
-    private String motivo;
-
     @Column(name = "activa", nullable = false)
     private boolean activa;
 
@@ -47,12 +41,6 @@ public class AsignacionComisionista {
 
     public Long getComisionistaId() { return comisionistaId; }
     public void setComisionistaId(Long comisionistaId) { this.comisionistaId = comisionistaId; }
-
-    public String getInteresesCoincidentes() { return interesesCoincidentes; }
-    public void setInteresesCoincidentes(String interesesCoincidentes) { this.interesesCoincidentes = interesesCoincidentes; }
-
-    public String getMotivo() { return motivo; }
-    public void setMotivo(String motivo) { this.motivo = motivo; }
 
     public boolean isActiva() { return activa; }
     public void setActiva(boolean activa) { this.activa = activa; }

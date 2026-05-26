@@ -49,6 +49,8 @@ Tabla `cuenta_fondos`: actualiza `saldo_disponible` y `actualizado_en`.
 ## Seguridad
 Protegido por JWT. No está restringido a administrador en el código actual.
 
+**Deuda técnica ALTA (auditoría 2026-05-25):** `POST /api/portafolio/depositar` en `PortafolioController` no tiene `@PreAuthorize` ni restricción de rol. Cualquier usuario autenticado (INVERSIONISTA, COMISIONISTA, ADMINISTRADOR) puede depositar fondos simulados arbitrarios. Antes de pasar a producción debe ser eliminado o protegido con `@PreAuthorize("hasRole('ADMINISTRADOR')")` o reemplazado por integración real de funding.
+
 ## Consideraciones técnicas
 Debe retirarse o restringirse antes de producción.
 

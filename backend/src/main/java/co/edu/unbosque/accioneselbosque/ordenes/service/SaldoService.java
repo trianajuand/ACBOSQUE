@@ -31,12 +31,11 @@ public class SaldoService {
         this.alpaca = alpaca;
     }
 
-    /** Retorna o crea la cuenta de fondos para un usuario. */
     @Transactional
-    public CuentaFondos obtenerOCrear(Long usuarioId) {
-        return cuentaRepo.findByUsuarioId(usuarioId).orElseGet(() -> {
+    public CuentaFondos obtenerOCrear(Long inversionistaId) {
+        return cuentaRepo.findById(inversionistaId).orElseGet(() -> {
             CuentaFondos nueva = new CuentaFondos();
-            nueva.setUsuarioId(usuarioId);
+            nueva.setInversionistaId(inversionistaId);
             nueva.setSaldoDisponible(BigDecimal.ZERO);
             nueva.setFondosReservados(BigDecimal.ZERO);
             nueva.setActualizadoEn(LocalDateTime.now());
@@ -44,17 +43,13 @@ public class SaldoService {
         });
     }
 
-    /**
-     * Sincroniza el saldo disponible con Alpaca y retorna la cuenta actualizada.
-     * Se llama al inicio de sesión y periódicamente.
-     */
     @Transactional
-    public CuentaFondos sincronizarConAlpaca(Long usuarioId, String alpacaAccountId) {
-        if (alpacaAccountId == null) return obtenerOCrear(usuarioId);
+    public CuentaFondos sincronizarConAlpaca(Long inversionistaId, String alpacaAccountId) {
+        if (alpacaAccountId == null) return obtenerOCrear(inversionistaId);
         Map<String, Object> cuentaAlpaca = alpaca.obtenerCuenta(alpacaAccountId);
-        if (cuentaAlpaca.isEmpty()) return obtenerOCrear(usuarioId);
+        if (cuentaAlpaca.isEmpty()) return obtenerOCrear(inversionistaId);
 
-        CuentaFondos cuenta = obtenerOCrear(usuarioId);
+        CuentaFondos cuenta = obtenerOCrear(inversionistaId);
         try {
             if (cuentaAlpaca.get("cash") != null) {
                 cuenta.setSaldoDisponible(new BigDecimal(cuentaAlpaca.get("cash").toString()));
@@ -64,10 +59,9 @@ public class SaldoService {
         return cuentaRepo.save(cuenta);
     }
 
-    /** Reserva fondos al crear una orden de compra. */
     @Transactional
-    public void reservarFondos(Long usuarioId, BigDecimal monto) {
-        CuentaFondos cuenta = obtenerOCrear(usuarioId);
+    public void reservarFondos(Long inversionistaId, BigDecimal monto) {
+        CuentaFondos cuenta = obtenerOCrear(inversionistaId);
         if (cuenta.getSaldoDisponible().compareTo(monto) < 0) {
             throw new FondosInsuficientesException(
                     "Fondos insuficientes. Disponible: " + cuenta.getSaldoDisponible()
@@ -79,10 +73,9 @@ public class SaldoService {
         cuentaRepo.save(cuenta);
     }
 
-    /** Libera fondos reservados (al cancelar una orden). */
     @Transactional
-    public void liberarFondosReservados(Long usuarioId, BigDecimal monto) {
-        CuentaFondos cuenta = obtenerOCrear(usuarioId);
+    public void liberarFondosReservados(Long inversionistaId, BigDecimal monto) {
+        CuentaFondos cuenta = obtenerOCrear(inversionistaId);
         BigDecimal aLiberar = monto.min(cuenta.getFondosReservados());
         cuenta.setFondosReservados(cuenta.getFondosReservados().subtract(aLiberar));
         cuenta.setSaldoDisponible(cuenta.getSaldoDisponible().add(aLiberar));
@@ -90,38 +83,35 @@ public class SaldoService {
         cuentaRepo.save(cuenta);
     }
 
-    /** Confirma una compra: descuenta de reservados, no devuelve al disponible. */
     @Transactional
-    public void confirmarCompra(Long usuarioId, BigDecimal montoTotal) {
-        CuentaFondos cuenta = obtenerOCrear(usuarioId);
+    public void confirmarCompra(Long inversionistaId, BigDecimal montoTotal) {
+        CuentaFondos cuenta = obtenerOCrear(inversionistaId);
         BigDecimal aDescontar = montoTotal.min(cuenta.getFondosReservados());
         cuenta.setFondosReservados(cuenta.getFondosReservados().subtract(aDescontar));
         cuenta.setActualizadoEn(LocalDateTime.now());
         cuentaRepo.save(cuenta);
     }
 
-    /** Confirma una venta: acredita el neto al saldo disponible. */
     @Transactional
-    public void confirmarVenta(Long usuarioId, BigDecimal montoNeto) {
-        CuentaFondos cuenta = obtenerOCrear(usuarioId);
+    public void confirmarVenta(Long inversionistaId, BigDecimal montoNeto) {
+        CuentaFondos cuenta = obtenerOCrear(inversionistaId);
         cuenta.setSaldoDisponible(cuenta.getSaldoDisponible().add(montoNeto));
         cuenta.setActualizadoEn(LocalDateTime.now());
         cuentaRepo.save(cuenta);
     }
 
-    /** Deposita fondos (endpoint de prueba / administrador). */
     @Transactional
-    public void depositar(Long usuarioId, BigDecimal monto) {
-        CuentaFondos cuenta = obtenerOCrear(usuarioId);
+    public void depositar(Long inversionistaId, BigDecimal monto) {
+        CuentaFondos cuenta = obtenerOCrear(inversionistaId);
         cuenta.setSaldoDisponible(cuenta.getSaldoDisponible().add(monto));
         cuenta.setActualizadoEn(LocalDateTime.now());
         cuentaRepo.save(cuenta);
     }
 
     @Transactional
-    public SaldoDTO obtenerSaldoDTO(Long usuarioId) {
-        CuentaFondos cuenta = obtenerOCrear(usuarioId);
-        List<Comision> comisiones = comisionRepo.findByUsuarioIdOrderByCreadaEnDesc(usuarioId);
+    public SaldoDTO obtenerSaldoDTO(Long inversionistaId) {
+        CuentaFondos cuenta = obtenerOCrear(inversionistaId);
+        List<Comision> comisiones = comisionRepo.findByUsuarioIdOrderByCreadaEnDesc(inversionistaId);
 
         BigDecimal totalComisiones = comisiones.stream()
                 .map(Comision::getMontoComision)

@@ -8,7 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "parametro_comision")
@@ -27,11 +27,12 @@ public class ParametroComision {
     @Column(name = "split_comisionista", nullable = false, precision = 6, scale = 2)
     private BigDecimal splitComisionista;
 
-    @Column(name = "activo", nullable = false)
-    private boolean activo;
+    @Column(name = "fecha_inicio", nullable = false,
+            columnDefinition = "date NOT NULL DEFAULT CURRENT_DATE")
+    private LocalDate fechaInicio;
 
-    @Column(name = "actualizado_en", nullable = false)
-    private LocalDateTime actualizadoEn;
+    @Column(name = "fecha_fin")
+    private LocalDate fechaFin;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -45,9 +46,14 @@ public class ParametroComision {
     public BigDecimal getSplitComisionista() { return splitComisionista; }
     public void setSplitComisionista(BigDecimal splitComisionista) { this.splitComisionista = splitComisionista; }
 
-    public boolean isActivo() { return activo; }
-    public void setActivo(boolean activo) { this.activo = activo; }
+    public LocalDate getFechaInicio() { return fechaInicio; }
+    public void setFechaInicio(LocalDate fechaInicio) { this.fechaInicio = fechaInicio; }
 
-    public LocalDateTime getActualizadoEn() { return actualizadoEn; }
-    public void setActualizadoEn(LocalDateTime actualizadoEn) { this.actualizadoEn = actualizadoEn; }
+    public LocalDate getFechaFin() { return fechaFin; }
+    public void setFechaFin(LocalDate fechaFin) { this.fechaFin = fechaFin; }
+
+    public boolean isActivo() {
+        LocalDate hoy = LocalDate.now();
+        return !hoy.isBefore(fechaInicio) && (fechaFin == null || !hoy.isAfter(fechaFin));
+    }
 }

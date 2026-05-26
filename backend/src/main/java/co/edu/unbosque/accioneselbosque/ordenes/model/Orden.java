@@ -12,15 +12,17 @@ public class Orden {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "usuario_id", nullable = false)
-    private Long usuarioId;
+    @Column(name = "inversionista_id", nullable = false)
+    private Long inversionistaId;
 
-    /** ID del comisionista que propuso la orden, null si la creó el propio inversionista. */
-    @Column(name = "comisionista_id")
-    private Long comisionistaId;
+    @Column(name = "activo_id", nullable = false)
+    private Long activoId;
 
-    @Column(name = "simbolo", nullable = false, length = 20)
-    private String simbolo;
+    @Column(name = "propuesta_orden_id")
+    private Long propuestaOrdenId;
+
+    @Column(name = "parametro_comision_id")
+    private Long parametroComisionId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo_orden", nullable = false, length = 20)
@@ -34,35 +36,27 @@ public class Orden {
     @Column(name = "estado", nullable = false, length = 30)
     private EstadoOrden estado;
 
-    /** Cantidad de acciones. */
     @Column(name = "cantidad", nullable = false, precision = 18, scale = 6)
     private BigDecimal cantidad;
 
-    /** Precio límite (LIMIT / TAKE_PROFIT). */
     @Column(name = "precio_limite", precision = 18, scale = 4)
     private BigDecimal precioLimite;
 
-    /** Precio stop (STOP_LOSS). */
     @Column(name = "precio_stop", precision = 18, scale = 4)
     private BigDecimal precioStop;
 
-    /** Precio al que se ejecutó en el mercado. */
     @Column(name = "precio_ejecucion", precision = 18, scale = 4)
     private BigDecimal precioEjecucion;
 
-    /** Monto total = cantidad × precio. */
     @Column(name = "monto_total", precision = 18, scale = 4)
     private BigDecimal montoTotal;
 
-    /** Comisión cobrada (2% del monto). */
     @Column(name = "comision", precision = 18, scale = 4)
     private BigDecimal comision;
 
-    /** Monto neto (montoTotal ± comision según compra/venta). */
     @Column(name = "monto_neto", precision = 18, scale = 4)
     private BigDecimal montoNeto;
 
-    /** ID de la orden en Alpaca (null hasta que se envíe). */
     @Column(name = "alpaca_order_id", length = 100)
     private String alpacaOrderId;
 
@@ -78,34 +72,22 @@ public class Orden {
     @Column(name = "ip_origen", length = 50)
     private String ipOrigen;
 
-    @Column(name = "comentario_comisionista", length = 500)
-    private String comentarioComisionista;
-
-    @Column(name = "comentario_inversionista", length = 500)
-    private String comentarioInversionista;
-
-    @Column(name = "aprobada_en")
-    private LocalDateTime aprobadaEn;
-
-    @Column(name = "rechazada_en")
-    private LocalDateTime rechazadaEn;
-
-    @Column(name = "firmada_en")
-    private LocalDateTime firmadaEn;
-
     public Orden() {}
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    public Long getUsuarioId() { return usuarioId; }
-    public void setUsuarioId(Long usuarioId) { this.usuarioId = usuarioId; }
+    public Long getInversionistaId() { return inversionistaId; }
+    public void setInversionistaId(Long inversionistaId) { this.inversionistaId = inversionistaId; }
 
-    public Long getComisionistaId() { return comisionistaId; }
-    public void setComisionistaId(Long comisionistaId) { this.comisionistaId = comisionistaId; }
+    public Long getActivoId() { return activoId; }
+    public void setActivoId(Long activoId) { this.activoId = activoId; }
 
-    public String getSimbolo() { return simbolo; }
-    public void setSimbolo(String simbolo) { this.simbolo = simbolo; }
+    public Long getPropuestaOrdenId() { return propuestaOrdenId; }
+    public void setPropuestaOrdenId(Long propuestaOrdenId) { this.propuestaOrdenId = propuestaOrdenId; }
+
+    public Long getParametroComisionId() { return parametroComisionId; }
+    public void setParametroComisionId(Long parametroComisionId) { this.parametroComisionId = parametroComisionId; }
 
     public TipoOrden getTipoOrden() { return tipoOrden; }
     public void setTipoOrden(TipoOrden tipoOrden) { this.tipoOrden = tipoOrden; }
@@ -151,19 +133,4 @@ public class Orden {
 
     public String getIpOrigen() { return ipOrigen; }
     public void setIpOrigen(String ipOrigen) { this.ipOrigen = ipOrigen; }
-
-    public String getComentarioComisionista() { return comentarioComisionista; }
-    public void setComentarioComisionista(String comentarioComisionista) { this.comentarioComisionista = comentarioComisionista; }
-
-    public String getComentarioInversionista() { return comentarioInversionista; }
-    public void setComentarioInversionista(String comentarioInversionista) { this.comentarioInversionista = comentarioInversionista; }
-
-    public LocalDateTime getAprobadaEn() { return aprobadaEn; }
-    public void setAprobadaEn(LocalDateTime aprobadaEn) { this.aprobadaEn = aprobadaEn; }
-
-    public LocalDateTime getRechazadaEn() { return rechazadaEn; }
-    public void setRechazadaEn(LocalDateTime rechazadaEn) { this.rechazadaEn = rechazadaEn; }
-
-    public LocalDateTime getFirmadaEn() { return firmadaEn; }
-    public void setFirmadaEn(LocalDateTime firmadaEn) { this.firmadaEn = firmadaEn; }
 }

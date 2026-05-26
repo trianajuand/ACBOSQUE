@@ -2,6 +2,7 @@ package co.edu.unbosque.accioneselbosque.administracion.controller;
 
 import co.edu.unbosque.accioneselbosque.administracion.dto.*;
 import co.edu.unbosque.accioneselbosque.administracion.service.AdministracionService;
+import co.edu.unbosque.accioneselbosque.integracion.adaptadores.alpaca.IIntegracionAlpaca;
 import co.edu.unbosque.accioneselbosque.shared.dto.RespuestaDTO;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -13,9 +14,11 @@ import org.springframework.web.bind.annotation.*;
 public class AdminController {
 
     private final AdministracionService administracionService;
+    private final IIntegracionAlpaca alpaca;
 
-    public AdminController(AdministracionService administracionService) {
+    public AdminController(AdministracionService administracionService, IIntegracionAlpaca alpaca) {
         this.administracionService = administracionService;
+        this.alpaca = alpaca;
     }
 
     @GetMapping("/dashboard")
@@ -131,6 +134,18 @@ public class AdminController {
         validar(correo);
         administracionService.eliminarUsuario(usuarioId, correo);
         return ResponseEntity.ok(RespuestaDTO.exito("Cuenta dada de baja"));
+    }
+
+    @PostMapping("/sandbox/fondear")
+    public ResponseEntity<RespuestaDTO> fondearCuentaSandbox(
+            @AuthenticationPrincipal String correo,
+            @RequestParam String accountId,
+            @RequestParam(defaultValue = "100000") String monto) {
+        validar(correo);
+        boolean ok = alpaca.fondearCuentaSandbox(accountId, monto);
+        return ok
+                ? ResponseEntity.ok(RespuestaDTO.exito("Cuenta fondeada con $" + monto))
+                : ResponseEntity.internalServerError().body(RespuestaDTO.error("No se pudo fondear la cuenta"));
     }
 
     private void validar(String correo) {

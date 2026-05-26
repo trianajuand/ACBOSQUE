@@ -4,22 +4,20 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Un registro por inversionista. inversionista_id = PK (shared con inversionista.id).
+ */
 @Entity
 @Table(name = "cuenta_fondos")
 public class CuentaFondos {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "inversionista_id")
+    private Long inversionistaId;
 
-    @Column(name = "usuario_id", nullable = false, unique = true)
-    private Long usuarioId;
-
-    /** Fondos disponibles para operar. */
     @Column(name = "saldo_disponible", nullable = false, precision = 18, scale = 4)
     private BigDecimal saldoDisponible;
 
-    /** Fondos reservados por órdenes pendientes. */
     @Column(name = "fondos_reservados", nullable = false, precision = 18, scale = 4)
     private BigDecimal fondosReservados;
 
@@ -28,11 +26,8 @@ public class CuentaFondos {
 
     public CuentaFondos() {}
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public Long getUsuarioId() { return usuarioId; }
-    public void setUsuarioId(Long usuarioId) { this.usuarioId = usuarioId; }
+    public Long getInversionistaId() { return inversionistaId; }
+    public void setInversionistaId(Long inversionistaId) { this.inversionistaId = inversionistaId; }
 
     public BigDecimal getSaldoDisponible() { return saldoDisponible; }
     public void setSaldoDisponible(BigDecimal saldoDisponible) { this.saldoDisponible = saldoDisponible; }

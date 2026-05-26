@@ -106,9 +106,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly panel = signal<Panel>('dashboard');
   readonly perfil = signal<Perfil | null>(null);
   readonly cotizaciones = signal<Cotizacion[]>([]);
+  readonly cargandoMercado = signal(false);
   readonly busqueda = signal<Cotizacion | null>(null);
   readonly detalleSeleccionado = signal<DetalleAccion | null>(null);
   readonly catalogo = signal<Record<string, string[]>>({});
+  readonly SECTOR_ETF: Record<string, string> = {
+    'Tecnologia': 'XLK', 'Finanzas': 'XLF', 'Salud': 'XLV', 'Energia': 'XLE', 'Consumo': 'XLY',
+  };
   readonly ordenes = signal<Orden[]>([]);
   readonly activas = signal<Orden[]>([]);
   readonly propuestas = signal<Orden[]>([]);
@@ -118,6 +122,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly cargando = signal(true);
   readonly reloj = signal('');
   readonly editandoPerfil = signal(false);
+  readonly notifActivas = signal(true);
+  readonly modalOrden = signal(false);
+  readonly ladoPendiente = signal<'COMPRA' | 'VENTA'>('COMPRA');
 
   readonly totalInvertido = computed(() =>
     (this.portafolio()?.valorTotalPortafolio || 0) - (this.portafolio()?.gananciaPerdidaTotal || 0),
@@ -236,6 +243,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   });
 
   readonly preferenciasForm = this.fb.nonNullable.group({
+    notificacionesActivas: [true],
     notificacionEmail: [true],
     notificacionSms: [false],
     notificacionWhatsapp: [false],
@@ -325,20 +333,29 @@ export class DashboardComponent implements OnInit, OnDestroy {
       telefono: p.telefono || '',
       interesesMercado: (p.interesesMercado || []).join(', '),
     });
+    const notifActivas = p.notificacionesActivas !== false;
+    this.notifActivas.set(notifActivas);
     this.preferenciasForm.patchValue({
+      notificacionesActivas: notifActivas,
       notificacionEmail: !!p.notificacionEmail,
       notificacionSms: !!p.notificacionSms,
       notificacionWhatsapp: !!p.notificacionWhatsapp,
       tipoOrdenDefault: p.tipoOrdenDefault || 'MARKET',
       vistaPortafolio: p.vistaPortafolio || 'LISTA',
     });
+    this.preferenciasForm.get('notificacionesActivas')!.valueChanges.subscribe(v => this.notifActivas.set(v));
   }
 
   async cargarMercado(): Promise<void> {
+    this.cargandoMercado.set(true);
     const res = await this.api.get<Cotizacion[]>('/api/mercado/dashboard');
     if (res.ok && res.data) {
       this.cotizaciones.set(res.data);
+      this.toast.mostrar('Precios actualizados', 'success');
+    } else {
+      this.toast.mostrar('No se pudo actualizar precios', 'error');
     }
+    this.cargandoMercado.set(false);
   }
 
   async cargarCatalogo(): Promise<void> {
@@ -460,12 +477,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   async accionOrden(lado: 'COMPRA' | 'VENTA'): Promise<void> {
-    const resumen = this.resumen();
-    if (!resumen || resumen.lado !== lado) {
-      this.setLado(lado);
+    if (this.orderForm.invalid || !this.ordenTieneCamposRequeridos()) {
+      this.toast.mostrar('Completa símbolo y cantidad antes de continuar', 'error');
       return;
     }
-    await this.confirmarOrden(lado);
+    this.setLado(lado);
+    this.ladoPendiente.set(lado);
+    const res = await this.api.post<ResumenComision>('/api/ordenes/previsualizar', this.construirOrdenPayload());
+    if (res.ok && res.data) {
+      this.resumen.set(res.data);
+      this.modalOrden.set(true);
+    } else {
+      this.toast.mostrar(res.error || 'No se pudo previsualizar la orden', 'error');
+    }
+  }
+
+  cerrarModalOrden(): void {
+    this.modalOrden.set(false);
   }
 
   construirOrdenPayload(): Record<string, unknown> {
@@ -503,17 +531,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  async confirmarOrden(lado: 'COMPRA' | 'VENTA'): Promise<void> {
-    if (!this.resumen() || this.resumen()?.lado !== lado) {
-      this.orderForm.patchValue({ lado });
-      this.resumen.set(null);
-      this.toast.mostrar(`Previsualiza la comision de ${lado === 'COMPRA' ? 'compra' : 'venta'} antes de enviar`, 'error');
-      return;
-    }
-
+  async confirmarOrden(): Promise<void> {
     const res = await this.api.post<Orden>('/api/ordenes', this.construirOrdenPayload());
     if (res.ok) {
       this.toast.mostrar('Orden enviada correctamente', 'success');
+      this.modalOrden.set(false);
       this.resumen.set(null);
       await Promise.all([this.cargarOrdenes(), this.cargarSaldo(), this.cargarPortafolio()]);
     } else {
@@ -590,10 +612,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const raw = this.preferenciasForm.getRawValue();
     const [notif, operacion] = await Promise.all([
       this.api.put('/api/perfil/preferencias/notificaciones', {
+        notificacionesActivas: raw.notificacionesActivas,
         notificacionEmail: raw.notificacionEmail,
         notificacionSms: raw.notificacionSms,
         notificacionWhatsapp: raw.notificacionWhatsapp,
-        tiposNotificacion: ['ORDER_EXECUTED', 'LOGIN'],
+        tiposNotificacion: ['ORDENES', 'MERCADO', 'SEGURIDAD'],
       }),
       this.api.put('/api/perfil/preferencias/operacion', {
         tipoOrdenDefault: raw.tipoOrdenDefault,
@@ -646,6 +669,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return false;
     }
     return true;
+  }
+
+  async upgradePremium(plan: string): Promise<void> {
+    const res = await this.api.post<{ checkoutUrl: string }>(`/api/perfil/suscripcion/iniciar?plan=${plan}`);
+    if (res.ok && res.data?.checkoutUrl) {
+      window.location.href = res.data.checkoutUrl;
+    } else {
+      this.toast.mostrar(res.error || 'No se pudo iniciar el pago premium', 'error');
+    }
   }
 
   async cancelarPremium(): Promise<void> {
@@ -738,5 +770,206 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private tick(): void {
     this.reloj.set(new Date().toLocaleTimeString('en-US', { hour12: false, timeZone: 'America/New_York' }) + ' NY');
+  }
+
+  // ================================================================
+  // CHART HELPERS (purely visual — no API/state mutation)
+  // ================================================================
+  readonly tipoGrafica = signal<'area' | 'linea' | 'velas'>('area');
+  readonly chartRango = signal<'1D' | '1S' | '1M' | '3M' | '1A' | 'TODO'>('1M');
+  readonly chartHover = signal<{ simbolo: string; index: number } | null>(null);
+  readonly chartGrandeSimbolo = signal<string | null>(null);
+
+  readonly chartGrande = computed<Cotizacion | null>(() => {
+    const cot = this.cotizaciones();
+    if (!cot.length) return null;
+    const seleccionado = this.chartGrandeSimbolo();
+    if (seleccionado) {
+      const found = cot.find((c) => c.simbolo === seleccionado);
+      if (found) return found;
+    }
+    const preferidos = new Set(this.simbolosPreferidos().map((s) => s.simbolo));
+    const preferred = cot.find((c) => preferidos.has(c.simbolo));
+    return preferred || cot[0];
+  });
+
+  readonly chartsPequenos = computed<Cotizacion[]>(() => {
+    const grande = this.chartGrande();
+    if (!grande) return [];
+    return this.cotizaciones().filter((c) => c.simbolo !== grande.simbolo);
+  });
+
+  setChartGrande(simbolo: string): void {
+    this.chartGrandeSimbolo.set(simbolo);
+    this.chartHover.set(null);
+  }
+
+  setChartRango(r: '1D' | '1S' | '1M' | '3M' | '1A' | 'TODO'): void {
+    this.chartRango.set(r);
+    this.chartHover.set(null);
+  }
+
+  private puntosParaRango(): number {
+    switch (this.chartRango()) {
+      case '1D': return 24;
+      case '1S': return 28;
+      case '1M': return 36;
+      case '3M': return 60;
+      case '1A': return 52;
+      case 'TODO': return 100;
+    }
+  }
+
+  private readonly serieCache = new Map<string, number[]>();
+
+  serieDe(c: Cotizacion, puntos?: number): number[] {
+    const POINTS = puntos ?? this.puntosParaRango();
+    const key = `${c.simbolo}::${c.precioActual}::${c.precioApertura}::${c.precioMaximo}::${c.precioMinimo}::${POINTS}`;
+    const cached = this.serieCache.get(key);
+    if (cached) return cached;
+
+    const start = Number(c.precioApertura ?? c.precioCierreAnterior ?? c.precioActual ?? 100);
+    const end = Number(c.precioActual ?? start);
+    const high = Number(c.precioMaximo ?? Math.max(start, end));
+    const low = Number(c.precioMinimo ?? Math.min(start, end));
+    const range = (high - low) || Math.abs(end - start) || 1;
+
+    let seed = 0;
+    for (const ch of (c.simbolo || '')) seed = ((seed << 5) - seed + ch.charCodeAt(0)) | 0;
+    seed = Math.abs(seed) || 1;
+    const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+
+    const series: number[] = [];
+    for (let i = 0; i < POINTS; i++) {
+      const t = i / (POINTS - 1);
+      const base = start + (end - start) * t;
+      const noise = ((rand() - 0.5) + (rand() - 0.5) * 0.5) * range * 0.18;
+      let v = base + noise;
+      v = Math.max(low, Math.min(high, v));
+      series.push(v);
+    }
+    series[0] = start;
+    series[series.length - 1] = end;
+    if (POINTS >= 6 && high > Math.max(start, end)) {
+      series[Math.floor(POINTS * 0.28)] = high;
+    }
+    if (POINTS >= 6 && low < Math.min(start, end)) {
+      series[Math.floor(POINTS * 0.65)] = low;
+    }
+
+    this.serieCache.set(key, series);
+    return series;
+  }
+
+  pathLinea(c: Cotizacion, w = 100, h = 60, padY = 4.8): string {
+    const s = this.serieDe(c);
+    if (s.length < 2) return '';
+    const min = Math.min(...s);
+    const max = Math.max(...s);
+    const range = (max - min) || 1;
+    return s.map((v, i) => {
+      const x = (i / (s.length - 1)) * w;
+      const y = h - padY - ((v - min) / range) * (h - padY * 2);
+      return `${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    }).join(' ');
+  }
+
+  pathArea(c: Cotizacion, w = 100, h = 60, padY = 4.8): string {
+    const linea = this.pathLinea(c, w, h, padY);
+    if (!linea) return '';
+    return `${linea} L ${w} ${h} L 0 ${h} Z`;
+  }
+
+  candlesDe(c: Cotizacion, w = 100, h = 60, padY = 4.8) {
+    const series = this.serieDe(c);
+    // Group every N points into a candle (so we still get plenty of bars across timeframes)
+    const POINTS_PER_CANDLE = Math.max(2, Math.floor(series.length / 28));
+    const numCandles = Math.max(1, Math.floor(series.length / POINTS_PER_CANDLE));
+    if (numCandles < 1) return [];
+
+    const min = Math.min(...series);
+    const max = Math.max(...series);
+    const range = (max - min) || 1;
+    const candleW = (w / numCandles) * 0.65;
+
+    const out: Array<{ x: number; w: number; yHigh: number; yLow: number; yBodyTop: number; yBodyHeight: number; up: boolean; open: number; close: number; high: number; low: number; }> = [];
+
+    for (let i = 0; i < numCandles; i++) {
+      const group = series.slice(i * POINTS_PER_CANDLE, (i + 1) * POINTS_PER_CANDLE);
+      if (!group.length) continue;
+      const o = group[0];
+      const cl = group[group.length - 1];
+      const hi = Math.max(...group);
+      const lo = Math.min(...group);
+
+      const x = ((i + 0.5) / numCandles) * w;
+      const yo = h - padY - ((o - min) / range) * (h - padY * 2);
+      const yc = h - padY - ((cl - min) / range) * (h - padY * 2);
+      const yh = h - padY - ((hi - min) / range) * (h - padY * 2);
+      const yl = h - padY - ((lo - min) / range) * (h - padY * 2);
+
+      out.push({
+        x,
+        w: candleW,
+        yHigh: yh,
+        yLow: yl,
+        yBodyTop: Math.min(yo, yc),
+        yBodyHeight: Math.max(0.6, Math.abs(yc - yo)),
+        up: cl >= o,
+        open: o,
+        close: cl,
+        high: hi,
+        low: lo,
+      });
+    }
+    return out;
+  }
+
+  setChartHover(simbolo: string, evt: MouseEvent): void {
+    const target = evt.currentTarget as HTMLElement;
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const xRel = Math.max(0, Math.min(rect.width, evt.clientX - rect.left));
+    const POINTS = this.puntosParaRango();
+    const idx = Math.round((xRel / rect.width) * (POINTS - 1));
+    this.chartHover.set({ simbolo, index: Math.max(0, Math.min(POINTS - 1, idx)) });
+  }
+
+  clearChartHover(): void {
+    this.chartHover.set(null);
+  }
+
+  chartHoverActivo(simbolo: string): boolean {
+    return this.chartHover()?.simbolo === simbolo;
+  }
+
+  chartHoverX(c: Cotizacion): number {
+    const h = this.chartHover();
+    if (!h || h.simbolo !== c.simbolo) return 0;
+    const POINTS = this.puntosParaRango();
+    return (h.index / (POINTS - 1)) * 100;
+  }
+
+  chartHoverY(c: Cotizacion): number {
+    const h = this.chartHover();
+    if (!h || h.simbolo !== c.simbolo) return 30;
+    const s = this.serieDe(c);
+    const v = s[h.index];
+    const min = Math.min(...s);
+    const max = Math.max(...s);
+    const range = (max - min) || 1;
+    const padY = 4.8;
+    return 60 - padY - ((v - min) / range) * (60 - padY * 2);
+  }
+
+  chartHoverPrecio(c: Cotizacion): number {
+    const h = this.chartHover();
+    if (!h || h.simbolo !== c.simbolo) return 0;
+    return this.serieDe(c)[h.index] || 0;
+  }
+
+  chartHoverIndex(): number {
+    return this.chartHover()?.index ?? 0;
   }
 }

@@ -1,109 +1,130 @@
+/* ============================================================
+   Auth cards — shared by login, registro, recuperar, reset,
+   verificar-registro. Premium minimal, dense, terminal flavor.
+   ============================================================ */
+
 .auth-card {
-  width: min(100%, 480px);
+  width: min(100%, 460px);
   margin: 0 auto;
-  padding: 30px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: rgba(23, 29, 41, 0.92);
-  box-shadow: var(--shadow);
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--bg-2);
+  box-shadow: var(--shadow-2);
 }
 
-.register-card {
-  width: min(100%, 860px);
-}
+.register-card { width: min(100%, 840px); }
 
 .eyebrow {
-  margin: 0 0 8px;
-  color: var(--accent-2);
-  font-size: 0.76rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  margin: 0 0 10px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.eyebrow::before {
+  content: "";
+  width: 5px; height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
 }
 
 h2 {
   margin: 0;
-  font-size: 1.55rem;
-  letter-spacing: 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--fg);
 }
 
 .subtitle {
-  margin: 8px 0 24px;
-  color: var(--muted);
-  line-height: 1.5;
+  margin: 10px 0 28px;
+  color: var(--fg-mute);
+  line-height: 1.55;
+  font-size: 14px;
 }
 
-.stack {
-  display: grid;
-  gap: 16px;
-}
+.stack { display: grid; gap: 14px; }
 
+/* ===== Stepper ===== */
 .stepper {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  margin: 0 0 22px;
+  margin: 0 0 24px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-1);
 }
-
 .step-dot {
-  min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 10px;
-  background: var(--surface-2);
-  color: var(--muted);
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--fg-dim);
   text-align: left;
-}
-
-.step-dot span {
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
   display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  margin-bottom: 8px;
-  border-radius: 50%;
-  background: var(--surface-3);
-  color: var(--text);
-  font-size: 0.78rem;
-  font-weight: 800;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  align-items: center;
+  transition: background var(--t-fast), color var(--t-fast);
 }
-
+.step-dot:hover { color: var(--fg-mute); }
+.step-dot > span {
+  display: grid; place-items: center;
+  width: 22px; height: 22px;
+  border-radius: var(--r-pill);
+  background: var(--bg-3);
+  color: var(--fg-mute);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+}
 .step-dot strong {
   display: block;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.78rem;
 }
-
 .step-dot.active {
-  border-color: var(--accent);
-  color: var(--text);
-  background: rgba(66, 153, 225, 0.12);
+  background: var(--bg-3);
+  color: var(--fg);
+}
+.step-dot.active > span {
+  background: var(--accent);
+  color: #06120c;
+}
+.step-dot.done > span {
+  background: var(--up);
+  color: #06140d;
 }
 
-.step-dot.done span {
-  background: var(--green);
-  color: #07130d;
-}
-
+/* ===== Registration sections ===== */
 .register-section {
   display: grid;
-  gap: 18px;
+  gap: 20px;
 }
-
 .section-title h3 {
   margin: 0;
-  font-size: 1rem;
-  letter-spacing: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
 }
-
 .section-title p,
 .microcopy {
   margin: 6px 0 0;
-  color: var(--muted);
-  line-height: 1.45;
-  font-size: 0.9rem;
+  color: var(--fg-mute);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .form-grid {
@@ -111,186 +132,229 @@ h2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
+.field.wide { grid-column: 1 / -1; }
 
-.field.wide {
-  grid-column: 1 / -1;
-}
-
+/* ===== Chips (mercados) ===== */
 .chip-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
-
-.chip,
-.choice-card {
-  min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-2);
-  color: var(--text);
-  text-align: left;
-  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
-}
-
-.chip {
+.chip-grid .chip {
+  appearance: none;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  color: var(--fg);
   padding: 10px;
-}
-
-.chip:hover,
-.choice-card:hover {
-  transform: translateY(-1px);
-}
-
-.chip.active,
-.choice-card.active {
-  border-color: var(--accent);
-  background: rgba(66, 153, 225, 0.13);
-}
-
-.chip strong,
-.chip span,
-.choice-card strong,
-.choice-card span {
-  display: block;
-}
-
-.chip span,
-.choice-card span {
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 0.78rem;
-  line-height: 1.35;
-}
-
-.toggle-row,
-.choice-grid,
-.wizard-actions {
+  border-radius: var(--r-md);
+  text-align: left;
+  font-family: var(--sans);
+  font-size: 12px;
+  letter-spacing: 0;
   display: grid;
-  gap: 10px;
+  gap: 2px;
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast), transform var(--t-fast);
 }
-
-.toggle-row {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.chip-grid .chip:hover { border-color: var(--line-strong); }
+.chip-grid .chip.active {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
 }
+.chip-grid .chip strong {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.chip-grid .chip span {
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+.chip-grid .chip.active strong { color: var(--accent); }
 
+/* ===== Choice cards (sí/no comisionista) ===== */
 .choice-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.check-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 46px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 10px 12px;
-  background: var(--surface-2);
-  color: var(--text);
-}
-
-.check-card input {
-  width: 16px;
-  height: 16px;
-}
-
-.choice-card {
-  padding: 14px;
-}
-
-.wizard-actions {
-  grid-template-columns: 160px minmax(0, 1fr);
-  align-items: center;
-  margin-top: 4px;
-}
-
-.links {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 18px;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.mfa-box {
-  margin-top: 18px;
-  padding-top: 18px;
-  border-top: 1px dashed var(--border);
   display: grid;
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.choice-card {
+  appearance: none;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  padding: 14px;
+  border-radius: var(--r-md);
+  text-align: left;
+  display: grid;
+  gap: 4px;
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.choice-card:hover { border-color: var(--line-strong); }
+.choice-card.active {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+.choice-card strong {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.choice-card span {
+  font-size: 12px;
+  color: var(--fg-mute);
+  line-height: 1.45;
 }
 
-.code-input {
-  text-align: center;
-  letter-spacing: 0.45em;
-  font-size: 1.2rem;
-}
-
-.plan-grid {
+/* ===== Toggle row (notif channels) ===== */
+.toggle-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
-
-.plan-card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px 10px;
-  background: var(--surface-2);
-  color: var(--text);
-  text-align: left;
-  transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
+.check-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+  background: var(--bg-1);
+  color: var(--fg);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color var(--t-fast);
 }
-
-.plan-card:hover {
-  transform: translateY(-1px);
+.check-card:hover { border-color: var(--line-strong); }
+.check-card input {
+  appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 3px;
+  border: 1px solid var(--line-bright);
+  background: var(--bg-2);
+  display: grid; place-items: center;
+  transition: background var(--t-fast), border-color var(--t-fast);
+  cursor: pointer;
 }
-
-.plan-card.active {
+.check-card input:checked {
+  background: var(--accent);
   border-color: var(--accent);
-  background: rgba(66, 153, 225, 0.13);
+}
+.check-card input:checked::after {
+  content: "";
+  width: 9px; height: 5px;
+  border-left: 2px solid #06120c;
+  border-bottom: 2px solid #06120c;
+  transform: rotate(-45deg) translate(1px, -1px);
 }
 
-.plan-card strong,
+/* ===== Plan cards ===== */
+.plan-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.plan-card {
+  appearance: none;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  padding: 14px;
+  border-radius: var(--r-md);
+  text-align: left;
+  display: grid;
+  gap: 6px;
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.plan-card:hover { border-color: var(--line-strong); }
+.plan-card.active {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+.plan-card strong {
+  font-size: 14px;
+  font-weight: 600;
+}
 .plan-card span {
-  display: block;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--fg-mute);
 }
 
-.plan-card span {
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 0.8rem;
+/* ===== Wizard actions ===== */
+.wizard-actions {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 10px;
+  margin-top: 8px;
+}
+.wizard-actions .btn { min-height: 42px; }
+
+/* ===== Links footer ===== */
+.links {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+  color: var(--fg-dim);
+  font-size: 13px;
+}
+.links a {
+  color: var(--fg-mute);
+  font-weight: 500;
+  transition: color var(--t-fast);
+}
+.links a:hover { color: var(--accent); }
+
+/* ===== MFA / code box ===== */
+.mfa-box {
+  margin-top: 22px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-1);
+  display: grid;
+  gap: 14px;
+}
+.code-input {
+  text-align: center;
+  letter-spacing: 0.6em;
+  font-size: 20px;
+  font-family: var(--mono);
+  font-weight: 500;
 }
 
+/* ===== Hint box ===== */
 .hint {
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-2);
-  color: var(--muted);
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-1);
+  color: var(--fg-mute);
+  font-size: 13px;
   line-height: 1.5;
 }
+.hint strong { color: var(--fg); font-family: var(--mono); font-weight: 500; }
 
-.hint strong {
-  color: var(--green);
-}
+/* ===== Buttons sized to card ===== */
+.auth-card .btn { min-height: 42px; font-size: 14px; }
+.auth-card .btn.primary,
+.auth-card .stack > button.btn { width: 100%; }
 
-@media (max-width: 560px) {
-  .auth-card {
-    padding: 22px;
-  }
-
-  .stepper,
+@media (max-width: 600px) {
+  .auth-card { padding: 24px; }
+  .stepper { grid-template-columns: repeat(2, 1fr); }
   .form-grid,
   .chip-grid,
   .toggle-row,
   .choice-grid,
   .wizard-actions,
-  .plan-grid,
-  .links {
-    grid-template-columns: 1fr;
-    flex-direction: column;
-  }
+  .plan-grid { grid-template-columns: 1fr; }
+  .links { flex-direction: column; }
 }

@@ -68,15 +68,15 @@ public class DatosInicialesAdministracion implements CommandLineRunner {
     }
 
     private void crearParametroComisionBase() {
-        if (parametroRepo.findFirstByActivoTrueOrderByActualizadoEnDesc().isPresent()) {
+        if (parametroRepo.findParametroActivo(java.time.LocalDate.now()).isPresent()) {
             return;
         }
         ParametroComision parametro = new ParametroComision();
         parametro.setPorcentajeComision(porcentajeDefault);
         parametro.setSplitPlataforma(splitPlataformaDefault);
         parametro.setSplitComisionista(splitComisionistaDefault);
-        parametro.setActivo(true);
-        parametro.setActualizadoEn(LocalDateTime.now());
+        parametro.setFechaInicio(java.time.LocalDate.now());
+        parametro.setFechaFin(null);
         parametroRepo.save(parametro);
     }
 

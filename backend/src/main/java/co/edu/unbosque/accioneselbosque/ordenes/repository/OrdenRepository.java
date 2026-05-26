@@ -9,15 +9,11 @@ import java.util.Optional;
 
 public interface OrdenRepository extends CrudRepository<Orden, Long> {
 
-    List<Orden> findByUsuarioIdOrderByCreadaEnDesc(Long usuarioId);
+    List<Orden> findByInversionistaIdOrderByCreadaEnDesc(Long inversionistaId);
 
-    List<Orden> findByUsuarioIdAndEstadoOrderByCreadaEnDesc(Long usuarioId, EstadoOrden estado);
-
-    List<Orden> findByComisionistaIdAndEstadoOrderByCreadaEnDesc(Long comisionistaId, EstadoOrden estado);
+    List<Orden> findByInversionistaIdAndEstadoOrderByCreadaEnDesc(Long inversionistaId, EstadoOrden estado);
 
     List<Orden> findByEstadoOrderByCreadaEnAsc(EstadoOrden estado);
 
-    Optional<Orden> findByIdAndUsuarioId(Long id, Long usuarioId);
-
-    Optional<Orden> findByIdAndComisionistaId(Long id, Long comisionistaId);
+    Optional<Orden> findByIdAndInversionistaId(Long id, Long inversionistaId);
 }

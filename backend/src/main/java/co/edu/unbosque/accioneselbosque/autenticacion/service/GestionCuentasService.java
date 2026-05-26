@@ -52,15 +52,15 @@ public class GestionCuentasService implements IGestionCuentas {
         usuario.setEstadoCuenta(EstadoCuenta.ACTIVA);
         usuario.setMfaHabilitado(true);
         usuario.setFechaCreacion(LocalDateTime.now());
-        usuario.setFechaActualizacion(LocalDateTime.now());
         usuario = usuarioRepo.save(usuario);
 
+        // Comisionista now uses shared PK: id = usuario.id
         Comisionista comisionista = new Comisionista();
-        comisionista.setUsuarioId(usuario.getId());
-        comisionista.setEspecialidadesMercado(normalizarCsv(especialidades));
+        comisionista.setId(usuario.getId());
         comisionista.setFechaCreacion(LocalDateTime.now());
         comisionista.setFechaActualizacion(LocalDateTime.now());
         comisionistaRepo.save(comisionista);
+        // Note: especialidades are stored in comisionista_especialidad table (not on entity)
 
         auditLog.registrar(TipoEvento.USUARIO_ADMIN_GESTIONADO, adminCorreo,
                 "Comisionista creado: " + usuario.getCorreo());
@@ -90,7 +90,6 @@ public class GestionCuentasService implements IGestionCuentas {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
         EstadoCuenta estado = EstadoCuenta.valueOf(nuevoEstado.trim().toUpperCase(Locale.ROOT));
         usuario.setEstadoCuenta(estado);
-        usuario.setFechaActualizacion(LocalDateTime.now());
         usuario = usuarioRepo.save(usuario);
         auditLog.registrar(TipoEvento.CAMBIO_ESTADO_CUENTA, adminCorreo,
                 "Usuario " + usuario.getCorreo() + " -> " + estado + " | " + Objects.toString(motivo, ""));
@@ -107,7 +106,6 @@ public class GestionCuentasService implements IGestionCuentas {
                     "No se elimina administradores desde este modulo");
         }
         usuario.setEstadoCuenta(EstadoCuenta.INACTIVA);
-        usuario.setFechaActualizacion(LocalDateTime.now());
         usuarioRepo.save(usuario);
         asignacionRepo.findByInversionistaIdAndActivaTrue(usuarioId).ifPresent(a -> {
             a.setActiva(false);
@@ -145,8 +143,6 @@ public class GestionCuentasService implements IGestionCuentas {
         AsignacionComisionista asignacion = new AsignacionComisionista();
         asignacion.setInversionistaId(inversionistaId);
         asignacion.setComisionistaId(comisionistaId);
-        asignacion.setMotivo("Asignacion manual por administrador");
-        asignacion.setInteresesCoincidentes("");
         asignacion.setActiva(true);
         asignacion.setFechaAsignacion(LocalDateTime.now());
         asignacionRepo.save(asignacion);

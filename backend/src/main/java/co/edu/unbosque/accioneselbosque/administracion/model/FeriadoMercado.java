@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(
         name = "feriado_mercado",
-        uniqueConstraints = @UniqueConstraint(name = "uk_feriado_mercado_fecha", columnNames = {"mercado_codigo", "fecha"})
+        uniqueConstraints = @UniqueConstraint(name = "uk_feriado_mercado_fecha", columnNames = {"mercado_config_id", "fecha"})
 )
 public class FeriadoMercado {
 
@@ -22,8 +22,9 @@ public class FeriadoMercado {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "mercado_codigo", nullable = false, length = 30)
-    private String mercadoCodigo;
+    @Column(name = "mercado_config_id", nullable = false,
+            columnDefinition = "bigint NOT NULL DEFAULT 1")
+    private Long mercadoConfigId;
 
     @Column(name = "fecha", nullable = false)
     private LocalDate fecha;
@@ -37,8 +38,8 @@ public class FeriadoMercado {
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    public String getMercadoCodigo() { return mercadoCodigo; }
-    public void setMercadoCodigo(String mercadoCodigo) { this.mercadoCodigo = mercadoCodigo; }
+    public Long getMercadoConfigId() { return mercadoConfigId; }
+    public void setMercadoConfigId(Long mercadoConfigId) { this.mercadoConfigId = mercadoConfigId; }
 
     public LocalDate getFecha() { return fecha; }
     public void setFecha(LocalDate fecha) { this.fecha = fecha; }

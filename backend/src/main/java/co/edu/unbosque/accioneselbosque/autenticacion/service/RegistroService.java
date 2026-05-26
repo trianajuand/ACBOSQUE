@@ -8,8 +8,10 @@ import co.edu.unbosque.accioneselbosque.autenticacion.model.CodigoVerificacion.T
 import co.edu.unbosque.accioneselbosque.autenticacion.model.EstadoCuenta;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Inversionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Rol;
+import co.edu.unbosque.accioneselbosque.autenticacion.model.Suscripcion;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.InversionistaRepository;
+import co.edu.unbosque.accioneselbosque.autenticacion.repository.SuscripcionRepository;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
 import co.edu.unbosque.accioneselbosque.integracion.notificaciones.INotificacion;
 import co.edu.unbosque.accioneselbosque.integracion.orquestadores.OrquestadorRegistro;
@@ -32,6 +34,7 @@ public class RegistroService {
 
     private final UsuarioRepository usuarioRepository;
     private final InversionistaRepository inversionistaRepository;
+    private final SuscripcionRepository suscripcionRepository;
     private final MFAService mfaService;
     private final INotificacion despachador;
     private final IAuditLog auditLog;
@@ -43,6 +46,7 @@ public class RegistroService {
     public RegistroService(
             UsuarioRepository usuarioRepository,
             InversionistaRepository inversionistaRepository,
+            SuscripcionRepository suscripcionRepository,
             MFAService mfaService,
             INotificacion despachador,
             IAuditLog auditLog,
@@ -52,6 +56,7 @@ public class RegistroService {
             IAsignacionComisionista asignacionComisionista) {
         this.usuarioRepository = usuarioRepository;
         this.inversionistaRepository = inversionistaRepository;
+        this.suscripcionRepository = suscripcionRepository;
         this.mfaService = mfaService;
         this.despachador = despachador;
         this.auditLog = auditLog;
@@ -80,37 +85,42 @@ public class RegistroService {
         usuario.setRol(Rol.INVERSIONISTA);
         usuario.setEstadoCuenta(EstadoCuenta.PENDIENTE_VERIFICACION);
         usuario.setMfaHabilitado(false);
+        usuario.setTelefono(solicitud.getTelefono());
+        usuario.setNumeroIdentificacion(solicitud.getNumeroIdentificacion());
+        if (solicitud.getFechaNacimiento() != null && !solicitud.getFechaNacimiento().isBlank()) {
+            try {
+                usuario.setFechaNacimiento(java.time.LocalDate.parse(solicitud.getFechaNacimiento()));
+            } catch (Exception ignored) {}
+        }
+        usuario.setNotificacionEmail(solicitud.isNotificacionEmail());
+        usuario.setNotificacionSms(solicitud.isNotificacionSms());
+        usuario.setNotificacionWhatsapp(solicitud.isNotificacionWhatsapp());
         usuario.setFechaCreacion(LocalDateTime.now());
         usuarioRepository.save(usuario);
 
         Inversionista inversionista = new Inversionista();
-        inversionista.setUsuarioId(usuario.getId());
+        inversionista.setId(usuario.getId());
         inversionista.setNivelExperiencia(solicitud.getNivelExperiencia());
-        inversionista.setInteresesMercado(String.join(",", interesesNormalizados));
-        inversionista.setTelefono(solicitud.getTelefono());
         inversionista.setTipoIdentificacion(solicitud.getTipoIdentificacion());
-        inversionista.setNumeroIdentificacion(solicitud.getNumeroIdentificacion());
-        inversionista.setFechaNacimiento(solicitud.getFechaNacimiento());
         inversionista.setDireccion(solicitud.getDireccion());
         inversionista.setCiudad(solicitud.getCiudad());
         inversionista.setCodigoPostal(solicitud.getCodigoPostal());
         inversionista.setPais(solicitud.getPais() != null ? solicitud.getPais() : "CO");
         inversionista.setEstiloTrading(solicitud.getEstiloTrading());
-        inversionista.setRangoIngresos(solicitud.getRangoIngresos());
         inversionista.setTipoOrdenDefault(
                 solicitud.getTipoOrdenDefault() != null ? solicitud.getTipoOrdenDefault() : "MARKET");
         inversionista.setVistaPortafolio(
                 solicitud.getVistaPortafolio() != null ? solicitud.getVistaPortafolio() : "LISTA");
-        inversionista.setNotificacionEmail(solicitud.isNotificacionEmail());
-        inversionista.setNotificacionSms(solicitud.isNotificacionSms());
-        inversionista.setNotificacionWhatsapp(solicitud.isNotificacionWhatsapp());
         inversionista.setSolicitaComisionista(solicitud.isSolicitaComisionista());
-        inversionista.setTiposNotificacion("ORDENES,MERCADO,SEGURIDAD");
-        inversionista.setPlanSuscripcion(plan);
-        inversionista.setEsPremium(false);
-        inversionista.setPendienteCuentaAlpaca(false);
+        inversionista.setInteresesMercado(String.join(",", interesesNormalizados));
         inversionista.setFechaCreacion(LocalDateTime.now());
         inversionistaRepository.save(inversionista);
+
+        Suscripcion suscripcion = new Suscripcion();
+        suscripcion.setInversionistaId(usuario.getId());
+        suscripcion.setPlanSuscripcion(plan);
+        suscripcion.setEsPremium(false);
+        suscripcionRepository.save(suscripcion);
 
         String codigo = mfaService.generarYGuardarCodigo(solicitud.getCorreo(), TipoCodigo.REGISTRO);
         despachador.enviarCodigoRegistro(solicitud.getCorreo(), solicitud.getNombreCompleto(), codigo);
@@ -128,10 +138,12 @@ public class RegistroService {
         Usuario usuario = usuarioRepository.findByCorreo(solicitud.getCorreo())
                 .orElseThrow(() -> new UsuarioNoEncontradoException(solicitud.getCorreo()));
 
-        Inversionista inversionista = inversionistaRepository.findByUsuarioId(usuario.getId())
+        Inversionista inversionista = inversionistaRepository.findById(usuario.getId())
                 .orElseThrow(() -> new UsuarioNoEncontradoException(solicitud.getCorreo()));
-        String plan = inversionista.getPlanSuscripcion();
-        if (plan != null && !plan.equalsIgnoreCase("BASICO")) {
+        String plan = suscripcionRepository.findById(usuario.getId())
+                .map(Suscripcion::getPlanSuscripcion)
+                .orElse("BASICO");
+        if (!plan.equalsIgnoreCase("BASICO")) {
             try {
                 String checkoutUrl = orquestadorSuscripcion.iniciarSuscripcion(usuario);
                 return new ConfirmarRegistroResponseDTO(

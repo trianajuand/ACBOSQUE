@@ -34,7 +34,11 @@ public class AlpacaAdapter implements IIntegracionAlpaca {
             @Value("${alpaca.broker.api-secret}") String brokerApiSecret,
             @Value("${alpaca.data.api-key}") String dataApiKey,
             @Value("${alpaca.data.api-secret}") String dataApiSecret) {
-        this.restTemplate = new RestTemplate();
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory =
+                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5_000);
+        factory.setReadTimeout(10_000);
+        this.restTemplate = new RestTemplate(factory);
         this.brokerBaseUrl = brokerBaseUrl;
         this.dataBaseUrl = dataBaseUrl;
         this.brokerApiKey = brokerApiKey;
@@ -78,7 +82,7 @@ public class AlpacaAdapter implements IIntegracionAlpaca {
             body.put("account_type", "trading");
             body.put("contact", Map.of(
                     "email_address", usuario.getCorreo(),
-                    "phone_number", normalizarTelefono(inversionista.getTelefono()),
+                    "phone_number", normalizarTelefono(usuario.getTelefono()),
                     "street_address", List.of(valor(inversionista.getDireccion(), "123 Main St")),
                     "city", valor(inversionista.getCiudad(), "Bogota"),
                     "state", "CO",
@@ -88,7 +92,7 @@ public class AlpacaAdapter implements IIntegracionAlpaca {
             body.put("identity", Map.of(
                     "given_name", nombre,
                     "family_name", apellido,
-                    "date_of_birth", valor(inversionista.getFechaNacimiento(), "1990-01-01"),
+                    "date_of_birth", usuario.getFechaNacimiento() != null ? usuario.getFechaNacimiento().toString() : "1990-01-01",
                     "tax_id", generarTaxIdSandbox(usuario),
                     "tax_id_type", "OTHER",
                     "country_of_citizenship", normalizarPais(inversionista.getPais()),
@@ -112,12 +116,47 @@ public class AlpacaAdapter implements IIntegracionAlpaca {
             Map respuesta = restTemplate.postForObject(brokerBaseUrl + "/v1/accounts", request, Map.class);
 
             if (respuesta != null && respuesta.get("id") != null) {
-                return respuesta.get("id").toString();
+                String accountId = respuesta.get("id").toString();
+                autoFondearCuentaSandbox(accountId, usuario.getCorreo());
+                return accountId;
             }
         } catch (Exception e) {
             log.error("Error al crear cuenta Alpaca para {}: {}", usuario.getCorreo(), e.getMessage());
         }
         return null;
+    }
+
+    private void autoFondearCuentaSandbox(String accountId, String correo) {
+        try {
+            Map<String, Object> ach = new HashMap<>();
+            ach.put("account_owner_name", "Sandbox User");
+            ach.put("bank_account_type", "CHECKING");
+            ach.put("bank_account_number", "sandbox" + Math.abs(accountId.hashCode()));
+            ach.put("bank_routing_number", "121000358");
+            ach.put("nickname", "sandbox-funding");
+
+            HttpEntity<Map<String, Object>> achReq = new HttpEntity<>(ach, headersBroker());
+            Map achResp = restTemplate.postForObject(
+                    brokerBaseUrl + "/v1/accounts/" + accountId + "/ach_relationships", achReq, Map.class);
+
+            if (achResp == null || achResp.get("id") == null) return;
+            String achId = achResp.get("id").toString();
+
+            Map<String, Object> transfer = new HashMap<>();
+            transfer.put("transfer_type", "ach");
+            transfer.put("relationship_id", achId);
+            transfer.put("amount", "50000");
+            transfer.put("direction", "INCOMING");
+            transfer.put("instant_amount", "50000");
+
+            HttpEntity<Map<String, Object>> transferReq = new HttpEntity<>(transfer, headersBroker());
+            restTemplate.postForObject(
+                    brokerBaseUrl + "/v1/accounts/" + accountId + "/transfers", transferReq, Map.class);
+
+            log.info("Auto-fondeo sandbox iniciado para cuenta {} ({})", accountId, correo);
+        } catch (Exception e) {
+            log.warn("No se pudo auto-fondear cuenta sandbox {}: {}", accountId, e.getMessage());
+        }
     }
 
     private String valor(String valor, String respaldo) {
@@ -284,6 +323,29 @@ public class AlpacaAdapter implements IIntegracionAlpaca {
         } catch (Exception e) {
             log.error("Error al obtener posiciones Alpaca accountId={}: {}", accountId, e.getMessage());
             return Collections.emptyList();
+        }
+    }
+
+    // =========================================================
+    // Sandbox: fondear cuenta via Journals API
+    // =========================================================
+
+    @Override
+    public boolean fondearCuentaSandbox(String accountId, String monto) {
+        try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("from_account", "FIRM");
+            body.put("entry_type", "JNLC");
+            body.put("to_account", accountId);
+            body.put("amount", monto);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headersBroker());
+            restTemplate.postForObject(brokerBaseUrl + "/v1/journals", request, Map.class);
+            log.info("Cuenta sandbox fondeada: accountId={}, monto={}", accountId, monto);
+            return true;
+        } catch (Exception e) {
+            log.error("Error al fondear cuenta sandbox accountId={}: {}", accountId, e.getMessage());
+            return false;
         }
     }
 

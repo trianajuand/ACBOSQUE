@@ -2,6 +2,8 @@ package co.edu.unbosque.accioneselbosque.ordenes.service;
 
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
+import co.edu.unbosque.accioneselbosque.mercado.model.Activo;
+import co.edu.unbosque.accioneselbosque.mercado.repository.ActivoRepository;
 import co.edu.unbosque.accioneselbosque.ordenes.model.Comision;
 import co.edu.unbosque.accioneselbosque.ordenes.model.EstadoOrden;
 import co.edu.unbosque.accioneselbosque.ordenes.model.Orden;
@@ -36,13 +38,16 @@ public class ReporteService {
     private final OrdenRepository ordenRepo;
     private final ComisionRepository comisionRepo;
     private final UsuarioRepository usuarioRepo;
+    private final ActivoRepository activoRepo;
 
     public ReporteService(OrdenRepository ordenRepo,
                           ComisionRepository comisionRepo,
-                          UsuarioRepository usuarioRepo) {
+                          UsuarioRepository usuarioRepo,
+                          ActivoRepository activoRepo) {
         this.ordenRepo = ordenRepo;
         this.comisionRepo = comisionRepo;
         this.usuarioRepo = usuarioRepo;
+        this.activoRepo = activoRepo;
     }
 
     @Transactional(readOnly = true)
@@ -52,7 +57,7 @@ public class ReporteService {
 
         Usuario usuario = usuarioRepo.findById(usuarioId).orElseThrow();
 
-        List<Orden> ordenes = ordenRepo.findByUsuarioIdOrderByCreadaEnDesc(usuarioId)
+        List<Orden> ordenes = ordenRepo.findByInversionistaIdOrderByCreadaEnDesc(usuarioId)
                 .stream()
                 .filter(o -> o.getEstado() == EstadoOrden.EJECUTADA)
                 .filter(o -> o.getCreadaEn() != null
@@ -185,7 +190,7 @@ public class ReporteService {
             Color bg = par ? new Color(245, 245, 255) : Color.WHITE;
             par = !par;
             addCell(tabla, o.getEjecutadaEn() != null ? o.getEjecutadaEn().format(FMT_DT) : "-", fCelda, bg);
-            addCell(tabla, o.getSimbolo(), fCelda, bg);
+            addCell(tabla, activoRepo.findById(o.getActivoId()).map(Activo::getTicker).orElse("?"), fCelda, bg);
             addCell(tabla, o.getLado().name(), fCelda, bg);
             addCell(tabla, o.getTipoOrden().name(), fCelda, bg);
             addCell(tabla, fmt(o.getCantidad()), fCelda, bg);
@@ -206,9 +211,10 @@ public class ReporteService {
 
         Map<String, long[]> stats = new LinkedHashMap<>();
         for (Orden o : ordenes) {
-            stats.computeIfAbsent(o.getSimbolo(), k -> new long[2]);
-            stats.get(o.getSimbolo())[0]++;
-            stats.get(o.getSimbolo())[1] += safe(o.getMontoTotal()).longValue();
+            String ticker = activoRepo.findById(o.getActivoId()).map(Activo::getTicker).orElse("?");
+            stats.computeIfAbsent(ticker, k -> new long[2]);
+            stats.get(ticker)[0]++;
+            stats.get(ticker)[1] += safe(o.getMontoTotal()).longValue();
         }
 
         List<Map.Entry<String, long[]>> top = stats.entrySet().stream()

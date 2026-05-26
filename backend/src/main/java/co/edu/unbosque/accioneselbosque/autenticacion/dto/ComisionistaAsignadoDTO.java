@@ -10,8 +10,6 @@ public class ComisionistaAsignadoDTO {
     private String correo;
     private List<String> especialidadesMercado;
     private LocalDateTime fechaAsignacion;
-    private String interesesCoincidentes;
-    private String motivo;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -27,10 +25,4 @@ public class ComisionistaAsignadoDTO {
 
     public LocalDateTime getFechaAsignacion() { return fechaAsignacion; }
     public void setFechaAsignacion(LocalDateTime fechaAsignacion) { this.fechaAsignacion = fechaAsignacion; }
-
-    public String getInteresesCoincidentes() { return interesesCoincidentes; }
-    public void setInteresesCoincidentes(String interesesCoincidentes) { this.interesesCoincidentes = interesesCoincidentes; }
-
-    public String getMotivo() { return motivo; }
-    public void setMotivo(String motivo) { this.motivo = motivo; }
 }

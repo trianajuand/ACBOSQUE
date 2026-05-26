@@ -24,7 +24,6 @@ public class OrdenDTO {
     private String alpacaOrderId;
     private Long comisionistaId;
     private String comentarioComisionista;
-    private String comentarioInversionista;
     private LocalDateTime creadaEn;
     private LocalDateTime ejecutadaEn;
     private LocalDateTime aprobadaEn;
@@ -78,8 +77,6 @@ public class OrdenDTO {
     public String getComentarioComisionista() { return comentarioComisionista; }
     public void setComentarioComisionista(String comentarioComisionista) { this.comentarioComisionista = comentarioComisionista; }
 
-    public String getComentarioInversionista() { return comentarioInversionista; }
-    public void setComentarioInversionista(String comentarioInversionista) { this.comentarioInversionista = comentarioInversionista; }
 
     public LocalDateTime getCreadaEn() { return creadaEn; }
     public void setCreadaEn(LocalDateTime creadaEn) { this.creadaEn = creadaEn; }

@@ -1,129 +1,445 @@
-<main class="dashboard-shell">
-  <aside class="sidebar">
-    <div class="brand">
-      <span>AE</span>
-      <div>
-        <strong>Acciones ElBosque</strong>
-        <small>Day trading</small>
+<main class="app">
+
+  <!-- ============================== TOP HEADER ============================== -->
+  <header class="app-header">
+    <div class="hdr-side hdr-left">
+      <div class="crumb">
+        <span>Inversionista</span>
+        <span class="sep">/</span>
+        <strong>
+          @switch (panel()) {
+            @case ('dashboard') { Resumen general }
+            @case ('mercado') { Mercados }
+            @case ('ordenes') { Órdenes }
+            @case ('portafolio') { Portafolio }
+            @case ('propuestas') { Propuestas }
+            @case ('perfil') { Perfil }
+            @case ('configuracion') { Configuración }
+            @case ('reporte') { Reporte }
+            @default { {{ panel() }} }
+          }
+        </strong>
       </div>
     </div>
 
-    <nav>
-      <button [class.active]="panel() === 'dashboard'" (click)="seleccionar('dashboard')">Dashboard</button>
-      <button [class.active]="panel() === 'mercado'" (click)="seleccionar('mercado')">Mercado</button>
-      <button [class.active]="panel() === 'ordenes'" (click)="seleccionar('ordenes')">Ordenes</button>
-      <button [class.active]="panel() === 'portafolio'" (click)="seleccionar('portafolio')">Portafolio</button>
-      <button [class.active]="panel() === 'propuestas'" (click)="seleccionar('propuestas')">Propuestas</button>
-      <button [class.active]="panel() === 'perfil'" (click)="seleccionar('perfil')">Perfil</button>
-      <button [class.active]="panel() === 'configuracion'" (click)="seleccionar('configuracion')">Configuracion</button>
-      <button [class.active]="panel() === 'reporte'" (click)="seleccionar('reporte')">Reporte</button>
-    </nav>
+    <div class="hdr-center">
+      <div class="brand-text">
+        <strong>Acciones El&nbsp;Bosque</strong>
+      </div>
+    </div>
 
-    <div class="user-box">
-      <strong>{{ perfil()?.nombreCompleto || 'Inversionista' }}</strong>
-      <small>{{ perfil()?.correo || 'Sin correo' }}</small>
+    <div class="hdr-side hdr-right">
+      <div class="market-clock">
+        <span class="live"></span>
+        <span>NYSE / NASDAQ</span>
+        <span class="t">{{ reloj() }}</span>
+      </div>
+      <button class="icon-btn" type="button" title="Refrescar" (click)="cargarMercado()">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8a5 5 0 119.5 2M12.5 5v3.5H9"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="brand-strip" aria-hidden="true"></div>
+
+  <div class="shell">
+
+  <!-- ============================== SIDEBAR ============================== -->
+  <aside class="sidebar">
+    <div class="nav-section">
+      <h6>Operación</h6>
+      <div class="nav">
+        <button type="button" class="nav-item" [class.active]="panel() === 'dashboard'" (click)="seleccionar('dashboard')">
+          <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 13V3M2 13h11M5 11V7M8.5 11V5M12 11V8.5"/></svg>
+          <span>Dashboard</span>
+          <span class="kbd">D</span>
+        </button>
+        <button type="button" class="nav-item" [class.active]="panel() === 'mercado'" (click)="seleccionar('mercado')">
+          <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 11l3-4 3 2 4-6 2 3"/><circle cx="13" cy="6" r="1.2" fill="currentColor"/></svg>
+          <span>Mercado</span>
+          <span class="kbd">M</span>
+        </button>
+        <button type="button" class="nav-item" [class.active]="panel() === 'ordenes'" (click)="seleccionar('ordenes')">
+          <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="3" width="11" height="10" rx="1.5"/><path d="M2.5 6h11M5 9h2M9 9h2"/></svg>
+          <span>Órdenes</span>
+          <span class="kbd">O</span>
+        </button>
+        <button type="button" class="nav-item" [class.active]="panel() === 'portafolio'" (click)="seleccionar('portafolio')">
+          <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l3 5 3-3 6 6"/><rect x="1.5" y="11" width="13" height="2.5" rx="0.5"/></svg>
+          <span>Portafolio</span>
+          <span class="kbd">P</span>
+        </button>
+        <button type="button" class="nav-item" [class.active]="panel() === 'propuestas'" (click)="seleccionar('propuestas')">
+          <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2.5h7l3 3V13a.5.5 0 01-.5.5h-9.5a.5.5 0 01-.5-.5V3a.5.5 0 01.5-.5z"/><path d="M5 7h6M5 9.5h6M5 12h4"/></svg>
+          <span>Propuestas</span>
+          @if (propuestas().length) { <span class="kbd accent">{{ propuestas().length }}</span> }
+        </button>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <h6>Cuenta</h6>
+      <div class="nav">
+        <button type="button" class="nav-item" [class.active]="panel() === 'perfil'" (click)="seleccionar('perfil')">
+          <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="6" r="2.5"/><path d="M3 13c0-2.5 2-4 5-4s5 1.5 5 4"/></svg>
+          <span>Perfil</span>
+        </button>
+        <button type="button" class="nav-item" [class.active]="panel() === 'configuracion'" (click)="seleccionar('configuracion')">
+          <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 1.5v2M8 12.5v2M14.5 8h-2M3.5 8h-2M12.5 3.5l-1.4 1.4M4.9 11.1l-1.4 1.4M12.5 12.5l-1.4-1.4M4.9 4.9L3.5 3.5"/></svg>
+          <span>Configuración</span>
+        </button>
+        <button type="button" class="nav-item" [class.active]="panel() === 'reporte'" (click)="seleccionar('reporte')">
+          <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M5 6h6M5 9h6M5 12h3"/></svg>
+          <span>Reporte</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="sidebar-foot">
       @if (perfil()?.esPremium) {
-        <span class="premium">Premium</span>
+        <div class="premium-card">
+          <div class="label">Premium</div>
+          <p>Plan {{ perfil()?.planSuscripcion || 'PREMIUM' }} · datos en tiempo real activos</p>
+        </div>
       }
-      <button class="btn secondary" type="button" (click)="cerrarSesion()">Cerrar sesion</button>
+      <div class="user-chip">
+        <div class="avatar">{{ (perfil()?.nombreCompleto || 'I N')[0] }}{{ (perfil()?.nombreCompleto || ' ').split(' ')[1]?.[0] || '' }}</div>
+        <div class="meta">
+          <strong>{{ perfil()?.nombreCompleto || 'Inversionista' }}</strong>
+          <small>{{ perfil()?.correo || 'Sin correo' }}</small>
+        </div>
+        <span class="dot" title="En línea"></span>
+      </div>
+      <button class="btn secondary" type="button" (click)="cerrarSesion()" style="width:100%;">Cerrar sesión</button>
     </div>
   </aside>
 
+  <!-- ============================== WORKSPACE ============================== -->
   <section class="workspace">
-    <header class="topbar">
-      <div>
-        <p>{{ panel() }}</p>
-        <h1>{{ panel() === 'dashboard' ? 'Resumen general' : panel() }}</h1>
-      </div>
-      <div class="market-pill">
-        <span></span>
-        NYSE/NASDAQ
-        <strong>{{ reloj() }}</strong>
-      </div>
-    </header>
 
     @if (cargando()) {
-      <section class="loading page-enter">Cargando informacion del broker...</section>
+      <section class="loading page-enter">
+        <div class="spinner"></div>
+        <span>Sincronizando con el broker…</span>
+      </section>
     } @else {
       <section class="content page-enter">
+
+        <!-- ============================ DASHBOARD ============================ -->
         @if (panel() === 'dashboard') {
-          <div class="stats-grid">
-            <article class="metric">
-              <span>Saldo disponible</span>
-              <strong class="up">{{ dinero(saldo()?.saldoDisponible) }}</strong>
-              <small>Reservado {{ dinero(saldo()?.fondosReservados) }}</small>
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Dashboard</div>
+              <h1>Resumen general</h1>
+              <div class="meta-row">
+                <span>Saldo {{ dinero(saldo()?.saldoDisponible) }}</span>
+                <span>{{ activas().length }} órdenes activas</span>
+                <span>{{ propuestas().length }} propuestas</span>
+              </div>
+            </div>
+            <div class="head-actions">
+              <button class="btn ghost" type="button" (click)="seleccionar('portafolio')">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v9M4.5 7.5L8 11l3.5-3.5M2.5 13.5h11"/></svg>
+                Depositar
+              </button>
+              <button class="btn primary" type="button" (click)="seleccionar('ordenes')">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M8 3v10"/></svg>
+                Nueva orden
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI strip -->
+          <div class="kpis">
+            <article class="kpi">
+              <div class="label">Saldo disponible</div>
+              <div class="value mono">{{ dinero(saldo()?.saldoDisponible) }}</div>
+              <div class="sub"><span class="muted">Reservado {{ dinero(saldo()?.fondosReservados) }}</span></div>
             </article>
-            <article class="metric">
-              <span>Valor portafolio</span>
-              <strong>{{ dinero(portafolio()?.valorTotalPortafolio) }}</strong>
-              <small [class]="claseNumero(portafolio()?.gananciaPerdidaTotalPct)">
-                {{ pct(portafolio()?.gananciaPerdidaTotalPct) }}
-              </small>
+            <article class="kpi">
+              <div class="label">Valor portafolio</div>
+              <div class="value mono">{{ dinero(portafolio()?.valorTotalPortafolio) }}</div>
+              <div class="sub">
+                <span class="delta" [class]="claseNumero(portafolio()?.gananciaPerdidaTotalPct)">{{ pct(portafolio()?.gananciaPerdidaTotalPct) }}</span>
+                <span class="muted">· YTD</span>
+              </div>
             </article>
-            <article class="metric">
-              <span>Ordenes activas</span>
-              <strong>{{ activas().length }}</strong>
-              <small>Enviadas, pendientes o en cola</small>
+            <article class="kpi">
+              <div class="label">Ganancia / pérdida</div>
+              <div class="value mono" [class]="claseNumero(portafolio()?.gananciaPerdidaTotal)">{{ dinero(portafolio()?.gananciaPerdidaTotal) }}</div>
+              <div class="sub"><span class="muted">Comisiones {{ dinero(saldo()?.totalComisionesPagadas) }}</span></div>
             </article>
-            <article class="metric">
-              <span>Propuestas</span>
-              <strong>{{ propuestas().length }}</strong>
-              <small>Recomendaciones por aprobar</small>
-            </article>
-            <article class="metric">
-              <span>Comisionista</span>
-              <strong>{{ perfil()?.comisionistaAsignado?.nombreCompleto || 'Sin asignar' }}</strong>
-              <small>{{ perfil()?.comisionistaAsignado?.correo || (perfil()?.solicitaComisionista ? 'Asignacion pendiente' : 'No solicitado') }}</small>
-            </article>
-            <article class="metric">
-              <span>Ganancia / perdida</span>
-              <strong [class]="claseNumero(portafolio()?.gananciaPerdidaTotal)">
-                {{ dinero(portafolio()?.gananciaPerdidaTotal) }}
-              </strong>
-              <small>Comisiones {{ dinero(saldo()?.totalComisionesPagadas) }}</small>
+            <article class="kpi">
+              <div class="label">Comisionista</div>
+              <div class="value text">{{ perfil()?.comisionistaAsignado?.nombreCompleto || 'Sin asignar' }}</div>
+              <div class="sub"><span class="muted">{{ perfil()?.comisionistaAsignado?.correo || (perfil()?.solicitaComisionista ? 'Asignación pendiente' : 'No solicitado') }}</span></div>
             </article>
           </div>
 
-          <div class="split">
-            <section class="panel">
-              <div class="panel-title">
-                <h2>Acciones de interes</h2>
-                <button class="quiet" type="button" (click)="cargarMercado()">Actualizar</button>
+          <!-- Live chart previews -->
+          <section class="panel charts-panel">
+            <div class="panel-head">
+              <h2>Tendencias en vivo <span class="badge">{{ cotizaciones().length }}</span></h2>
+              <div class="tools">
+                <div class="chart-tabs">
+                  <button type="button" class="tab" [class.active]="tipoGrafica() === 'area'" (click)="tipoGrafica.set('area')">Área</button>
+                  <button type="button" class="tab" [class.active]="tipoGrafica() === 'linea'" (click)="tipoGrafica.set('linea')">Línea</button>
+                  <button type="button" class="tab" [class.active]="tipoGrafica() === 'velas'" (click)="tipoGrafica.set('velas')">Velas</button>
+                </div>
+                <div class="chart-tabs rango">
+                  <button type="button" class="tab" [class.active]="chartRango() === '1D'" (click)="setChartRango('1D')">1D</button>
+                  <button type="button" class="tab" [class.active]="chartRango() === '1S'" (click)="setChartRango('1S')">1S</button>
+                  <button type="button" class="tab" [class.active]="chartRango() === '1M'" (click)="setChartRango('1M')">1M</button>
+                  <button type="button" class="tab" [class.active]="chartRango() === '3M'" (click)="setChartRango('3M')">3M</button>
+                  <button type="button" class="tab" [class.active]="chartRango() === '1A'" (click)="setChartRango('1A')">1A</button>
+                  <button type="button" class="tab" [class.active]="chartRango() === 'TODO'" (click)="setChartRango('TODO')">Todo</button>
+                </div>
               </div>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>Simbolo</th><th>Mercado</th><th>Precio</th><th>Cambio</th></tr></thead>
-                  <tbody>
-                    @for (c of cotizaciones(); track c.simbolo) {
-                      <tr>
-                        <td><strong class="ticker">{{ c.simbolo }}</strong><small>{{ c.nombreEmpresa || nombreEmpresa(c.simbolo) }}</small></td>
-                        <td>{{ c.mercado || mercadoInternacional(c.simbolo) }}</td>
-                        <td>{{ dinero(c.precioActual) }}</td>
-                        <td [class]="claseNumero(c.variacionPorcentual)">{{ pct(c.variacionPorcentual) }}</td>
-                      </tr>
-                    } @empty {
-                      <tr><td colspan="4" class="empty">Sin cotizaciones todavia.</td></tr>
+            </div>
+            <!-- Shared gradient defs (used by area fills) -->
+            <svg width="0" height="0" aria-hidden="true" class="cc-defs">
+              <defs>
+                <linearGradient id="cc-up-grad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="oklch(0.82 0.18 152)" stop-opacity="0.38"/>
+                  <stop offset="100%" stop-color="oklch(0.82 0.18 152)" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="cc-down-grad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="oklch(0.72 0.21 22)" stop-opacity="0.38"/>
+                  <stop offset="100%" stop-color="oklch(0.72 0.21 22)" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="charts-layout">
+              <!-- Large featured chart -->
+              @if (chartGrande(); as cg) {
+                <article class="chart-card large"
+                         [class.up]="(cg.variacionPorcentual || 0) >= 0"
+                         [class.down]="(cg.variacionPorcentual || 0) < 0">
+                  <div class="cc-head big">
+                    <div class="cc-id">
+                      <img class="ticker-logo" [src]="'https://assets.parqet.com/logos/symbol/' + cg.simbolo + '?format=png'" [alt]="cg.simbolo" (error)="$any($event.target).style.display='none'"/>
+                      <div class="cc-id-text">
+                        <strong class="mono">{{ cg.simbolo }}</strong>
+                        <small>{{ cg.nombreEmpresa || nombreEmpresa(cg.simbolo) }} · {{ cg.mercado || mercadoInternacional(cg.simbolo) }}</small>
+                      </div>
+                    </div>
+                    <div class="cc-price">
+                      <strong class="mono">{{ dinero(cg.precioActual) }}</strong>
+                      <span class="cc-delta mono" [class]="claseNumero(cg.variacionPorcentual)">
+                        {{ variacionArrow(cg.variacionPorcentual) }} {{ pct(cg.variacionPorcentual) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="cc-chart big"
+                       (mousemove)="setChartHover(cg.simbolo, $event)"
+                       (mouseleave)="clearChartHover()">
+                    <svg viewBox="0 0 100 60" preserveAspectRatio="none">
+                      <line class="cc-grid" x1="0" x2="100" y1="15" y2="15"/>
+                      <line class="cc-grid" x1="0" x2="100" y1="30" y2="30"/>
+                      <line class="cc-grid" x1="0" x2="100" y1="45" y2="45"/>
+                      @if (tipoGrafica() === 'area') {
+                        <path class="cc-area"
+                              [attr.fill]="(cg.variacionPorcentual || 0) >= 0 ? 'url(#cc-up-grad)' : 'url(#cc-down-grad)'"
+                              [attr.d]="pathArea(cg)"></path>
+                        <path class="cc-line" [attr.d]="pathLinea(cg)"></path>
+                      }
+                      @if (tipoGrafica() === 'linea') {
+                        <path class="cc-line" [attr.d]="pathLinea(cg)"></path>
+                      }
+                      @if (tipoGrafica() === 'velas') {
+                        @for (cnd of candlesDe(cg); track $index) {
+                          <line class="cc-wick" [class.up]="cnd.up" [class.down]="!cnd.up"
+                                [attr.x1]="cnd.x" [attr.x2]="cnd.x"
+                                [attr.y1]="cnd.yHigh" [attr.y2]="cnd.yLow"/>
+                          <rect class="cc-body" [class.up]="cnd.up" [class.down]="!cnd.up"
+                                [attr.x]="cnd.x - cnd.w / 2"
+                                [attr.y]="cnd.yBodyTop"
+                                [attr.width]="cnd.w"
+                                [attr.height]="cnd.yBodyHeight"/>
+                        }
+                      }
+                      @if (chartHoverActivo(cg.simbolo)) {
+                        <line class="cc-crosshair"
+                              [attr.x1]="chartHoverX(cg)"
+                              [attr.x2]="chartHoverX(cg)"
+                              y1="0" y2="60"></line>
+                        @if (tipoGrafica() !== 'velas') {
+                          <circle class="cc-dot"
+                                  [attr.cx]="chartHoverX(cg)"
+                                  [attr.cy]="chartHoverY(cg)"
+                                  r="2.4"></circle>
+                        }
+                      }
+                    </svg>
+                    @if (chartHoverActivo(cg.simbolo)) {
+                      <!-- Right axis price tag -->
+                      <div class="cc-axis-tag"
+                           [class.up]="(cg.variacionPorcentual || 0) >= 0"
+                           [class.down]="(cg.variacionPorcentual || 0) < 0"
+                           [style.top.%]="(chartHoverY(cg) / 60) * 100">
+                        <span class="mono">{{ dinero(chartHoverPrecio(cg)) }}</span>
+                      </div>
+                      <!-- Top time label -->
+                      <div class="cc-time-tag" [style.left.%]="chartHoverX(cg)">
+                        <span class="mono">{{ chartRango() }} · T{{ chartHoverIndex() + 1 }}</span>
+                      </div>
                     }
-                  </tbody>
-                </table>
+                  </div>
+                  <div class="cc-foot big">
+                    <div><span class="dim">Apertura</span><strong class="mono">{{ dinero(cg.precioApertura) }}</strong></div>
+                    <div><span class="dim">Máximo</span><strong class="mono">{{ dinero(cg.precioMaximo) }}</strong></div>
+                    <div><span class="dim">Mínimo</span><strong class="mono">{{ dinero(cg.precioMinimo) }}</strong></div>
+                    <div><span class="dim">Cierre ant.</span><strong class="mono">{{ dinero(cg.precioCierreAnterior) }}</strong></div>
+                    <div class="cc-foot-cta">
+                      <button class="btn primary sm" type="button"
+                              (click)="seleccionar('mercado'); seleccionarSimboloMercado(cg.simbolo)">
+                        Ver detalle
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              }
+
+              <!-- Small thumbnails — click to feature -->
+              @if (chartsPequenos().length > 0) {
+                <div class="charts-grid mini">
+                  @for (c of chartsPequenos(); track c.simbolo) {
+                    <article class="chart-card mini"
+                             [class.up]="(c.variacionPorcentual || 0) >= 0"
+                             [class.down]="(c.variacionPorcentual || 0) < 0"
+                             (click)="setChartGrande(c.simbolo)"
+                             [attr.title]="'Ver ' + c.simbolo + ' grande'">
+                      <div class="cc-head">
+                        <div class="cc-id">
+                          <img class="ticker-logo" [src]="'https://assets.parqet.com/logos/symbol/' + c.simbolo + '?format=png'" [alt]="c.simbolo" (error)="$any($event.target).style.display='none'"/>
+                          <div class="cc-id-text">
+                            <strong class="mono">{{ c.simbolo }}</strong>
+                            <small>{{ c.nombreEmpresa || nombreEmpresa(c.simbolo) }}</small>
+                          </div>
+                        </div>
+                        <div class="cc-price">
+                          <strong class="mono">{{ dinero(c.precioActual) }}</strong>
+                          <span class="cc-delta mono" [class]="claseNumero(c.variacionPorcentual)">
+                            {{ pct(c.variacionPorcentual) }}
+                          </span>
+                        </div>
+                      </div>
+                      <div class="cc-chart"
+                           (mousemove)="setChartHover(c.simbolo, $event)"
+                           (mouseleave)="clearChartHover()">
+                        <svg viewBox="0 0 100 60" preserveAspectRatio="none">
+                          @if (tipoGrafica() === 'area') {
+                            <path class="cc-area"
+                                  [attr.fill]="(c.variacionPorcentual || 0) >= 0 ? 'url(#cc-up-grad)' : 'url(#cc-down-grad)'"
+                                  [attr.d]="pathArea(c)"></path>
+                            <path class="cc-line" [attr.d]="pathLinea(c)"></path>
+                          }
+                          @if (tipoGrafica() === 'linea') {
+                            <path class="cc-line" [attr.d]="pathLinea(c)"></path>
+                          }
+                          @if (tipoGrafica() === 'velas') {
+                            @for (cnd of candlesDe(c); track $index) {
+                              <line class="cc-wick" [class.up]="cnd.up" [class.down]="!cnd.up"
+                                    [attr.x1]="cnd.x" [attr.x2]="cnd.x"
+                                    [attr.y1]="cnd.yHigh" [attr.y2]="cnd.yLow"/>
+                              <rect class="cc-body" [class.up]="cnd.up" [class.down]="!cnd.up"
+                                    [attr.x]="cnd.x - cnd.w / 2"
+                                    [attr.y]="cnd.yBodyTop"
+                                    [attr.width]="cnd.w"
+                                    [attr.height]="cnd.yBodyHeight"/>
+                            }
+                          }
+                          @if (chartHoverActivo(c.simbolo)) {
+                            <line class="cc-crosshair"
+                                  [attr.x1]="chartHoverX(c)"
+                                  [attr.x2]="chartHoverX(c)"
+                                  y1="0" y2="60"></line>
+                            @if (tipoGrafica() !== 'velas') {
+                              <circle class="cc-dot"
+                                      [attr.cx]="chartHoverX(c)"
+                                      [attr.cy]="chartHoverY(c)"
+                                      r="2.4"></circle>
+                            }
+                          }
+                        </svg>
+                        @if (chartHoverActivo(c.simbolo)) {
+                          <div class="cc-dot-label"
+                               [class.up]="(c.variacionPorcentual || 0) >= 0"
+                               [class.down]="(c.variacionPorcentual || 0) < 0"
+                               [style.left.%]="chartHoverX(c)"
+                               [style.top.%]="(chartHoverY(c) / 60) * 100">
+                            <span class="mono">{{ dinero(chartHoverPrecio(c)) }}</span>
+                          </div>
+                        }
+                      </div>
+                    </article>
+                  }
+                </div>
+              }
+
+              @if (cotizaciones().length === 0) {
+                <div class="empty-state" style="padding:40px;">Cargando tendencias…</div>
+              }
+            </div>
+          </section>
+
+          <!-- Watchlist + recent orders -->
+          <div class="grid-2">
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Watchlist <span class="badge">{{ cotizaciones().length }}</span></h2>
+                <div class="tools">
+                  <button class="quiet" type="button" (click)="cargarMercado()" [disabled]="cargandoMercado()">{{ cargandoMercado() ? 'Cargando…' : 'Actualizar' }}</button>
+                </div>
+              </div>
+              <div class="watch">
+                @for (c of cotizaciones(); track c.simbolo) {
+                  <button type="button" class="watch-row" (click)="seleccionar('mercado'); seleccionarSimboloMercado(c.simbolo)">
+                    <img class="ticker-logo" [src]="'https://assets.parqet.com/logos/symbol/' + c.simbolo + '?format=png'" [alt]="c.simbolo.slice(0,4)" (error)="$any($event.target).style.display='none'; $any($event.target).nextElementSibling?.removeAttribute('hidden')"/>
+                    <div class="sigil" hidden>{{ c.simbolo.slice(0, 4) }}</div>
+                    <div class="name">
+                      <strong>{{ c.simbolo }}</strong>
+                      <small>{{ c.nombreEmpresa || nombreEmpresa(c.simbolo) }}</small>
+                    </div>
+                    <svg class="row-spark" [class.up]="(c.variacionPorcentual || 0) >= 0" [class.down]="(c.variacionPorcentual || 0) < 0" viewBox="0 0 80 22" preserveAspectRatio="none">
+                      <line x1="2" [attr.y1]="miniY(c.precioApertura, c.precioMaximo, c.precioMinimo)" x2="78" [attr.y2]="miniY(c.precioActual, c.precioMaximo, c.precioMinimo)"/>
+                      <circle cx="78" [attr.cy]="miniY(c.precioActual, c.precioMaximo, c.precioMinimo)" r="1.6"/>
+                    </svg>
+                    <div class="px mono">{{ dinero(c.precioActual) }}</div>
+                    <div class="chg mono" [class]="claseNumero(c.variacionPorcentual)">{{ pct(c.variacionPorcentual) }}</div>
+                  </button>
+                } @empty {
+                  <div class="empty-state">Sin cotizaciones por mostrar.</div>
+                }
               </div>
             </section>
 
             <section class="panel">
-              <div class="panel-title"><h2>Ordenes recientes</h2></div>
+              <div class="panel-head">
+                <h2>Órdenes recientes</h2>
+                <div class="tools">
+                  <button class="quiet" type="button" (click)="seleccionar('ordenes')">Ver todas</button>
+                </div>
+              </div>
               <div class="table-wrap">
-                <table>
-                  <thead><tr><th>Simbolo</th><th>Lado</th><th>Estado</th><th>Monto</th></tr></thead>
+                <table class="tbl tbl-compact">
+                  <thead><tr><th>Símbolo</th><th>Lado</th><th>Estado</th><th class="num">Monto</th></tr></thead>
                   <tbody>
-                    @for (o of ordenes().slice(0, 6); track o.id || o.simbolo) {
+                    @for (o of ordenes().slice(0, 7); track o.id || o.simbolo) {
                       <tr>
-                        <td><strong class="ticker">{{ o.simbolo }}</strong><small>{{ o.tipoOrden }}</small></td>
-                        <td><span class="chip" [class.sell]="o.lado === 'VENTA'">{{ o.lado }}</span></td>
-                        <td>{{ o.estado }}</td>
-                        <td>{{ dinero(o.montoTotal) }}</td>
+                        <td>
+                          <span class="ticker">
+                            <img class="ticker-logo" [src]="'https://assets.parqet.com/logos/symbol/' + o.simbolo + '?format=png'" [alt]="o.simbolo.slice(0,4)" (error)="$any($event.target).style.display='none'; $any($event.target).nextElementSibling?.removeAttribute('hidden')"/>
+                            <span class="sigil" hidden>{{ o.simbolo.slice(0, 4) }}</span>
+                            <span><span class="sym">{{ o.simbolo }}</span><span class="co">{{ o.tipoOrden }}</span></span>
+                          </span>
+                        </td>
+                        <td><span class="chip" [class.buy]="o.lado === 'COMPRA'" [class.sell]="o.lado === 'VENTA'">{{ o.lado }}</span></td>
+                        <td><span class="chip" [class]="(o.estado || '').toLowerCase()">{{ o.estado }}</span></td>
+                        <td class="num mono">{{ dinero(o.montoTotal) }}</td>
                       </tr>
                     } @empty {
-                      <tr><td colspan="4" class="empty">Aun no hay ordenes.</td></tr>
+                      <tr><td colspan="4" class="empty">Aún no hay órdenes.</td></tr>
                     }
                   </tbody>
                 </table>
@@ -132,115 +448,155 @@
           </div>
         }
 
+        <!-- ============================ MERCADO ============================ -->
         @if (panel() === 'mercado') {
-          <section class="market-hero">
-            <div class="panel-title">
-              <h2>Mercados de preferencias</h2>
-              <form [formGroup]="buscarForm" (ngSubmit)="buscarCotizacion()" class="search">
-                <input formControlName="simbolo" placeholder="AAPL, VOD.L, 7203.T" />
-                <button class="btn" type="submit">Buscar</button>
-              </form>
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Mercado</div>
+              <h1>Cotizaciones globales</h1>
+              <div class="meta-row">
+                <span>{{ simbolosPreferidos().length }} de interés</span>
+                <span>{{ simbolos().length }} símbolos disponibles</span>
+              </div>
             </div>
+            <form [formGroup]="buscarForm" (ngSubmit)="buscarCotizacion()" class="search-inline">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M13 13l-2.5-2.5"/></svg>
+              <input formControlName="simbolo" placeholder="AAPL, VOD.L, 7203.T…" />
+              <button class="btn primary sm" type="submit">Buscar</button>
+            </form>
+          </div>
 
-            <div class="symbol-grid">
-              @for (c of cotizaciones(); track c.simbolo) {
-                <button class="sim-card preferred" type="button" (click)="seleccionarSimboloMercado(c.simbolo)">
-                  <div class="sc-header">
-                    <span class="sc-ticker">{{ c.simbolo }}</span>
-                    <span class="sc-badge">{{ c.mercado || mercadoInternacional(c.simbolo) }}</span>
+          <!-- Detalle activo seleccionado -->
+          @if (busqueda() || detalleSeleccionado()) {
+            <section class="hero-card page-enter" [class.negative]="!graficaPositiva()">
+              <div class="hero-top">
+                <div>
+                  <div class="hero-id">
+                    <span class="ticker-big">{{ detalleSeleccionado()?.simbolo || busqueda()?.simbolo }}</span>
+                    <span class="badge">{{ detalleSeleccionado()?.mercado || busqueda()?.mercado || mercadoInternacional(busqueda()?.simbolo) }}</span>
+                    <span class="market-state" [class.open]="detalleSeleccionado()?.mercadoAbierto" [class.closed]="!detalleSeleccionado()?.mercadoAbierto">
+                      <span class="dot"></span>
+                      {{ detalleSeleccionado()?.mercadoAbierto ? 'Abierto' : 'Cerrado' }}
+                    </span>
                   </div>
-                  <div class="sc-empresa">{{ c.nombreEmpresa || nombreEmpresa(c.simbolo) }}</div>
-                  <div class="sc-precio">{{ dinero(c.precioActual) }}</div>
-                  <div class="sc-cambio" [class]="claseNumero(c.variacionPorcentual)">
+                  <div class="hero-name">{{ detalleSeleccionado()?.nombreEmpresa || busqueda()?.nombreEmpresa || nombreEmpresa(busqueda()?.simbolo) }}</div>
+                  <div class="hero-price">
+                    <span class="num">{{ dinero(detalleSeleccionado()?.precioActual || busqueda()?.precioActual) }}</span>
+                    <span class="pill" [class.up]="(detalleSeleccionado()?.variacionPorcentual || busqueda()?.variacionPorcentual || 0) >= 0" [class.down]="(detalleSeleccionado()?.variacionPorcentual || busqueda()?.variacionPorcentual || 0) < 0">
+                      {{ variacionArrow(detalleSeleccionado()?.variacionPorcentual || busqueda()?.variacionPorcentual) }}
+                      {{ pct(detalleSeleccionado()?.variacionPorcentual || busqueda()?.variacionPorcentual) }}
+                    </span>
+                  </div>
+                </div>
+                <div class="hero-cta">
+                  <button class="btn success" type="button" (click)="seleccionar('ordenes'); setLado('COMPRA'); seleccionarSimboloOrden(detalleSeleccionado()?.simbolo || busqueda()?.simbolo || 'AAPL')">Comprar</button>
+                  <button class="btn danger" type="button" (click)="seleccionar('ordenes'); setLado('VENTA'); seleccionarSimboloOrden(detalleSeleccionado()?.simbolo || busqueda()?.simbolo || 'AAPL')">Vender</button>
+                  <button class="icon-btn" type="button" (click)="busqueda.set(null); detalleSeleccionado.set(null)" title="Cerrar">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="hero-chart">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Gráfica de precio">
+                  <defs>
+                    <linearGradient id="hero-area" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stop-color="var(--chart-color)" stop-opacity="0.28"/>
+                      <stop offset="100%" stop-color="var(--chart-color)" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <line class="grid-line" x1="0" x2="100" y1="25" y2="25"/>
+                  <line class="grid-line" x1="0" x2="100" y1="50" y2="50"/>
+                  <line class="grid-line" x1="0" x2="100" y1="75" y2="75"/>
+                  <polygon class="chart-area" [attr.points]="areaGrafica()"></polygon>
+                  <polyline class="chart-line" [attr.points]="puntosGrafica()"></polyline>
+                </svg>
+              </div>
+
+              <div class="hero-stats">
+                @for (stat of statsDetalle(); track stat[0]) {
+                  <div class="hero-stat">
+                    <span>{{ stat[0] }}</span>
+                    <strong class="mono">{{ stat[1] }}</strong>
+                  </div>
+                }
+              </div>
+            </section>
+          }
+
+          <!-- Preferidos grid -->
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Mercados de interés</h2>
+              <div class="tools"><button class="quiet" type="button" (click)="cargarMercado()" [disabled]="cargandoMercado()">{{ cargandoMercado() ? 'Cargando…' : 'Refrescar' }}</button></div>
+            </div>
+            <div class="sim-grid">
+              @for (c of cotizaciones(); track c.simbolo) {
+                <button type="button" class="sim-card" [class.negative]="(c.variacionPorcentual || 0) < 0" (click)="seleccionarSimboloMercado(c.simbolo)">
+                  <div class="sim-head">
+                    <div class="sim-head-left">
+                      <img class="ticker-logo" [src]="'https://assets.parqet.com/logos/symbol/' + c.simbolo + '?format=png'" [alt]="c.simbolo" (error)="$any($event.target).style.display='none'"/>
+                      <span class="sim-ticker">{{ c.simbolo }}</span>
+                    </div>
+                    <span class="badge">{{ c.mercado || mercadoInternacional(c.simbolo) }}</span>
+                  </div>
+                  <div class="sim-name">{{ c.nombreEmpresa || nombreEmpresa(c.simbolo) }}</div>
+                  <div class="sim-price mono">{{ dinero(c.precioActual) }}</div>
+                  <div class="sim-change pill" [class.up]="(c.variacionPorcentual || 0) >= 0" [class.down]="(c.variacionPorcentual || 0) < 0">
                     {{ variacionArrow(c.variacionPorcentual) }} {{ pct(c.variacionPorcentual) }}
                   </div>
-                  <svg class="sparkline" viewBox="0 0 100 26" preserveAspectRatio="none" [class.down-line]="(c.variacionPorcentual || 0) < 0">
-                    <rect x="0" [attr.y]="miniRectY(c)" width="100" [attr.height]="miniRectHeight(c)" rx="2"></rect>
-                    <line x1="5" [attr.y1]="miniY(c.precioApertura, c.precioMaximo, c.precioMinimo)" x2="95" [attr.y2]="miniY(c.precioActual, c.precioMaximo, c.precioMinimo)"></line>
-                    <circle cx="95" [attr.cy]="miniY(c.precioActual, c.precioMaximo, c.precioMinimo)" r="2.8"></circle>
+                  <svg class="sim-spark" viewBox="0 0 100 26" preserveAspectRatio="none">
+                    <line x1="2" [attr.y1]="miniY(c.precioApertura, c.precioMaximo, c.precioMinimo)" x2="98" [attr.y2]="miniY(c.precioActual, c.precioMaximo, c.precioMinimo)"/>
+                    <circle cx="98" [attr.cy]="miniY(c.precioActual, c.precioMaximo, c.precioMinimo)" r="1.8"/>
                   </svg>
-                  <div class="sc-hl">
-                    <span class="up">H: {{ dinero(c.precioMaximo) }}</span>
-                    <span class="down">L: {{ dinero(c.precioMinimo) }}</span>
+                  <div class="sim-hl mono">
+                    <span class="up">H {{ dinero(c.precioMaximo) }}</span>
+                    <span class="down">L {{ dinero(c.precioMinimo) }}</span>
                   </div>
                 </button>
               } @empty {
                 @for (s of simbolosPreferidos(); track s.simbolo) {
-                  <button class="sim-card preferred" type="button" (click)="seleccionarSimboloMercado(s.simbolo)">
-                    <div class="sc-header">
-                      <span class="sc-ticker">{{ s.simbolo }}</span>
-                      <span class="sc-badge">{{ s.mercado }}</span>
+                  <button type="button" class="sim-card pending" (click)="seleccionarSimboloMercado(s.simbolo)">
+                    <div class="sim-head">
+                      <span class="sim-ticker">{{ s.simbolo }}</span>
+                      <span class="badge">{{ s.mercado }}</span>
                     </div>
-                    <div class="sc-empresa">{{ s.nombre }}</div>
-                    <div class="sc-precio">-</div>
-                    <div class="sc-cambio">Seleccionar para cargar</div>
+                    <div class="sim-name">{{ s.nombre }}</div>
+                    <div class="sim-price muted">—</div>
+                    <div class="sim-change muted">Tocar para cargar</div>
                   </button>
                 } @empty {
-                  <p class="empty">Configura intereses en tu perfil para verlos aqui.</p>
+                  <p class="empty">Configura intereses en tu perfil para verlos aquí.</p>
                 }
               }
             </div>
           </section>
 
-          @if (busqueda() || detalleSeleccionado()) {
-            <section class="detalle-card page-enter" [class.negative]="!graficaPositiva()">
-              <div class="detalle-head">
-                <div>
-                  <div class="detalle-title-row">
-                    <span class="detalle-ticker">{{ detalleSeleccionado()?.simbolo || busqueda()?.simbolo }}</span>
-                    <span class="sc-badge">{{ detalleSeleccionado()?.mercado || busqueda()?.mercado || mercadoInternacional(busqueda()?.simbolo) }}</span>
-                    <span class="detalle-open" [class.up]="detalleSeleccionado()?.mercadoAbierto" [class.down]="!detalleSeleccionado()?.mercadoAbierto">
-                      {{ detalleSeleccionado()?.mercadoAbierto ? '● Abierto' : '○ Cerrado' }}
-                    </span>
-                  </div>
-                  <div class="detalle-empresa">{{ detalleSeleccionado()?.nombreEmpresa || busqueda()?.nombreEmpresa || nombreEmpresa(busqueda()?.simbolo) }}</div>
-                </div>
-                <div class="detalle-price">
-                  <strong>{{ dinero(detalleSeleccionado()?.precioActual || busqueda()?.precioActual) }}</strong>
-                  <span [class]="claseNumero(detalleSeleccionado()?.variacionPorcentual || busqueda()?.variacionPorcentual)">
-                    {{ variacionArrow(detalleSeleccionado()?.variacionPorcentual || busqueda()?.variacionPorcentual) }}
-                    {{ pct(detalleSeleccionado()?.variacionPorcentual || busqueda()?.variacionPorcentual) }}
-                  </span>
-                </div>
-              </div>
-
-              <div class="detalle-body">
-                <div class="det-stats-grid">
-                  @for (stat of statsDetalle(); track stat[0]) {
-                    <div class="det-stat">
-                      <span>{{ stat[0] }}</span>
-                      <strong>{{ stat[1] }}</strong>
-                    </div>
-                  }
-                </div>
-                <div class="detalle-chart">
-                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Grafica de precio">
-                    <polygon class="chart-area" [attr.points]="areaGrafica()"></polygon>
-                    <polyline class="chart-line" [attr.points]="puntosGrafica()"></polyline>
-                  </svg>
-                </div>
-              </div>
-
-              <div class="detalle-actions">
-                <button class="btn-op btn-op-compra" type="button" (click)="seleccionar('ordenes'); setLado('COMPRA'); seleccionarSimboloOrden(detalleSeleccionado()?.simbolo || busqueda()?.simbolo || 'AAPL')">▲ Comprar</button>
-                <button class="btn-op btn-op-venta" type="button" (click)="seleccionar('ordenes'); setLado('VENTA'); seleccionarSimboloOrden(detalleSeleccionado()?.simbolo || busqueda()?.simbolo || 'AAPL')">▼ Vender</button>
-                <button class="btn-op-cerrar" type="button" (click)="busqueda.set(null); detalleSeleccionado.set(null)">Cerrar</button>
-              </div>
-            </section>
-          }
-
+          <!-- Other markets -->
           <section class="panel">
-            <div class="panel-title"><h2>Demas mercados</h2></div>
+            <div class="panel-head"><h2>Demás mercados</h2></div>
             <div class="market-groups">
               @for (grupo of otrosMercados(); track grupo.grupo) {
                 <details class="market-group">
                   <summary>
-                    <span>{{ grupo.grupo }}</span>
-                    <em>{{ grupo.simbolos.length }} simbolos</em>
+                    <span class="group-label">
+                      @if (SECTOR_ETF[grupo.grupo]) {
+                        <img class="sector-logo"
+                             [src]="'https://assets.parqet.com/logos/symbol/' + SECTOR_ETF[grupo.grupo] + '?format=png'"
+                             [alt]="grupo.grupo"
+                             (error)="$any($event.target).style.display='none'"/>
+                      }
+                      {{ grupo.grupo }}
+                    </span>
+                    <em class="mono">{{ grupo.simbolos.length }} símbolos</em>
                   </summary>
-                  <div class="symbol-grid compact-symbols">
+                  <div class="sim-grid compact">
                     @for (s of grupo.simbolos; track s.simbolo) {
-                      <button class="symbol-card" type="button" (click)="seleccionarSimboloMercado(s.simbolo)">
+                      <button type="button" class="symbol-card" (click)="seleccionarSimboloMercado(s.simbolo)">
+                        <img class="symbol-card-logo"
+                             [src]="'https://assets.parqet.com/logos/symbol/' + s.simbolo + '?format=png'"
+                             [alt]="s.simbolo"
+                             (error)="$any($event.target).style.display='none'"/>
                         <strong>{{ s.simbolo }}</strong>
                         <span>{{ s.nombre }}</span>
                         <em>{{ s.mercado }}</em>
@@ -253,57 +609,138 @@
           </section>
         }
 
+        <!-- ============================ ÓRDENES ============================ -->
         @if (panel() === 'ordenes') {
-          <section class="order-layout">
-            <form class="order-ticket" [formGroup]="orderForm" (ngSubmit)="previsualizar()">
-              <div class="panel-title"><h2>Nueva orden</h2></div>
-              <div class="segmented order-types">
-                @for (tipo of ['MARKET', 'LIMIT', 'STOP_LOSS', 'TAKE_PROFIT']; track tipo) {
-                  <button type="button" [class.active]="orderForm.controls.tipoOrden.value === tipo" (click)="setTipoOrden(tipo)">
-                    {{ tipo }}
-                  </button>
-                }
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Trading</div>
+              <h1>Órdenes</h1>
+              <div class="meta-row">
+                <span>{{ activas().length }} activas</span>
+                <span>{{ ordenes().length }} en historial</span>
+                <span>Comisión 2.0%</span>
               </div>
-              @if (mostrarLadoOrden()) {
-                <div class="segmented side action-side">
-                  <button type="button" [class.active]="orderForm.controls.lado.value === 'COMPRA'" (click)="accionOrden('COMPRA')">Comprar</button>
-                  <button type="button" [class.active]="orderForm.controls.lado.value === 'VENTA'" (click)="accionOrden('VENTA')">Vender</button>
+            </div>
+          </div>
+
+          <div class="order-layout">
+            <form class="panel ticket" [formGroup]="orderForm" (ngSubmit)="$event.preventDefault()">
+              <div class="panel-head">
+                <h2>
+                  <span class="dot-accent"></span>
+                  Nueva orden
+                </h2>
+                <div class="tools">
+                  <span class="badge mono">{{ orderForm.controls.simbolo.value || '—' }}</span>
                 </div>
-              }
-              @if (mostrarVentaForzadaOrden()) {
-                <div class="segmented side action-side">
-                  <button type="button" class="active forced-sell" (click)="accionOrden('VENTA')">Vender</button>
-                </div>
-              }
-              <div class="form-grid">
-                <div class="field">
-                  <label>Simbolo</label>
-                  <input formControlName="simbolo" list="simbolos-orden" placeholder="AAPL, VOD.L, 7203.T" />
-                  <datalist id="simbolos-orden">
-                    @for (s of simbolos(); track s.simbolo) {
-                      <option [value]="s.simbolo">{{ s.nombre }} ({{ s.mercado }})</option>
+              </div>
+              <div class="ticket-body">
+
+                <div class="ticket-section">
+                  <div class="section-label">Tipo de orden</div>
+                  <div class="types">
+                    @for (tipo of ['MARKET', 'LIMIT', 'STOP_LOSS', 'TAKE_PROFIT']; track tipo) {
+                      <button type="button" class="type" [class.active]="orderForm.controls.tipoOrden.value === tipo" (click)="setTipoOrden(tipo)">{{ tipo.replace('_', ' ') }}</button>
                     }
-                  </datalist>
+                  </div>
                 </div>
-                <div class="field"><label>Cantidad</label><input type="number" formControlName="cantidad" /></div>
-                @if (mostrarPrecioLimiteOrden()) {
-                  <div class="field"><label>Precio limite</label><input type="number" formControlName="precioLimite" /></div>
-                }
-                @if (mostrarStopLossOrden()) {
-                  <div class="field wide"><label>Vender si el precio baja hasta</label><input type="number" formControlName="precioStop" /></div>
-                }
-                @if (mostrarTakeProfitOrden()) {
-                  <div class="field wide"><label>Vender si el precio sube hasta</label><input type="number" formControlName="precioLimite" /></div>
-                }
+
+                <div class="ticket-section">
+                  <div class="section-label">Parámetros</div>
+                  <div class="field-grid">
+                    <div class="field wide">
+                      <label>Símbolo</label>
+                      <input formControlName="simbolo" list="simbolos-orden" placeholder="AAPL, VOD.L, 7203.T" />
+                      <datalist id="simbolos-orden">
+                        @for (s of simbolos(); track s.simbolo) { <option [value]="s.simbolo">{{ s.nombre }} ({{ s.mercado }})</option> }
+                      </datalist>
+                    </div>
+                    <div class="field">
+                      <label>Cantidad</label>
+                      <input type="number" formControlName="cantidad" />
+                    </div>
+                    @if (mostrarPrecioLimiteOrden()) {
+                      <div class="field"><label>Precio límite</label><input type="number" formControlName="precioLimite" /></div>
+                    }
+                    @if (mostrarStopLossOrden()) {
+                      <div class="field wide"><label>Vender si baja hasta</label><input type="number" formControlName="precioStop" /></div>
+                    }
+                    @if (mostrarTakeProfitOrden()) {
+                      <div class="field wide"><label>Vender si sube hasta</label><input type="number" formControlName="precioLimite" /></div>
+                    }
+                  </div>
+                </div>
+
+                <div class="order-actions">
+                  @if (mostrarLadoOrden()) {
+                    <button type="button" class="btn-order buy" (click)="accionOrden('COMPRA')">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 13V3M4 7l4-4 4 4"/></svg>
+                      Comprar
+                    </button>
+                    <button type="button" class="btn-order sell" (click)="accionOrden('VENTA')">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v10M4 9l4 4 4-4"/></svg>
+                      Vender
+                    </button>
+                  }
+                  @if (mostrarVentaForzadaOrden()) {
+                    <button type="button" class="btn-order sell full" (click)="accionOrden('VENTA')">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v10M4 9l4 4 4-4"/></svg>
+                      Vender
+                    </button>
+                  }
+                </div>
+
               </div>
-              <button class="btn" type="submit">Previsualizar comision</button>
             </form>
 
-            <section class="panel symbol-picker">
-              <div class="panel-title"><h2>Seleccion rapida</h2></div>
-              <div class="symbol-grid compact-symbols">
+            <!-- ====== MODAL PREVISUALIZACIÓN ORDEN ====== -->
+            @if (modalOrden()) {
+              <div class="modal-backdrop" (click)="cerrarModalOrden()">
+                <div class="modal-card" (click)="$event.stopPropagation()">
+                  <div class="modal-head">
+                    <span class="modal-title">Previsualización de orden</span>
+                    <span class="chip" [class.buy]="ladoPendiente() === 'COMPRA'" [class.sell]="ladoPendiente() === 'VENTA'">{{ ladoPendiente() }}</span>
+                    <button class="icon-btn" type="button" (click)="cerrarModalOrden()" title="Cerrar">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+                    </button>
+                  </div>
+                  @if (resumen()) {
+                    <div class="modal-body">
+                      <div class="summary-row"><span>Símbolo</span><strong class="mono">{{ resumen()?.simbolo }}</strong></div>
+                      <div class="summary-row"><span>Precio estimado</span><strong class="mono">{{ dinero(resumen()?.precioEstimado) }}</strong></div>
+                      <div class="summary-row"><span>Monto base</span><strong class="mono">{{ dinero(resumen()?.montoBase) }}</strong></div>
+                      <div class="summary-row"><span>Comisión ({{ pct(resumen()?.porcentajeComision) }})</span><strong class="mono">{{ dinero(resumen()?.montoComision) }}</strong></div>
+                      <div class="summary-row total">
+                        <span>{{ ladoPendiente() === 'VENTA' ? 'Total a recibir' : 'Total a debitar' }}</span>
+                        <strong class="mono">{{ dinero(ladoPendiente() === 'VENTA' ? resumen()?.totalARecibir : resumen()?.totalADebitar) }}</strong>
+                      </div>
+                      @if (resumen()?.advertencia) {
+                        <p class="warning">{{ resumen()?.advertencia }}</p>
+                      }
+                    </div>
+                    <div class="modal-footer">
+                      <button class="btn secondary" type="button" (click)="cerrarModalOrden()">Cancelar</button>
+                      <button class="btn" type="button"
+                        [class.success]="ladoPendiente() === 'COMPRA'"
+                        [class.danger]="ladoPendiente() === 'VENTA'"
+                        (click)="confirmarOrden()">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l3.5 3.5L13 5"/></svg>
+                        Confirmar {{ ladoPendiente() === 'VENTA' ? 'venta' : 'compra' }}
+                      </button>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Selección rápida</h2>
+                <div class="tools"><span class="badge">{{ simbolos().length }}</span></div>
+              </div>
+              <div class="sim-grid compact">
                 @for (s of simbolosPreferidos().concat(simbolos().slice(0, 14)); track s.simbolo) {
-                  <button class="symbol-card" type="button" [class.selected]="orderForm.controls.simbolo.value === s.simbolo" (click)="seleccionarSimboloOrden(s.simbolo)">
+                  <button type="button" class="symbol-card" [class.selected]="orderForm.controls.simbolo.value === s.simbolo" (click)="seleccionarSimboloOrden(s.simbolo)">
                     <strong>{{ s.simbolo }}</strong>
                     <span>{{ s.nombre }}</span>
                     <em>{{ s.mercado }}</em>
@@ -311,85 +748,76 @@
                 }
               </div>
             </section>
-
-            @if (resumen()) {
-              <section class="preview page-enter">
-                <div class="panel-title"><h2>Resumen antes de confirmar</h2></div>
-                <div class="quote-strip compact">
-                  <div><span>Precio</span><strong>{{ dinero(resumen()?.precioEstimado) }}</strong></div>
-                  <div><span>Monto base</span><strong>{{ dinero(resumen()?.montoBase) }}</strong></div>
-                  <div><span>Comision</span><strong>{{ dinero(resumen()?.montoComision) }}</strong></div>
-                  <div><span>Total</span><strong>{{ dinero(resumen()?.totalADebitar || resumen()?.totalARecibir) }}</strong></div>
-                </div>
-                @if (resumen()?.advertencia) {
-                  <p class="warning">{{ resumen()?.advertencia }}</p>
-                }
-              </section>
-            }
-          </section>
+          </div>
 
           <section class="panel">
-            <div class="panel-title"><h2>Historial de ordenes</h2></div>
+            <div class="panel-head">
+              <h2>Historial de órdenes</h2>
+              <div class="tools"><span class="badge">{{ ordenes().length }}</span></div>
+            </div>
             <form class="history-filters" [formGroup]="historialFiltrosForm" (ngSubmit)="aplicarFiltrosHistorial()">
-              <div class="field">
-                <label>Desde</label>
-                <input type="date" formControlName="desde" />
-              </div>
-              <div class="field">
-                <label>Hasta</label>
-                <input type="date" formControlName="hasta" />
-              </div>
-              <div class="field">
-                <label>Tipo</label>
-                <select formControlName="tipoOrden">
-                  <option value="">Todos</option>
-                  <option value="MARKET">Market</option>
-                  <option value="LIMIT">Limit</option>
-                  <option value="STOP_LOSS">Stop Loss</option>
-                  <option value="TAKE_PROFIT">Take Profit</option>
-                </select>
-              </div>
-              <div class="field">
-                <label>Activo</label>
-                <input formControlName="simbolo" placeholder="AAPL" />
-              </div>
-              <div class="field">
-                <label>Estado</label>
-                <select formControlName="estado">
-                  <option value="">Todos</option>
-                  <option value="PENDIENTE">Pendiente</option>
-                  <option value="ENVIADA">Enviada</option>
-                  <option value="EJECUTADA">Ejecutada</option>
-                  <option value="CANCELADA">Cancelada</option>
-                  <option value="EN_COLA">En cola</option>
-                  <option value="PENDIENTE_APROBACION">Pendiente aprobacion</option>
-                  <option value="APROBADA">Aprobada</option>
-                  <option value="RECHAZADA">Rechazada</option>
-                </select>
+              <div class="filters-eyebrow">Filtros</div>
+              <div class="filters-grid">
+                <div class="field"><label>Desde</label><input type="date" formControlName="desde" /></div>
+                <div class="field"><label>Hasta</label><input type="date" formControlName="hasta" /></div>
+                <div class="field">
+                  <label>Tipo</label>
+                  <select formControlName="tipoOrden">
+                    <option value="">Todos</option>
+                    <option value="MARKET">Market</option>
+                    <option value="LIMIT">Limit</option>
+                    <option value="STOP_LOSS">Stop Loss</option>
+                    <option value="TAKE_PROFIT">Take Profit</option>
+                  </select>
+                </div>
+                <div class="field"><label>Activo</label><input formControlName="simbolo" placeholder="AAPL" /></div>
+                <div class="field">
+                  <label>Estado</label>
+                  <select formControlName="estado">
+                    <option value="">Todos</option>
+                    <option value="PENDIENTE">Pendiente</option>
+                    <option value="ENVIADA">Enviada</option>
+                    <option value="EJECUTADA">Ejecutada</option>
+                    <option value="CANCELADA">Cancelada</option>
+                    <option value="EN_COLA">En cola</option>
+                    <option value="PENDIENTE_APROBACION">Pendiente aprobación</option>
+                    <option value="APROBADA">Aprobada</option>
+                    <option value="RECHAZADA">Rechazada</option>
+                  </select>
+                </div>
               </div>
               <div class="filter-actions">
-                <button class="btn" type="submit">Filtrar</button>
-                <button class="quiet" type="button" (click)="limpiarFiltrosHistorial()">Limpiar</button>
+                <button class="btn primary" type="submit">
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12l-4.5 6v4l-3 1V9L2 3z"/></svg>
+                  Aplicar
+                </button>
+                <button class="btn ghost" type="button" (click)="limpiarFiltrosHistorial()">Limpiar</button>
               </div>
             </form>
             <div class="table-wrap">
-              <table>
-                <thead><tr><th>Fecha</th><th>Simbolo</th><th>Lado</th><th>Tipo</th><th>Cant.</th><th>Precio</th><th>Comision</th><th>Estado</th><th></th></tr></thead>
+              <table class="tbl">
+                <thead><tr><th>Fecha</th><th>Símbolo</th><th>Lado</th><th>Tipo</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Comisión</th><th>Estado</th><th></th></tr></thead>
                 <tbody>
                   @for (o of ordenes(); track o.id || o.creadaEn) {
                     <tr>
-                      <td>{{ o.creadaEn || '-' }}</td>
-                      <td><strong class="ticker">{{ o.simbolo }}</strong></td>
-                      <td>{{ o.lado }}</td>
-                      <td>{{ o.tipoOrden }}</td>
-                      <td>{{ o.cantidad }}</td>
-                      <td>{{ dinero(o.precioEjecucion || o.precioLimite || o.precioStop) }}</td>
-                      <td>{{ dinero(o.comision) }}</td>
-                      <td>{{ o.estado }}</td>
+                      <td class="mono dim">{{ o.creadaEn || '—' }}</td>
+                      <td><span class="ticker"><img class="ticker-logo" [src]="'https://assets.parqet.com/logos/symbol/' + o.simbolo + '?format=png'" [alt]="o.simbolo.slice(0,4)" (error)="$any($event.target).style.display='none'; $any($event.target).nextElementSibling?.removeAttribute('hidden')"/><span class="sigil" hidden>{{ o.simbolo.slice(0,4) }}</span><span><span class="sym">{{ o.simbolo }}</span><span class="co">{{ nombreEmpresa(o.simbolo) }}</span></span></span></td>
+                      <td><span class="chip" [class.buy]="o.lado === 'COMPRA'" [class.sell]="o.lado === 'VENTA'">{{ o.lado }}</span></td>
+                      <td class="dim">{{ o.tipoOrden }}</td>
+                      <td class="num mono">{{ o.cantidad }}</td>
+                      <td class="num mono">{{ dinero(o.precioEjecucion || o.precioLimite || o.precioStop) }}</td>
+                      <td class="num mono dim">{{ dinero(o.comision) }}</td>
+                      <td><span class="chip" [class]="(o.estado || '').toLowerCase()">{{ o.estado }}</span></td>
                       <td><button class="quiet" type="button" (click)="cancelarOrden(o.id)">Cancelar</button></td>
                     </tr>
                   } @empty {
-                    <tr><td colspan="9" class="empty">No hay historial.</td></tr>
+                    <tr><td colspan="9">
+                      <div class="empty-state-card">
+                        <svg width="36" height="36" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1" opacity="0.4"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M2 6h12M5 9h2M9 9h2M5 11h6"/></svg>
+                        <strong>Sin historial todavía</strong>
+                        <small>Las órdenes que envíes aparecerán aquí.</small>
+                      </div>
+                    </td></tr>
                   }
                 </tbody>
               </table>
@@ -397,102 +825,173 @@
           </section>
         }
 
+        <!-- ============================ PORTAFOLIO ============================ -->
         @if (panel() === 'portafolio') {
-          <div class="stats-grid three">
-            <article class="metric"><span>Valor total</span><strong>{{ dinero(portafolio()?.valorTotalPortafolio) }}</strong></article>
-            <article class="metric"><span>Inversion inicial</span><strong>{{ dinero(totalInvertido()) }}</strong></article>
-            <article class="metric"><span>Comisiones</span><strong>{{ dinero(saldo()?.totalComisionesPagadas) }}</strong></article>
-          </div>
-          <section class="panel">
-            <div class="panel-title">
-              <h2>Holdings</h2>
-              <form [formGroup]="depositoForm" (ngSubmit)="depositar()" class="search">
-                <input type="number" formControlName="monto" />
-                <button class="btn" type="submit">Depositar</button>
-              </form>
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Portafolio</div>
+              <h1>Composición y holdings</h1>
             </div>
-            <div class="table-wrap">
-              @if (perfil()?.vistaPortafolio === 'GRAFICO') {
-                <div class="holding-bars">
-                  @for (h of portafolio()?.holdings || []; track h.simbolo) {
-                    <div class="holding-bar">
-                      <div>
-                        <strong class="ticker">{{ h.simbolo }}</strong>
-                        <small>{{ nombreEmpresa(h.simbolo) }}</small>
+            <form [formGroup]="depositoForm" (ngSubmit)="depositar()" class="search-inline">
+              <input type="number" formControlName="monto" placeholder="Monto USD" />
+              <button class="btn primary sm" type="submit">Depositar</button>
+            </form>
+          </div>
+
+          <div class="kpis kpis-3">
+            <article class="kpi"><div class="label">Valor total</div><div class="value mono">{{ dinero(portafolio()?.valorTotalPortafolio) }}</div></article>
+            <article class="kpi"><div class="label">Inversión inicial</div><div class="value mono">{{ dinero(totalInvertido()) }}</div></article>
+            <article class="kpi"><div class="label">Comisiones acumuladas</div><div class="value mono">{{ dinero(saldo()?.totalComisionesPagadas) }}</div></article>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Holdings</h2>
+              <div class="tools"><span class="badge">{{ (portafolio()?.holdings || []).length }} posiciones</span></div>
+            </div>
+            @if (perfil()?.vistaPortafolio === 'GRAFICO') {
+              <div class="portfolio-graphic">
+                <!-- Stacked allocation bar -->
+                <div class="stacked-allocation">
+                  <div class="sa-header">
+                    <span>Asignación por activo</span>
+                    <span class="mono dim">{{ dinero(portafolio()?.valorTotalPortafolio) }} total</span>
+                  </div>
+                  <div class="stacked-bar">
+                    @for (h of (portafolio()?.holdings || []); track h.simbolo; let i = $index) {
+                      <span class="seg"
+                            [style.width.%]="((h.valorTotal || 0) / ((portafolio()?.valorTotalPortafolio || 1))) * 100"
+                            [attr.data-i]="i % 6"
+                            [attr.title]="h.simbolo + ' — ' + dinero(h.valorTotal)"></span>
+                    }
+                  </div>
+                  <div class="sa-axis">
+                    <span>0%</span>
+                    <span>25%</span>
+                    <span>50%</span>
+                    <span>75%</span>
+                    <span>100%</span>
+                  </div>
+                </div>
+
+                <!-- Holdings rows -->
+                <div class="pg-rows">
+                  <div class="pg-rows-head">
+                    <span>Activo</span>
+                    <span>Asignación</span>
+                    <span class="r">Valor / posición</span>
+                    <span class="r">G / P</span>
+                  </div>
+                  @for (h of (portafolio()?.holdings || []); track h.simbolo; let i = $index) {
+                    <article class="pg-row">
+                      <div class="pg-id">
+                        <span class="pg-swatch" [attr.data-i]="i % 6"></span>
+                        <span class="ticker">
+                          <img class="ticker-logo" [src]="'https://assets.parqet.com/logos/symbol/' + h.simbolo + '?format=png'" [alt]="h.simbolo.slice(0,4)" (error)="$any($event.target).style.display='none'; $any($event.target).nextElementSibling?.removeAttribute('hidden')"/>
+                          <span class="sigil" hidden>{{ h.simbolo.slice(0,4) }}</span>
+                          <span>
+                            <span class="sym">{{ h.simbolo }}</span>
+                            <span class="co">{{ h.nombreEmpresa || nombreEmpresa(h.simbolo) }}</span>
+                          </span>
+                        </span>
                       </div>
-                      <div class="bar-track">
-                        <span [style.width.%]="((h.valorTotal || 0) / ((portafolio()?.valorTotalPortafolio || 1))) * 100"></span>
+                      <div class="pg-alloc">
+                        <div class="pg-alloc-bar">
+                          <span [style.width.%]="((h.valorTotal || 0) / ((portafolio()?.valorTotalPortafolio || 1))) * 100"
+                                [attr.data-i]="i % 6"></span>
+                        </div>
+                        <small class="mono">{{ ((h.valorTotal || 0) / ((portafolio()?.valorTotalPortafolio || 1)) * 100).toFixed(1) }}%</small>
                       </div>
-                      <strong>{{ dinero(h.valorTotal) }}</strong>
-                    </div>
+                      <div class="pg-col r">
+                        <strong class="mono">{{ dinero(h.valorTotal) }}</strong>
+                        <small class="mono dim">{{ h.cantidad }} × {{ dinero(h.precioActual) }}</small>
+                      </div>
+                      <div class="pg-col r">
+                        <strong class="mono" [class]="claseNumero(h.gananciaPerdida)">{{ dinero(h.gananciaPerdida) }}</strong>
+                        <small class="mono" [class]="claseNumero(h.gananciaPerdidaPct)">{{ pct(h.gananciaPerdidaPct) }}</small>
+                      </div>
+                    </article>
                   } @empty {
-                    <p class="empty">Portafolio vacio.</p>
+                    <div class="empty-state-card" style="padding:32px;">
+                      <svg width="36" height="36" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1" opacity="0.4"><path d="M2 4l3 5 3-3 6 6"/><rect x="1.5" y="11" width="13" height="2.5" rx="0.5"/></svg>
+                      <strong>Portafolio vacío</strong>
+                      <small>Compra tu primer activo para ver la composición aquí.</small>
+                    </div>
                   }
                 </div>
-              } @else {
-                <table>
-                  <thead><tr><th>Simbolo</th><th>Cantidad</th><th>Promedio</th><th>Actual</th><th>Valor</th><th>G/P</th></tr></thead>
+              </div>
+            } @else {
+              <div class="table-wrap">
+                <table class="tbl">
+                  <thead><tr><th>Símbolo</th><th class="num">Cantidad</th><th class="num">Promedio</th><th class="num">Actual</th><th class="num">Valor</th><th class="num">G/P</th></tr></thead>
                   <tbody>
                     @for (h of portafolio()?.holdings || []; track h.simbolo) {
                       <tr>
-                        <td><strong class="ticker">{{ h.simbolo }}</strong><small>{{ h.nombreEmpresa || nombreEmpresa(h.simbolo) }}</small></td>
-                        <td>{{ h.cantidad }}</td>
-                        <td>{{ dinero(h.precioPromedio) }}</td>
-                        <td>{{ dinero(h.precioActual) }}</td>
-                        <td>{{ dinero(h.valorTotal) }}</td>
-                        <td [class]="claseNumero(h.gananciaPerdida)">{{ dinero(h.gananciaPerdida) }} ({{ pct(h.gananciaPerdidaPct) }})</td>
+                        <td><span class="ticker"><img class="ticker-logo" [src]="'https://assets.parqet.com/logos/symbol/' + h.simbolo + '?format=png'" [alt]="h.simbolo.slice(0,4)" (error)="$any($event.target).style.display='none'; $any($event.target).nextElementSibling?.removeAttribute('hidden')"/><span class="sigil" hidden>{{ h.simbolo.slice(0,4) }}</span><span><span class="sym">{{ h.simbolo }}</span><span class="co">{{ h.nombreEmpresa || nombreEmpresa(h.simbolo) }}</span></span></span></td>
+                        <td class="num mono">{{ h.cantidad }}</td>
+                        <td class="num mono dim">{{ dinero(h.precioPromedio) }}</td>
+                        <td class="num mono">{{ dinero(h.precioActual) }}</td>
+                        <td class="num mono">{{ dinero(h.valorTotal) }}</td>
+                        <td class="num mono" [class]="claseNumero(h.gananciaPerdida)">{{ dinero(h.gananciaPerdida) }} <span class="dim">({{ pct(h.gananciaPerdidaPct) }})</span></td>
                       </tr>
                     } @empty {
-                      <tr><td colspan="6" class="empty">Portafolio vacio.</td></tr>
+                      <tr><td colspan="6" class="empty">Portafolio vacío.</td></tr>
                     }
                   </tbody>
                 </table>
-              }
-            </div>
+              </div>
+            }
           </section>
         }
 
+        <!-- ============================ REPORTE ============================ -->
         @if (panel() === 'reporte') {
-          <section class="panel">
-            <div class="panel-title"><h2>Reporte de actividad (PDF)</h2></div>
-            <form [formGroup]="reporteForm" (ngSubmit)="generarReporte()" class="form-grid two" style="max-width:480px">
-              <div class="field">
-                <label>Desde</label>
-                <input type="date" formControlName="desde" />
-              </div>
-              <div class="field">
-                <label>Hasta</label>
-                <input type="date" formControlName="hasta" />
-              </div>
-              <button class="btn" type="submit" style="grid-column:1/-1">Descargar PDF</button>
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Reportes</div>
+              <h1>Actividad histórica</h1>
+            </div>
+          </div>
+          <section class="panel panel-pad" style="max-width:540px;">
+            <p class="panel-lead">Generamos un PDF auditable con G/P, comisiones pagadas y los activos más operados del periodo seleccionado.</p>
+            <form [formGroup]="reporteForm" (ngSubmit)="generarReporte()" class="field-grid two">
+              <div class="field"><label>Desde</label><input type="date" formControlName="desde" /></div>
+              <div class="field"><label>Hasta</label><input type="date" formControlName="hasta" /></div>
+              <button class="btn primary wide" type="submit">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v9M4.5 7.5L8 11l3.5-3.5M2.5 13.5h11"/></svg>
+                Descargar PDF
+              </button>
             </form>
-            <p style="margin-top:12px;color:var(--muted);font-size:.85rem">
-              El reporte incluye ganancias/perdidas, comisiones pagadas y activos mas operados en el periodo.
-            </p>
           </section>
         }
 
+        <!-- ============================ PROPUESTAS ============================ -->
         @if (panel() === 'propuestas') {
-          <section class="panel">
-            <div class="panel-title">
-              <h2>Propuestas del comisionista</h2>
-              <button class="quiet" type="button" (click)="cargarPropuestas()">Actualizar</button>
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Comisionista</div>
+              <h1>Propuestas pendientes</h1>
             </div>
+            <button class="btn ghost" type="button" (click)="cargarPropuestas()">Actualizar</button>
+          </div>
+          <section class="panel">
             <div class="table-wrap">
-              <table>
-                <thead><tr><th>Simbolo</th><th>Tipo</th><th>Lado</th><th>Cant.</th><th>Monto</th><th>Comentario</th><th></th></tr></thead>
+              <table class="tbl">
+                <thead><tr><th>Símbolo</th><th>Tipo</th><th>Lado</th><th class="num">Cant.</th><th class="num">Monto</th><th>Comentario</th><th></th></tr></thead>
                 <tbody>
                   @for (p of propuestas(); track p.id || p.creadaEn) {
                     <tr>
-                      <td><strong class="ticker">{{ p.simbolo }}</strong></td>
-                      <td>{{ p.tipoOrden }}</td>
-                      <td>{{ p.lado }}</td>
-                      <td>{{ p.cantidad }}</td>
-                      <td>{{ dinero(p.montoTotal) }}</td>
-                      <td>{{ p.comentarioComisionista || '-' }}</td>
+                      <td><span class="ticker"><img class="ticker-logo" [src]="'https://assets.parqet.com/logos/symbol/' + p.simbolo + '?format=png'" [alt]="p.simbolo.slice(0,4)" (error)="$any($event.target).style.display='none'; $any($event.target).nextElementSibling?.removeAttribute('hidden')"/><span class="sigil" hidden>{{ p.simbolo.slice(0,4) }}</span><span><span class="sym">{{ p.simbolo }}</span><span class="co">{{ nombreEmpresa(p.simbolo) }}</span></span></span></td>
+                      <td class="dim">{{ p.tipoOrden }}</td>
+                      <td><span class="chip" [class.buy]="p.lado === 'COMPRA'" [class.sell]="p.lado === 'VENTA'">{{ p.lado }}</span></td>
+                      <td class="num mono">{{ p.cantidad }}</td>
+                      <td class="num mono">{{ dinero(p.montoTotal) }}</td>
+                      <td class="dim" style="max-width:240px;">{{ p.comentarioComisionista || '—' }}</td>
                       <td>
-                        <button class="quiet" type="button" (click)="aprobarPropuesta(p.id)">Aprobar</button>
-                        <button class="quiet" type="button" (click)="rechazarPropuesta(p.id)">Rechazar</button>
+                        <div class="row-actions">
+                          <button class="btn success sm" type="button" (click)="aprobarPropuesta(p.id)">Aprobar</button>
+                          <button class="btn ghost sm" type="button" (click)="rechazarPropuesta(p.id)">Rechazar</button>
+                        </div>
                       </td>
                     </tr>
                   } @empty {
@@ -504,77 +1003,137 @@
           </section>
         }
 
+        <!-- ============================ PERFIL ============================ -->
         @if (panel() === 'perfil') {
-          <section class="profile-grid">
-            <div class="panel">
-              <div class="panel-title">
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Cuenta</div>
+              <h1>Perfil</h1>
+            </div>
+          </div>
+
+          <div class="profile-grid">
+            <section class="panel">
+              <div class="panel-head">
                 <h2>Datos personales</h2>
                 <button class="quiet" type="button" (click)="editandoPerfil.set(!editandoPerfil())">
                   {{ editandoPerfil() ? 'Cancelar' : 'Editar' }}
                 </button>
               </div>
-              @if (!editandoPerfil()) {
-                <div class="detail-list">
-                  <div><span>Nombre</span><strong>{{ perfil()?.nombreCompleto || '-' }}</strong></div>
-                  <div><span>Correo</span><strong>{{ perfil()?.correo || '-' }}</strong></div>
-                  <div><span>Telefono</span><strong>{{ perfil()?.telefono || '-' }}</strong></div>
-                  <div><span>Experiencia</span><strong>{{ perfil()?.nivelExperiencia || '-' }}</strong></div>
-                  <div><span>Intereses</span><strong>{{ (perfil()?.interesesMercado || []).join(', ') || '-' }}</strong></div>
-                  <div><span>Comisionista</span><strong>{{ perfil()?.comisionistaAsignado?.nombreCompleto || 'Sin asignar' }}</strong></div>
-                  <div><span>Correo comisionista</span><strong>{{ perfil()?.comisionistaAsignado?.correo || '-' }}</strong></div>
-                </div>
-                @if (!perfil()?.comisionistaAsignado) {
-                  <button class="btn" type="button" (click)="solicitarComisionista()">
-                    Solicitar comisionista compatible
-                  </button>
-                }
-              } @else {
-                <form [formGroup]="perfilForm" (ngSubmit)="guardarPerfil()" class="form-grid one">
-                  <div class="field"><label>Nombre</label><input formControlName="nombreCompleto" /></div>
-                  <div class="field"><label>Telefono</label><input formControlName="telefono" /></div>
-                  <div class="field">
-                    <label>Experiencia</label>
-                    <select formControlName="nivelExperiencia">
-                      <option value="PRINCIPIANTE">Principiante</option>
-                      <option value="INTERMEDIO">Intermedio</option>
-                      <option value="AVANZADO">Avanzado</option>
-                    </select>
+              <div class="panel-pad">
+                @if (!editandoPerfil()) {
+                  <div class="detail-list">
+                    <div><span>Nombre</span><strong>{{ perfil()?.nombreCompleto || '—' }}</strong></div>
+                    <div><span>Correo</span><strong class="mono">{{ perfil()?.correo || '—' }}</strong></div>
+                    <div><span>Teléfono</span><strong class="mono">{{ perfil()?.telefono || '—' }}</strong></div>
+                    <div><span>Experiencia</span><strong>{{ perfil()?.nivelExperiencia || '—' }}</strong></div>
+                    <div><span>Intereses</span><strong>{{ (perfil()?.interesesMercado || []).join(', ') || '—' }}</strong></div>
+                    <div><span>Comisionista</span><strong>{{ perfil()?.comisionistaAsignado?.nombreCompleto || 'Sin asignar' }}</strong></div>
+                    <div><span>Correo comisionista</span><strong class="mono">{{ perfil()?.comisionistaAsignado?.correo || '—' }}</strong></div>
                   </div>
-                  <div class="field"><label>Intereses</label><input formControlName="interesesMercado" /></div>
-                  <button class="btn" type="submit">Guardar cambios</button>
-                </form>
-              }
-            </div>
-            <div class="panel">
-              <div class="panel-title"><h2>Seguridad y plan</h2></div>
-              <div class="toggle-row">
-                <div><strong>MFA</strong><small>Segundo factor por correo</small></div>
-                <button class="toggle" [class.on]="perfil()?.mfaHabilitado" type="button" (click)="toggleMfa()"></button>
+                  @if (!perfil()?.comisionistaAsignado) {
+                    <button class="btn primary" type="button" (click)="solicitarComisionista()" style="margin-top:18px;">
+                      Solicitar comisionista compatible
+                    </button>
+                  }
+                } @else {
+                  <form [formGroup]="perfilForm" (ngSubmit)="guardarPerfil()" class="field-grid">
+                    <div class="field wide"><label>Nombre</label><input formControlName="nombreCompleto" /></div>
+                    <div class="field"><label>Teléfono</label><input formControlName="telefono" /></div>
+                    <div class="field">
+                      <label>Experiencia</label>
+                      <select formControlName="nivelExperiencia">
+                        <option value="PRINCIPIANTE">Principiante</option>
+                        <option value="INTERMEDIO">Intermedio</option>
+                        <option value="AVANZADO">Avanzado</option>
+                      </select>
+                    </div>
+                    <div class="field wide"><label>Intereses (AAPL, MSFT…)</label><input formControlName="interesesMercado" /></div>
+                    <button class="btn primary wide" type="submit">Guardar cambios</button>
+                  </form>
+                }
               </div>
-              <div class="detail-list">
-                <div><span>Plan</span><strong>{{ perfil()?.planSuscripcion || 'BASICO' }}</strong></div>
-                <div><span>Premium</span><strong>{{ perfil()?.esPremium ? 'Activo' : 'No activo' }}</strong></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head"><h2>Seguridad y plan</h2></div>
+              <div class="panel-pad">
+                <div class="toggle-line">
+                  <div>
+                    <strong>Autenticación de dos factores</strong>
+                    <small>Código por correo en cada login</small>
+                  </div>
+                  <button class="toggle" type="button" [class.on]="perfil()?.mfaHabilitado" (click)="toggleMfa()" [attr.aria-pressed]="perfil()?.mfaHabilitado"></button>
+                </div>
+                <div class="detail-list" style="margin-top:18px;">
+                  <div><span>Plan</span><strong>{{ perfil()?.planSuscripcion || 'BÁSICO' }}</strong></div>
+                  <div><span>Premium</span><strong>{{ perfil()?.esPremium ? 'Activo' : 'No activo' }}</strong></div>
+                </div>
+                @if (perfil()?.esPremium) {
+                  <button class="btn danger" type="button" (click)="cancelarPremium()" style="margin-top:18px;">
+                    Cancelar suscripción premium
+                  </button>
+                } @else {
+                  <div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn" type="button" (click)="upgradePremium('PREMIUM_MENSUAL')">
+                      Activar Premium mensual
+                    </button>
+                    <button class="btn" type="button" (click)="upgradePremium('PREMIUM_ANUAL')">
+                      Activar Premium anual
+                    </button>
+                  </div>
+                }
               </div>
-              @if (perfil()?.esPremium) {
-                <button class="btn danger" type="button" (click)="cancelarPremium()" style="margin-top:12px">
-                  Cancelar suscripcion premium
-                </button>
-              }
-            </div>
-          </section>
+            </section>
+          </div>
         }
 
+        <!-- ============================ CONFIGURACIÓN ============================ -->
         @if (panel() === 'configuracion') {
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Cuenta</div>
+              <h1>Configuración</h1>
+            </div>
+          </div>
+
           <form class="profile-grid" [formGroup]="preferenciasForm" (ngSubmit)="guardarPreferencias()">
             <section class="panel">
-              <div class="panel-title"><h2>Notificaciones</h2></div>
-              <label class="check"><input type="checkbox" formControlName="notificacionEmail" /> Email</label>
-              <label class="check"><input type="checkbox" formControlName="notificacionSms" /> SMS</label>
-              <label class="check"><input type="checkbox" formControlName="notificacionWhatsapp" /> WhatsApp</label>
+              <div class="panel-head"><h2>Notificaciones</h2></div>
+              <div class="panel-pad">
+                <label class="check-line">
+                  <input type="checkbox" formControlName="notificacionesActivas" />
+                  <div>
+                    <strong>Recibir notificaciones</strong>
+                    <small>Activa para elegir canales</small>
+                  </div>
+                </label>
+                @if (notifActivas()) {
+                  <div class="notif-channels">
+                    <label class="check-card">
+                      <input type="checkbox" formControlName="notificacionEmail" />
+                      <span>Email</span>
+                    </label>
+                    <label class="check-card">
+                      <input type="checkbox" formControlName="notificacionSms" />
+                      <span>SMS</span>
+                    </label>
+                    <label class="check-card">
+                      <input type="checkbox" formControlName="notificacionWhatsapp" />
+                      <span>WhatsApp</span>
+                    </label>
+                  </div>
+                  <small class="microcopy">El canal requiere tener el teléfono registrado en tu perfil.</small>
+                } @else {
+                  <small class="microcopy">Las notificaciones están desactivadas.</small>
+                }
+                <button class="btn primary" type="submit" style="margin-top:14px;">Guardar notificaciones</button>
+              </div>
             </section>
+
             <section class="panel">
-              <div class="panel-title"><h2>Operacion</h2></div>
-              <div class="form-grid one">
+              <div class="panel-head"><h2>Operación</h2></div>
+              <div class="panel-pad">
                 <div class="detail-list">
                   <div>
                     <span>Comisionista</span>
@@ -582,32 +1141,36 @@
                   </div>
                 </div>
                 @if (!perfil()?.comisionistaAsignado) {
-                  <button class="btn secondary" type="button" (click)="solicitarComisionista()">
+                  <button class="btn secondary" type="button" (click)="solicitarComisionista()" style="margin-top:14px;">
                     Quiero tener comisionista
                   </button>
                 }
-                <div class="field">
-                  <label>Tipo de orden por defecto</label>
-                  <select formControlName="tipoOrdenDefault">
-                    <option value="MARKET">Market</option>
-                    <option value="LIMIT">Limit</option>
-                    <option value="STOP_LOSS">Stop Loss</option>
-                    <option value="TAKE_PROFIT">Take Profit</option>
-                  </select>
+                <div class="field-grid" style="margin-top:18px;">
+                  <div class="field">
+                    <label>Tipo de orden por defecto</label>
+                    <select formControlName="tipoOrdenDefault">
+                      <option value="MARKET">Market</option>
+                      <option value="LIMIT">Limit</option>
+                      <option value="STOP_LOSS">Stop Loss</option>
+                      <option value="TAKE_PROFIT">Take Profit</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label>Vista del portafolio</label>
+                    <select formControlName="vistaPortafolio">
+                      <option value="LISTA">Lista</option>
+                      <option value="GRAFICO">Gráfico</option>
+                    </select>
+                  </div>
+                  <button class="btn primary wide" type="submit">Guardar preferencias</button>
                 </div>
-                <div class="field">
-                  <label>Vista del portafolio</label>
-                  <select formControlName="vistaPortafolio">
-                    <option value="LISTA">Lista</option>
-                    <option value="GRAFICO">Grafico</option>
-                  </select>
-                </div>
-                <button class="btn" type="submit">Guardar preferencias</button>
               </div>
             </section>
           </form>
         }
+
       </section>
     }
   </section>
+  </div>
 </main>

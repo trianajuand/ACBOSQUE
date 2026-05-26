@@ -86,9 +86,17 @@ El sistema se divide en 6 módulos. Cada módulo es dueño de sus entidades, rep
 - `IAuditLog` (Trazabilidad): registra eventos de login, logout, intentos fallidos, bloqueos, cambios de perfil.
 - `INotificacion` (Integración): envía código MFA, correo de verificación de registro y correo de recuperación de contraseña.
 
-**Entidades JPA propias:** `Usuario`, `Inversionista`, `Comisionista`, `AsignacionComisionista`, `CodigoVerificacion`, `IntentoFallido`.
+**Entidades JPA propias:** `Usuario`, `Inversionista`, `Comisionista`, `Suscripcion`, `IntegracionInversionista`, `Especialidad`, `Intereses`, `ComisionistaEspecialidad`, `InteresInversionista`, `AsignacionComisionista`, `CodigoVerificacion`, `IntentoFallido`.
 
-**Tablas BD propias:** `usuario`, `inversionista`, `comisionista`, `asignacion_comisionista`, `codigo_verificacion`, `intento_fallido`.
+**Tablas BD propias:** `usuario`, `inversionista`, `comisionista`, `suscripcion`, `integracion_inversionista`, `especialidad`, `intereses`, `comisionista_especialidad`, `interes_inversionista`, `asignacion_comisionista`, `codigo_verificacion`, `intento_fallido`.
+
+**Notas de diseño (normalización 3NF, mayo 2026):**
+- `inversionista.id` = PK compartida con `usuario.id` (Table-Per-Type, shared PK, sin auto-generado).
+- `comisionista.id` = PK compartida con `usuario.id` (idem).
+- Campos de contacto/notificación (`telefono`, `notificacion_email`, etc.) viven en `usuario`.
+- Datos premium/Stripe viven en `suscripcion` (1:1 con inversionista).
+- Alpaca account ID y pendiente viven en `integracion_inversionista` (1:1 con inversionista).
+- `rango_ingresos` (string) reemplazado por `ingresos_min`/`ingresos_max` (BigDecimal).
 
 ---
 
@@ -109,9 +117,16 @@ El sistema se divide en 6 módulos. Cada módulo es dueño de sus entidades, rep
 - `IAuditLog` (Trazabilidad): registra cada evento de orden (creación, ejecución, cancelación, firma, propuesta, encolamiento).
 - `INotificacion` (Integración): envía notificación al usuario al ejecutarse, cancelarse o fallar una orden.
 
-**Entidades JPA propias:** `Orden`, `Holding`, `CuentaFondos`, `Comision`.
+**Entidades JPA propias:** `Orden`, `PropuestaOrden`, `Holding`, `CuentaFondos`, `Comision`.
 
-**Tablas BD propias:** `orden`, `holding`, `cuenta_fondos`, `comision`.
+**Tablas BD propias:** `orden`, `propuesta_orden`, `holding`, `cuenta_fondos`, `comision`.
+
+**Notas de diseño (normalización 3NF, mayo 2026):**
+- `Orden` ya no tiene `simbolo`; usa `activo_id` (FK a `Activo` del módulo Mercado).
+- `Orden` ya no tiene campos de propuesta; flujo de comisionista usa `PropuestaOrden`.
+- `Holding` usa PK compuesta `(inversionista_id, activo_id)` en lugar de auto-incremental.
+- `CuentaFondos.inversionista_id` es la PK (shared 1:1 con inversionista).
+- `Orden.inversionista_id` reemplaza `usuario_id`.
 
 **Reglas de negocio clave gestionadas aquí:**
 - Compra: se descuenta `(Precio × Cantidad) + Comisión` del saldo.
@@ -137,9 +152,14 @@ El sistema se divide en 6 módulos. Cada módulo es dueño de sus entidades, rep
 - Adaptadores de Integración (`IIntegracionAlpaca`, `IAlphaVantage`) para obtener datos de mercado de proveedores externos. El módulo de Mercado nunca llama a APIs externas directamente; siempre pasa por los adaptadores del módulo de Integración.
 - `IAuditLog` (Trazabilidad): registra fallos de sincronización o indisponibilidad de proveedores.
 
-**Entidades JPA propias:** `PrecioCache`, `MercadoConfig` (compartida lógicamente con Administración, pero el módulo de Mercado la lee; Administración la escribe).
+**Entidades JPA propias:** `Activo`, `PrecioCache`, `MercadoConfig` (compartida lógicamente con Administración, pero el módulo de Mercado la lee; Administración la escribe).
 
-**Tablas BD propias (lectura):** `precio_cache`, `mercado_config`, `feriado_mercado`.
+**Tablas BD propias (lectura):** `Activo`, `precio_cache`, `mercado_config`, `feriado_mercado`.
+
+**Notas de diseño (normalización 3NF, mayo 2026):**
+- `Activo` es el catálogo de instrumentos financieros negociables (ticker, nombreEmpresa, tipo, mercadoConfigId).
+- `PrecioCache.activo_id` es la PK (shared con Activo.id). `simbolo` se mantiene como columna denormalizada para consultas rápidas.
+- `ActivoRepository.findByTicker(String)` es el método principal de lookup por símbolo.
 
 **Tácticas de calidad implementadas:**
 - **Caché de precios en BD** (`precio_cache`): los 1500 usuarios concurrentes consultan la caché en lugar de llamar directamente a la API externa, evitando superar límites de tasa.
@@ -166,6 +186,12 @@ El sistema se divide en 6 módulos. Cada módulo es dueño de sus entidades, rep
 **Entidades JPA propias:** `Administrador`, `MercadoConfig`, `FeriadoMercado`, `ParametroComision`.
 
 **Tablas BD propias (escritura y lectura):** `administrador`, `mercado_config`, `feriado_mercado`, `parametro_comision`.
+
+**Notas de diseño (normalización 3NF, mayo 2026):**
+- `Administrador.id` = PK compartida con `usuario.id` (shared PK, sin auto-generado).
+- `FeriadoMercado.mercado_config_id` (FK Long) reemplaza `mercado_codigo` (String).
+- `ParametroComision` usa `fecha_inicio`/`fecha_fin` (LocalDate) para vigencia, en lugar del flag `activo` (boolean).
+- `ParametroComisionRepository.findParametroActivo(LocalDate)` retorna el parámetro cuyo rango de fechas incluye la fecha dada.
 
 **Tácticas de calidad implementadas:**
 - **Defer Binding**: porcentaje de comisión y split guardados en `parametro_comision`; el administrador los modifica desde el panel y el efecto es inmediato para nuevas transacciones, sin recompilar ni redesplegar.
@@ -633,16 +659,18 @@ trazabilidad/
 - `void registrar(TipoEvento tipo, String correoUsuario, String detalle)` — implementado.
 - `void registrarConIp(TipoEvento tipo, String correoUsuario, String detalle, String ipOrigen)` — **pendiente**: permite adjuntar la IP de origen al evento; necesario para EC-08. Actualmente la IP se incluye como parte del texto en `detalle`.
 
-**Tipos de evento auditados (`TipoEvento`):**
-- LOGIN_EXITOSO, LOGIN_FALLIDO, CUENTA_BLOQUEADA, LOGOUT
-- REGISTRO_USUARIO, MFA_VERIFICADO
-- ORDEN_CREADA, ORDEN_EJECUTADA, ORDEN_CANCELADA, ORDEN_FALLIDA, ORDEN_ENCOLADA
-- PROPUESTA_CREADA, PROPUESTA_APROBADA, PROPUESTA_RECHAZADA, PROPUESTA_FIRMADA
-- ACCESO_DENEGADO
-- PARAMETRO_MODIFICADO, MERCADO_MODIFICADO, FERIADO_MODIFICADO
-- SUSCRIPCION_ACTIVADA, SUSCRIPCION_CANCELADA
-- FALLO_API_EXTERNA
-- USUARIO_ADMIN_GESTIONADO
+**Tipos de evento auditados (`TipoEvento`) — nombres canónicos del enum real:**
+- Autenticación: `REGISTRO_INICIADO`, `REGISTRO_EXITOSO`, `REGISTRO_FALLO_ALPACA`, `LOGIN_EXITOSO`, `LOGIN_FALLIDO`, `CUENTA_BLOQUEADA`, `MFA_ENVIADO`, `MFA_VERIFICADO`, `MFA_FALLIDO`, `MFA_ACTIVADO`, `MFA_DESACTIVADO`, `LOGOUT`, `RECUPERACION_PASSWORD_SOLICITADA`, `PASSWORD_RESETEADA`, `CAMBIO_ESTADO_CUENTA`
+- Perfil: `PERFIL_CONSULTADO`, `PERFIL_ACTUALIZADO`, `PREFERENCIAS_NOTIFICACION_ACTUALIZADAS`, `PREFERENCIAS_OPERACION_ACTUALIZADAS`
+- Suscripción: `SUSCRIPCION_PREMIUM_INICIADA`, `SUSCRIPCION_PREMIUM_FALLIDA`, `SUSCRIPCION_PREMIUM_CANCELADA`
+- Órdenes: `ORDEN_CREADA`, `ORDEN_ENVIADA_ALPACA`, `ORDEN_EJECUTADA`, `ORDEN_CANCELADA`, `ORDEN_ENCOLADA`, `ORDEN_RECHAZADA_FONDOS`, `ORDEN_RECHAZADA_HOLDINGS`, `ORDEN_FALLO_ALPACA`
+- Propuestas: `PROPUESTA_ORDEN_CREADA`, `PROPUESTA_ORDEN_APROBADA`, `PROPUESTA_ORDEN_RECHAZADA`, `PROPUESTA_ORDEN_FIRMADA`
+- Comisionista: `COMISIONISTA_ASIGNADO`, `COMISIONISTA_ASIGNACION_FALLIDA`, `ACCESO_DENEGADO_CLIENTE_NO_ASIGNADO`
+- Portafolio/Saldo: `FONDOS_SINCRONIZADOS`, `HOLDING_ACTUALIZADO`
+- Mercado: `PRECIO_CONSULTADO`, `CACHE_REFRESCADO`
+- Administración: `PARAMETRO_ADMIN_ACTUALIZADO`, `USUARIO_ADMIN_GESTIONADO`, `ACCESO_DENEGADO_ADMIN`, `OPERACION_RESTRINGIDA_BLOQUEADA`
+
+> Nota de auditoría (2026-05-25): Estos son los nombres reales del enum `TipoEvento.java`. Todos los SPECs deben usar estos nombres exactos. Los nombres anteriores (`ORDEN_FALLIDA`, `PROPUESTA_CREADA`, `FERIADO_MODIFICADO`, `MERCADO_MODIFICADO`, `SUSCRIPCION_ACTIVADA`, `FALLO_API_EXTERNA`, `ESTADO_CUENTA_CAMBIADO`, `USUARIO_ELIMINADO`) **no existen** en el enum.
 
 ---
 

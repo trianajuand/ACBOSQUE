@@ -1,5 +1,7 @@
 package co.edu.unbosque.accioneselbosque.autenticacion.interfaces;
 
+import co.edu.unbosque.accioneselbosque.autenticacion.dto.NotificacionPreferenciasDTO;
+
 /**
  * Contrato para que módulos externos (Órdenes) consulten datos del inversionista
  * sin acceder directamente a los repositorios del módulo de Autenticación.
@@ -20,4 +22,7 @@ public interface IConsultaInversionista {
 
     /** Retorna la preferencia de vista del portafolio (RESUMEN o DETALLE). */
     String obtenerVistaPortafolio(Long usuarioId);
+
+    /** Retorna datos de contacto y preferencias de notificación del usuario. */
+    NotificacionPreferenciasDTO obtenerPreferenciasNotificacion(Long usuarioId);
 }

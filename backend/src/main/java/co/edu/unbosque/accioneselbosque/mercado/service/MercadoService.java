@@ -7,7 +7,9 @@ import co.edu.unbosque.accioneselbosque.integracion.adaptadores.alphavantage.IAl
 import co.edu.unbosque.accioneselbosque.mercado.dto.CotizacionDTO;
 import co.edu.unbosque.accioneselbosque.mercado.dto.DetalleAccionDTO;
 import co.edu.unbosque.accioneselbosque.mercado.interfaces.IVerificacionMercado;
+import co.edu.unbosque.accioneselbosque.mercado.model.Activo;
 import co.edu.unbosque.accioneselbosque.mercado.model.PrecioCache;
+import co.edu.unbosque.accioneselbosque.mercado.repository.ActivoRepository;
 import co.edu.unbosque.accioneselbosque.mercado.repository.PrecioCacheRepository;
 import co.edu.unbosque.accioneselbosque.shared.exceptions.SimboloInvalidoException;
 import co.edu.unbosque.accioneselbosque.trazabilidad.interfaces.IAuditLog;
@@ -69,15 +71,17 @@ public class MercadoService implements IVerificacionMercado {
     private final IIntegracionAlpaca alpaca;
     private final IAlphaVantage alphaVantage;
     private final PrecioCacheRepository cacheRepo;
+    private final ActivoRepository activoRepo;
     private final IAuditLog auditLog;
     private final IAdministracion administracion;
 
     public MercadoService(IIntegracionAlpaca alpaca, IAlphaVantage alphaVantage,
-                          PrecioCacheRepository cacheRepo, IAuditLog auditLog,
-                          IAdministracion administracion) {
+                          PrecioCacheRepository cacheRepo, ActivoRepository activoRepo,
+                          IAuditLog auditLog, IAdministracion administracion) {
         this.alpaca = alpaca;
         this.alphaVantage = alphaVantage;
         this.cacheRepo = cacheRepo;
+        this.activoRepo = activoRepo;
         this.auditLog = auditLog;
         this.administracion = administracion;
     }
@@ -199,11 +203,28 @@ public class MercadoService implements IVerificacionMercado {
         cache.setSimbolo(simbolo);
         cache.setMercado(detectarMercado(simbolo));
 
+        if (existente == null && cache.getActivoId() == null) {
+            Activo activo = activoRepo.findByTicker(simbolo).orElseGet(() -> {
+                Activo nuevo = new Activo();
+                nuevo.setTicker(simbolo);
+                nuevo.setTipo("ACCION");
+                nuevo.setMercadoConfigId(null);
+                return activoRepo.save(nuevo);
+            });
+            cache.setActivoId(activo.getId());
+        }
+
         try {
             boolean actualizado;
             if (esSimboloUs(simbolo)) {
                 actualizado = rellenarCacheDesdeAlpaca(cache, simbolo);
-                cache.setFuente("ALPACA");
+                if (actualizado) {
+                    cache.setFuente("ALPACA");
+                } else {
+                    log.warn("Alpaca sin datos para {}, intentando Alpha Vantage como respaldo", simbolo);
+                    actualizado = rellenarCacheDesdeAlphaVantage(cache, simbolo);
+                    cache.setFuente("ALPHAVANTAGE");
+                }
             } else {
                 actualizado = rellenarCacheDesdeAlphaVantage(cache, simbolo);
                 cache.setFuente("ALPHAVANTAGE");

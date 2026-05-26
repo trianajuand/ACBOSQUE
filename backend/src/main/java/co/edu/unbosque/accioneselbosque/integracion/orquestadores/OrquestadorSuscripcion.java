@@ -2,9 +2,9 @@ package co.edu.unbosque.accioneselbosque.integracion.orquestadores;
 
 import co.edu.unbosque.accioneselbosque.autenticacion.interfaces.IAsignacionComisionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.EstadoCuenta;
-import co.edu.unbosque.accioneselbosque.autenticacion.model.Inversionista;
+import co.edu.unbosque.accioneselbosque.autenticacion.model.Suscripcion;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
-import co.edu.unbosque.accioneselbosque.autenticacion.repository.InversionistaRepository;
+import co.edu.unbosque.accioneselbosque.autenticacion.repository.SuscripcionRepository;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
 import co.edu.unbosque.accioneselbosque.integracion.adaptadores.stripe.IIntegracionStripe;
 import co.edu.unbosque.accioneselbosque.trazabilidad.interfaces.IAuditLog;
@@ -21,7 +21,7 @@ public class OrquestadorSuscripcion {
 
     private final IIntegracionStripe stripe;
     private final UsuarioRepository usuarioRepository;
-    private final InversionistaRepository inversionistaRepository;
+    private final SuscripcionRepository suscripcionRepository;
     private final IAuditLog auditLog;
     private final OrquestadorRegistro orquestadorRegistro;
     private final IAsignacionComisionista asignacionComisionista;
@@ -31,7 +31,7 @@ public class OrquestadorSuscripcion {
     public OrquestadorSuscripcion(
             IIntegracionStripe stripe,
             UsuarioRepository usuarioRepository,
-            InversionistaRepository inversionistaRepository,
+            SuscripcionRepository suscripcionRepository,
             IAuditLog auditLog,
             OrquestadorRegistro orquestadorRegistro,
             IAsignacionComisionista asignacionComisionista,
@@ -39,7 +39,7 @@ public class OrquestadorSuscripcion {
             @Value("${stripe.cancel-url}") String cancelUrl) {
         this.stripe = stripe;
         this.usuarioRepository = usuarioRepository;
-        this.inversionistaRepository = inversionistaRepository;
+        this.suscripcionRepository = suscripcionRepository;
         this.auditLog = auditLog;
         this.orquestadorRegistro = orquestadorRegistro;
         this.asignacionComisionista = asignacionComisionista;
@@ -48,11 +48,16 @@ public class OrquestadorSuscripcion {
     }
 
     public String iniciarSuscripcion(Usuario usuario) {
-        Inversionista inversionista = inversionistaRepository.findByUsuarioId(usuario.getId())
-                .orElseThrow(() -> new IllegalStateException("Inversionista no encontrado para usuario " + usuario.getId()));
+        Suscripcion suscripcion = suscripcionRepository.findById(usuario.getId())
+                .orElseGet(() -> {
+                    Suscripcion s = new Suscripcion();
+                    s.setInversionistaId(usuario.getId());
+                    s.setPlanSuscripcion("BASICO");
+                    return s;
+                });
         String url = stripe.crearSesionCheckout(
                 usuario.getCorreo(),
-                inversionista.getPlanSuscripcion(),
+                suscripcion.getPlanSuscripcion(),
                 usuario.getId(),
                 successUrl,
                 cancelUrl
@@ -60,7 +65,7 @@ public class OrquestadorSuscripcion {
         auditLog.registrar(
                 TipoEvento.SUSCRIPCION_PREMIUM_INICIADA,
                 usuario.getCorreo(),
-                "Sesion Stripe creada para plan: " + inversionista.getPlanSuscripcion()
+                "Sesion Stripe creada para plan: " + suscripcion.getPlanSuscripcion()
         );
         return url;
     }
@@ -79,23 +84,29 @@ public class OrquestadorSuscripcion {
 
         Usuario usuario = usuarioRepository.findById(Long.valueOf(usuarioIdRaw))
                 .orElseThrow(() -> new IllegalStateException("Usuario no encontrado para sesion Stripe"));
-        Inversionista inversionista = inversionistaRepository.findByUsuarioId(usuario.getId())
-                .orElseThrow(() -> new IllegalStateException("Inversionista no encontrado para sesion Stripe"));
 
-        String plan = session.getMetadata().getOrDefault("plan", inversionista.getPlanSuscripcion());
+        Suscripcion suscripcion = suscripcionRepository.findById(usuario.getId())
+                .orElseGet(() -> {
+                    Suscripcion s = new Suscripcion();
+                    s.setInversionistaId(usuario.getId());
+                    return s;
+                });
+
+        String plan = session.getMetadata().getOrDefault("plan", suscripcion.getPlanSuscripcion());
         usuario.setEstadoCuenta(EstadoCuenta.ACTIVA);
         usuario.setMfaHabilitado(true);
-        inversionista.setPlanSuscripcion(plan);
-        inversionista.setEsPremium(true);
-        inversionista.setStripeCustomerId(session.getCustomer());
+        suscripcion.setPlanSuscripcion(plan);
+        suscripcion.setEsPremium(true);
+        suscripcion.setStripeCustomerId(session.getCustomer());
         if (session.getSubscription() != null) {
-            inversionista.setStripeSuscripcionId(session.getSubscription());
+            suscripcion.setStripeSuscripcionId(session.getSubscription());
         }
-        inversionista.setFechaExpiracionPremium("PREMIUM_ANUAL".equalsIgnoreCase(plan)
+        suscripcion.setFechaExpiracionPremium("PREMIUM_ANUAL".equalsIgnoreCase(plan)
                 ? LocalDate.now().plusYears(1)
                 : LocalDate.now().plusMonths(1));
+
         usuarioRepository.save(usuario);
-        inversionistaRepository.save(inversionista);
+        suscripcionRepository.save(suscripcion);
         asignacionComisionista.asignarSiSolicitado(usuario);
         orquestadorRegistro.crearCuentaAlpaca(usuario);
 

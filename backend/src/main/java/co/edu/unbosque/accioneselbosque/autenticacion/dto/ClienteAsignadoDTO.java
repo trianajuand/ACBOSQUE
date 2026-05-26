@@ -11,7 +11,6 @@ public class ClienteAsignadoDTO {
     private String nivelExperiencia;
     private List<String> interesesMercado;
     private LocalDateTime fechaAsignacion;
-    private String interesesCoincidentes;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -30,7 +29,4 @@ public class ClienteAsignadoDTO {
 
     public LocalDateTime getFechaAsignacion() { return fechaAsignacion; }
     public void setFechaAsignacion(LocalDateTime fechaAsignacion) { this.fechaAsignacion = fechaAsignacion; }
-
-    public String getInteresesCoincidentes() { return interesesCoincidentes; }
-    public void setInteresesCoincidentes(String interesesCoincidentes) { this.interesesCoincidentes = interesesCoincidentes; }
 }

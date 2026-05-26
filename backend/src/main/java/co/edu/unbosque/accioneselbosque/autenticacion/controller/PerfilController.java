@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -57,6 +58,12 @@ public class PerfilController {
         perfilService.toggleMfa(correoAutenticado(), activar);
         String msg = activar ? "MFA activado exitosamente" : "MFA desactivado exitosamente";
         return ResponseEntity.ok(new RespuestaDTO(msg));
+    }
+
+    @PostMapping("/suscripcion/iniciar")
+    public ResponseEntity<?> iniciarUpgradePremium(@RequestParam(defaultValue = "PREMIUM_MENSUAL") String plan) {
+        String checkoutUrl = perfilService.iniciarUpgradePremium(correoAutenticado(), plan);
+        return ResponseEntity.ok(java.util.Map.of("checkoutUrl", checkoutUrl));
     }
 
     @DeleteMapping("/suscripcion")

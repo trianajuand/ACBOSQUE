@@ -24,9 +24,10 @@ public class OrquestadorRegistro {
     }
 
     public void crearCuentaAlpaca(Usuario usuario) {
-        Inversionista inversionista = inversionistaRepository.findByUsuarioId(usuario.getId())
+        Inversionista inversionista = inversionistaRepository.findById(usuario.getId())
                 .orElseThrow(() -> new IllegalStateException("Inversionista no encontrado para usuario " + usuario.getId()));
         String alpacaId = alpaca.crearCuenta(usuario, inversionista);
+
         if (alpacaId != null) {
             inversionista.setAlpacaAccountId(alpacaId);
             inversionista.setPendienteCuentaAlpaca(false);

@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(PGPASSWORD=postgres psql -U postgres -h localhost -c \"SELECT pg_terminate_backend\\(pid\\) FROM pg_stat_activity WHERE datname = 'accioneselbosque' AND pid <> pg_backend_pid\\(\\);\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/18/bin/psql.exe\" -U postgres -h localhost -c \"SELECT pg_terminate_backend\\(pid\\) FROM pg_stat_activity WHERE datname = 'accioneselbosque' AND pid <> pg_backend_pid\\(\\);\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/18/bin/psql.exe\" -U postgres -h localhost -c \"DROP DATABASE IF EXISTS accioneselbosque;\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/18/bin/psql.exe\" -U postgres -h localhost -c \"CREATE DATABASE accioneselbosque;\")",
+      "Bash(mvn spring-boot:run -q)",
+      "Bash(mvn clean *)",
+      "Bash(javap -p \"target/classes/co/edu/unbosque/accioneselbosque/autenticacion/model/Usuario.class\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/18/bin/psql.exe\" -U postgres -h localhost -d accioneselbosque -c \"\\\\d usuario\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/18/bin/psql.exe\" -U postgres -h localhost -c \"DROP DATABASE IF EXISTS accioneselbosque; CREATE DATABASE accioneselbosque;\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/18/bin/psql.exe\" -U postgres -h localhost -d accioneselbosque -c \"\\\\dt\")",
+      "Bash(netstat -ano)",
+      "Bash(taskkill /PID 7656 /F)",
+      "PowerShell(Stop-Process -Id 7656 -Force)",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/18/bin/psql.exe\" -U postgres -h localhost -d accioneselbosque -c \"SELECT u.id, u.correo, u.nombre_completo, cf.saldo_disponible FROM usuario u LEFT JOIN cuenta_fondos cf ON cf.inversionista_id = u.id WHERE u.rol IN \\('INVERSIONISTA','INVERSIONISTA_PREMIUM'\\) ORDER BY u.id DESC LIMIT 5;\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/18/bin/psql.exe\" -U postgres -h localhost -d accioneselbosque -c \"INSERT INTO cuenta_fondos \\(inversionista_id, saldo_disponible, fondos_reservados, actualizado_en\\) VALUES \\(4, 1000000.00, 0.00, now\\(\\)\\) ON CONFLICT \\(inversionista_id\\) DO UPDATE SET saldo_disponible = 1000000.00, fondos_reservados = 0.00, actualizado_en = now\\(\\); SELECT inversionista_id, saldo_disponible FROM cuenta_fondos WHERE inversionista_id = 4;\")",
+      "Bash(curl -s -X POST https://broker-api.sandbox.alpaca.markets/v1/journals -H 'Authorization: Basic __CMDSUB_OUTPUT__')",
+      "Bash(curl -s 'https://broker-api.sandbox.alpaca.markets/v1/accounts?query=trianajuandiego6%40gmail.com' -H 'Authorization: Basic __CMDSUB_OUTPUT__')",
+      "Bash(curl -s -X POST https://broker-api.sandbox.alpaca.markets/v1/sandbox/accounts/df7579e3-51f4-4692-a4e1-c646ecc8bbcd/funding -H 'Authorization: Basic __CMDSUB_OUTPUT__')",
+      "Bash(curl -s https://broker-api.sandbox.alpaca.markets/v1/accounts -H 'Authorization: Basic __CMDSUB_OUTPUT__')",
+      "Bash(curl -s https://broker-api.sandbox.alpaca.markets/v1/trading/accounts/9e0944c3-57b6-402b-96d8-cc90b19c733a/account -H 'Authorization: Basic __CMDSUB_OUTPUT__')",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('cash:', d.get\\('cash'\\), 'buying_power:', d.get\\('buying_power'\\)\\)\")",
+      "Bash(curl -s -X POST https://broker-api.sandbox.alpaca.markets/v1/accounts/df7579e3-51f4-4692-a4e1-c646ecc8bbcd/transfers -H 'Authorization: Basic __CMDSUB_OUTPUT__')",
+      "Bash(curl -s -X POST 'https://broker-api.sandbox.alpaca.markets/v1/sandbox/transfers/6a901eec-4e81-4ccc-aca2-629a74e162c9}/approve' -H 'Authorization: Basic __CMDSUB_OUTPUT__')",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' 'https://data.alpaca.markets/v2/stocks/AAPL/snapshot?feed=iex' -H 'APCA-API-KEY-ID: CKZ2BGXBCMYYTRGOX65LPXP4ZA' -H 'APCA-API-SECRET-KEY: 2A6JqauhLqT7stiagHuQvbPEvKNTGxhbC5362khJkuf7')",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' 'https://data.alpaca.markets/v2/stocks/AAPL/snapshot?feed=iex' -H 'APCA-API-KEY-ID: PKRQDTFM64BALS7WUE7HOSFAUN' -H 'APCA-API-SECRET-KEY: GH8sZeZT2GyHGqCJghYf6NCG7eZevdBV3uWMum9a8G6N')",
+      "Bash(curl -s --max-time 5 \"https://data.alpaca.markets\" -o /dev/null -w \"%{http_code}\")",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(grep -E \"\\\\.\\(ts|html\\)$\")"
+    ]
+  }
+}

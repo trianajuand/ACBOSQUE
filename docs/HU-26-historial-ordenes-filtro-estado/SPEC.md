@@ -1,65 +1,100 @@
-# Historia de Usuario
+# SPEC — Historial de órdenes filtrado por estado
 
-## Titulo
-Historial de ordenes filtrado por estado.
+---
 
-## Descripcion
-Como inversionista autenticado
-Quiero filtrar historial por estado
-Para diferenciar ordenes ejecutadas, canceladas, activas o en cola.
+## Ficha de la historia
 
-## Contexto
-HU-26 forma parte del bloque de historial con filtros. El endpoint de historial acepta estado y el dashboard Angular expone un selector con estados disponibles.
+| Campo | Valor |
+|---|---|
+| ID | HU-26 |
+| Sprint | 3 |
+| Prioridad MoSCoW | Must Have |
+| Estado | Completada |
+| Épica | Órdenes / Historial |
+| CU asociado | CU-26 |
+| Autor | Juan Diego Triana Mejia |
+| Creada | 2026-05-20 |
+| Última revisión | 2026-05-24 |
+| Versión de esta spec | 1.0 |
 
-## Flujo funcional
-1. El usuario inicia el flujo desde la interfaz correspondiente.
-2. El frontend envia la solicitud al backend.
-3. El backend valida rol, datos y reglas de negocio.
-4. El sistema persiste cambios o retorna la informacion solicitada.
-5. Se registra auditoria cuando la operacion es sensible.
+**Trazabilidad:**
 
-## Reglas de negocio
-- La operacion debe respetar rol y propiedad del recurso.
-- Los datos se devuelven mediante DTOs, no entidades JPA.
-- Los errores deben mostrarse en espanol y sin datos sensibles.
+| Tipo | ID | Descripción |
+|---|---|---|
+| Requerimiento funcional | RF-25 | Historial de órdenes con filtro por estado |
+| Historia relacionada | HU-24 | Filtro por período (mismo endpoint) |
+| Historia relacionada | HU-25 | Filtro por tipo y símbolo (mismo endpoint) |
 
-## Componentes involucrados
-- Frontend Angular de la funcionalidad.
-- Servicio backend responsable segun arquitectura SOA.
-- Repositorios/modelos del dominio relacionado.
-- Servicio de trazabilidad cuando aplique.
+---
 
-## Backend
-`GET /api/ordenes/historial` acepta `estado`. `OrdenService.obtenerHistorialOrdenes` valida el enum `EstadoOrden` y filtra antes de mapear a DTO.
+## Historia de usuario
 
-## Frontend
-Debe exponer controles claros para ejecutar la HU y mostrar resultado, error o estado vacio.
+**Como** inversionista autenticado,
+**quiero** filtrar el historial de órdenes por estado (ejecutadas, canceladas, en cola, etc.),
+**para** diferenciar fácilmente el resultado de cada operación.
 
-## Base de datos
-Usa las tablas del dominio asociado y conserva trazabilidad historica cuando aplique.
+---
 
-## API / Endpoints
-- `GET /api/ordenes/historial?estado={PENDIENTE|ENVIADA|EJECUTADA|CANCELADA|EN_COLA|PENDIENTE_APROBACION|APROBADA|RECHAZADA}`
+## Actores y precondiciones
 
-## Validaciones
-- JWT requerido salvo flujos publicos documentados.
-- Datos obligatorios y formatos validos.
-- Reglas de negocio verificadas en backend.
+Ver HU-24 (idénticos).
 
-## Seguridad
-Control de acceso por rol y por relacion cuando aplique. No se exponen secretos ni datos sensibles.
+---
 
-## Consideraciones tecnicas
-La implementacion debe seguir ARQUITECTURA.md y CONVENCIONES.md.
+## Flujo principal
 
-## Dependencias
-Depende de los servicios indicados en el backlog y de auditoria transversal.
+1. Frontend llama `GET /api/ordenes/historial?estado=EJECUTADA` (o cualquier estado válido).
+2. `OrdenService` aplica filtro `WHERE estado = ?`.
+3. Los filtros se combinan con los de HU-24 y HU-25.
 
-## Criterios de aceptacion
-- [x] Flujo principal completado correctamente.
-- [x] Casos invalidos rechazados con mensaje claro.
-- [x] No se exponen recursos de otros usuarios.
-- [x] Filtro de estado conectado en frontend.
+---
 
-## Notas
-Spec creado para separar la HU en carpeta numerada.
+## Contrato de API
+
+El contrato completo está en HU-24 SPEC. El parámetro específico de esta historia es:
+
+| Parámetro | Tipo | Valores válidos |
+|---|---|---|
+| `estado` | `string` (opcional) | `PENDIENTE`, `ENVIADA`, `EN_COLA`, `EJECUTADA`, `CANCELADA` |
+
+---
+
+## Criterios de verificación
+
+### Escenarios de aceptación (Gherkin)
+
+```gherkin
+Funcionalidad: Historial por estado
+
+  Antecedentes:
+    Dado que "ana@test.com" tiene órdenes en varios estados
+
+  Escenario: Solo órdenes ejecutadas
+    Cuando se envía GET /api/ordenes/historial?estado=EJECUTADA
+    Entonces todas las órdenes retornadas tienen estado=EJECUTADA
+
+  Escenario: Solo órdenes canceladas
+    Cuando se envía GET /api/ordenes/historial?estado=CANCELADA
+    Entonces todas las órdenes retornadas tienen estado=CANCELADA
+
+  Escenario: Estado inválido
+    Cuando se envía GET /api/ordenes/historial?estado=INVALIDO
+    Entonces el sistema responde 400 Bad Request (deserialización de enum)
+```
+
+---
+
+## Definición de terminado
+
+- [x] `GET /api/ordenes/historial?estado=` filtra por estado de la orden.
+- [x] Estado inválido retorna 400.
+- [x] Los filtros se combinan con los de HU-24 y HU-25.
+- [x] `docs/PROGRESO.md` marcado con ✅ para HU-26.
+
+---
+
+## Historial de cambios
+
+| Versión | Fecha | Descripción | Razón |
+|---|---|---|---|
+| 1.0 | 2026-05-24 | Refactorización a estructura SDD del proyecto. | Unificación de todos los SPEC.md bajo plantilla canónica SDD del proyecto |

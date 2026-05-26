@@ -24,6 +24,9 @@ public class EventoAuditoria implements Serializable {
     @Column(name = "tipo_evento", nullable = false, columnDefinition = "varchar(255)")
     private TipoEvento tipoEvento;
 
+    @Column(name = "usuario_id")
+    private Long usuarioId;
+
     @Column(name = "correo_usuario")
     private String correoUsuario;
 
@@ -51,6 +54,9 @@ public class EventoAuditoria implements Serializable {
     public void setTipoEvento(TipoEvento tipoEvento) {
         this.tipoEvento = tipoEvento;
     }
+
+    public Long getUsuarioId() { return usuarioId; }
+    public void setUsuarioId(Long usuarioId) { this.usuarioId = usuarioId; }
 
     public String getCorreoUsuario() {
         return correoUsuario;

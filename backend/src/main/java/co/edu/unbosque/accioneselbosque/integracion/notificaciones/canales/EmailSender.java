@@ -61,6 +61,31 @@ public class EmailSender {
         return enviar(destinatario, asunto, contenido);
     }
 
+    public boolean enviarMensajeLibre(String destinatario, String asunto, String contenidoHtml) {
+        return enviar(destinatario, asunto, contenidoHtml);
+    }
+
+    public String construirHtmlEvento(String titulo, String nombre, String cuerpo, String detalle) {
+        return "<!DOCTYPE html><html lang='es'><head><meta charset='UTF-8'>"
+                + "<style>body{font-family:Arial,sans-serif;background:#F3F3F3;margin:0;padding:0;}"
+                + ".container{width:100%;max-width:600px;margin:0 auto;background:#13173d;padding:20px;border-radius:10px;text-align:center;}"
+                + ".header{background:#232c42;color:white;padding:10px;border-radius:5px;}"
+                + ".content{background:#232c42;color:white;padding:30px;margin:20px 0;border-radius:10px;text-align:left;}"
+                + ".content p{font-size:16px;margin:8px 0;}"
+                + ".detalle{font-size:13px;color:#bbbec7;margin-top:12px;padding:10px;background:#1a2035;border-radius:5px;}"
+                + ".footer{background:#232c42;color:white;padding:10px;border-radius:5px;font-size:12px;text-align:center;}"
+                + "</style></head><body>"
+                + "<div class='container'>"
+                + "<div class='header'><h2>" + titulo + "</h2></div>"
+                + "<div class='content'>"
+                + "<p>Hola, <strong>" + nombre + "</strong></p>"
+                + "<p>" + cuerpo + "</p>"
+                + "<div class='detalle'>" + detalle + "</div>"
+                + "</div>"
+                + "<div class='footer'><p>Acciones ElBosque &mdash; No respondas a este correo.</p></div>"
+                + "</div></body></html>";
+    }
+
     private boolean enviar(String destinatario, String asunto, String contenidoHtml) {
         try {
             MimeMessage mensaje = mailSender.createMimeMessage();

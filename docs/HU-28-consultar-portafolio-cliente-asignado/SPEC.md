@@ -1,74 +1,190 @@
-# Historia de Usuario
+# SPEC — Consulta de portafolio de cliente asignado (comisionista)
 
-## Titulo
-Consulta de portafolio de cliente asignado.
+---
 
-## Descripcion
-Como comisionista
-Quiero ver el portafolio de mis clientes asignados
-Para hacer seguimiento sin acceder a inversionistas que no me corresponden.
+## Ficha de la historia
 
-## Contexto
-La HU-28 implementa control de acceso por relacion comisionista-cliente. Los comisionistas son usuarios con rol `COMISIONISTA`, MFA obligatorio y especialidades de mercado; la relacion se guarda en `asignacion_comisionista`.
+| Campo | Valor |
+|---|---|
+| ID | HU-28 |
+| Sprint | 4 |
+| Prioridad MoSCoW | Should Have |
+| Estado | Completada |
+| Épica | Órdenes / Comisionista |
+| CU asociado | CU-28 |
+| Autor | Juan Diego Triana Mejia |
+| Creada | 2026-05-20 |
+| Última revisión | 2026-05-24 |
+| Versión de esta spec | 1.0 |
 
-## Flujo funcional
-1. El comisionista inicia sesion y completa MFA.
-2. Angular carga `/comisionista`.
-3. El frontend llama `GET /api/comisionista/clientes`.
-4. El comisionista selecciona un cliente asignado.
-5. Frontend llama `GET /api/comisionista/clientes/{clienteId}/portafolio`.
-6. Backend valida rol `COMISIONISTA` y relacion activa.
-7. Se reutiliza `IOrden.obtenerPortafolio(clienteId)`.
-8. Se retorna `PortafolioDTO`.
+**Trazabilidad:**
 
-## Reglas de negocio
-- Solo comisionistas autenticados pueden usar el modulo.
-- Un comisionista solo ve inversionistas presentes en `asignacion_comisionista`.
-- Si intenta consultar otro cliente, retorna 403.
-- La consulta es solo lectura.
+| Tipo | ID | Descripción |
+|---|---|---|
+| Requerimiento funcional | RF-27 | Comisionista consulta portafolio de clientes asignados |
+| Escenario de calidad | EC-18 | Encapsulate — acceso restringido a clientes asignados únicamente |
+| Historia que precede a esta | HU-37 | La asignación de comisionista debe existir antes |
 
-## Componentes involucrados
-- `frontend/src/app/comisionista/comisionista-dashboard.component.ts`
-- `backend/.../ordenes/controller/ComisionistaController.java`
-- `backend/.../autenticacion/service/AsignacionComisionistaService.java`
-- `backend/.../autenticacion/model/AsignacionComisionista.java`
-- `backend/.../ordenes/service/OrdenService.java`
-- `backend/.../ordenes/service/PortafolioService.java`
+---
 
-## Backend
-`ComisionistaController.portafolioCliente` resuelve el usuario autenticado, exige rol `COMISIONISTA`, valida asignacion mediante `IAsignacionComisionista` y consulta el portafolio del inversionista con el servicio existente.
+## Historia de usuario
 
-## Frontend
-Existe ruta `/comisionista` con vista independiente del dashboard de inversionista. Muestra clientes asignados, portafolio, ordenes y propuestas.
+**Como** comisionista autenticado,
+**quiero** ver la lista de mis clientes asignados y el portafolio de cada uno,
+**para** hacer seguimiento de sus inversiones sin poder ver inversionistas que no me corresponden.
 
-## Base de datos
-- `usuario`: comisionistas como usuarios con rol `COMISIONISTA`, `mfa_habilitado=true`, `especialidades_mercado`.
-- `asignacion_comisionista`: `inversionista_id`, `comisionista_id`, intereses coincidentes, motivo y estado activo.
-- `holding`: posiciones del inversionista.
+---
 
-## API / Endpoints
-- `GET /api/comisionista/clientes`
-- `GET /api/comisionista/clientes/{clienteId}/portafolio`
+## Actores y precondiciones
 
-## Validaciones
-- JWT requerido.
-- Rol `COMISIONISTA`.
-- Relacion activa entre comisionista e inversionista.
+### Actores
 
-## Seguridad
-Implementa EC-11: autorizacion por relacion, no solo por rol. Los accesos denegados se auditan con `ACCESO_DENEGADO_CLIENTE_NO_ASIGNADO`.
+| Actor | Rol en el sistema | Participación |
+|---|---|---|
+| Comisionista autenticado | `COMISIONISTA` | Iniciador |
+| `OrdenService` / `PortafolioService` | Módulo `ordenes` | Consulta de datos del cliente |
+| `IAsignacionComisionista` | Módulo `autenticacion` | Valida que el cliente está asignado al comisionista |
 
-## Consideraciones tecnicas
-La asignacion automatica se ejecuta al activar el registro si el inversionista solicito comisionista, eligiendo el comisionista con mas coincidencias de intereses y menor carga.
+### Precondiciones
 
-## Dependencias
-Depende de autenticacion, asignacion de comisionistas, ordenes y portafolio.
+- JWT válido con rol `COMISIONISTA`.
+- El `clienteId` solicitado está asignado al comisionista en `asignacion_comisionista`.
 
-## Criterios de aceptacion
-- [x] Comisionista lista sus clientes asignados.
-- [x] Comisionista consulta portafolio de cliente asignado.
-- [x] Cliente no asignado retorna 403.
-- [x] MFA es obligatorio para comisionista.
+---
 
-## Notas
-Se agregan comisionistas seed de desarrollo con password inicial configurable por `COMISIONISTAS_PASSWORD_DEFAULT`.
+## Flujo principal
+
+1. Comisionista navega a su panel de clientes.
+2. Frontend envía `GET /api/comisionista/clientes` con JWT.
+3. El sistema retorna la lista de clientes asignados al comisionista.
+4. Comisionista selecciona un cliente y el frontend envía `GET /api/comisionista/clientes/{clienteId}/portafolio`.
+5. `IAsignacionComisionista.validarClienteAsignado(comisionistaId, clienteId)`: verifica asignación. Si no está asignado → 403.
+6. Retorna `PortafolioDTO` del cliente.
+
+---
+
+## Flujos de error
+
+### Error 1 — No autenticado o rol incorrecto
+
+| Campo | Valor |
+|---|---|
+| Condición | JWT ausente o rol ≠ COMISIONISTA |
+| HTTP | 401 / 403 |
+
+### Error 2 — Cliente no asignado al comisionista
+
+| Campo | Valor |
+|---|---|
+| Condición | `clienteId` no está en la lista de clientes asignados |
+| HTTP | 403 Forbidden |
+| Cuerpo | `RespuestaDTO{error: "No tienes acceso a este cliente"}` |
+| Evento de auditoría | `ACCESO_DENEGADO_CLIENTE_NO_ASIGNADO` |
+
+### Error 3 — Cliente no encontrado
+
+| Campo | Valor |
+|---|---|
+| HTTP | 404 Not Found |
+
+---
+
+## Contrato de API
+
+### Endpoint 1 — `GET /api/comisionista/clientes`
+
+```yaml
+GET /api/comisionista/clientes:
+  summary: Lista todos los clientes asignados al comisionista
+  security:
+    - bearerAuth: []  # Solo COMISIONISTA
+  responses:
+    '200':
+      description: Lista de clientes asignados
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RespuestaDTO'
+```
+
+### Endpoint 2 — `GET /api/comisionista/clientes/{clienteId}/portafolio`
+
+```yaml
+GET /api/comisionista/clientes/{clienteId}/portafolio:
+  summary: Consulta el portafolio de un cliente asignado
+  security:
+    - bearerAuth: []  # Solo COMISIONISTA
+  parameters:
+    - name: clienteId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Portafolio del cliente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PortafolioDTO'
+    '403':
+      description: Cliente no asignado al comisionista
+    '404':
+      description: Cliente no encontrado
+```
+
+---
+
+## Módulos y arquitectura
+
+| Módulo | Rol | Componentes |
+|---|---|---|
+| `ordenes` | Endpoints y lógica | `ComisionistaController`, `PortafolioService` |
+| `autenticacion` | Validación de asignación | `IAsignacionComisionista` |
+| `trazabilidad` | Auditoría de acceso denegado | `AuditLogService` |
+
+### Escenarios de calidad y tácticas materializadas
+
+| EC | Táctica | Cómo se materializa en HU-28 |
+|---|---|---|
+| EC-18 | Encapsulate | La validación de asignación garantiza que un comisionista solo ve sus clientes |
+
+---
+
+## Criterios de verificación
+
+### Escenarios de aceptación (Gherkin)
+
+```gherkin
+Funcionalidad: Consulta de portafolio de cliente asignado
+
+  Antecedentes:
+    Dado que "comis@test.com" tiene JWT válido con rol=COMISIONISTA
+    Y "ana@test.com" está asignada como cliente de "comis@test.com" (clienteId=5)
+
+  Escenario: Consulta exitosa del portafolio del cliente
+    Cuando se envía GET /api/comisionista/clientes/5/portafolio con JWT de comisionista
+    Entonces el sistema responde 200 OK con PortafolioDTO del cliente 5
+
+  Escenario: Acceso denegado a cliente no asignado
+    Cuando se envía GET /api/comisionista/clientes/99/portafolio
+    Entonces el sistema responde 403 Forbidden
+    Y se emite evento ACCESO_DENEGADO_CLIENTE_NO_ASIGNADO en auditoría
+```
+
+---
+
+## Definición de terminado
+
+- [x] `GET /api/comisionista/clientes` lista los clientes asignados.
+- [x] `GET /api/comisionista/clientes/{clienteId}/portafolio` retorna portafolio solo si el cliente está asignado.
+- [x] Acceso a cliente no asignado retorna 403 y audita el evento.
+- [x] `docs/PROGRESO.md` marcado con ✅ para HU-28.
+
+---
+
+## Historial de cambios
+
+| Versión | Fecha | Descripción | Razón |
+|---|---|---|---|
+| 1.0 | 2026-05-24 | Refactorización a estructura SDD del proyecto. | Unificación de todos los SPEC.md bajo plantilla canónica SDD del proyecto |

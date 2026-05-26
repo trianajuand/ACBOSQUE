@@ -5,25 +5,21 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "holding",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"usuario_id", "simbolo"}))
+@Table(name = "holding")
+@IdClass(HoldingId.class)
 public class Holding {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "inversionista_id", nullable = false)
+    private Long inversionistaId;
 
-    @Column(name = "usuario_id", nullable = false)
-    private Long usuarioId;
+    @Id
+    @Column(name = "activo_id", nullable = false)
+    private Long activoId;
 
-    @Column(name = "simbolo", nullable = false, length = 20)
-    private String simbolo;
-
-    /** Cantidad total de acciones en posesión. */
     @Column(name = "cantidad", nullable = false, precision = 18, scale = 6)
     private BigDecimal cantidad;
 
-    /** Precio promedio de compra (costo base). */
     @Column(name = "precio_promedio", nullable = false, precision = 18, scale = 4)
     private BigDecimal precioPromedio;
 
@@ -32,14 +28,11 @@ public class Holding {
 
     public Holding() {}
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getInversionistaId() { return inversionistaId; }
+    public void setInversionistaId(Long inversionistaId) { this.inversionistaId = inversionistaId; }
 
-    public Long getUsuarioId() { return usuarioId; }
-    public void setUsuarioId(Long usuarioId) { this.usuarioId = usuarioId; }
-
-    public String getSimbolo() { return simbolo; }
-    public void setSimbolo(String simbolo) { this.simbolo = simbolo; }
+    public Long getActivoId() { return activoId; }
+    public void setActivoId(Long activoId) { this.activoId = activoId; }
 
     public BigDecimal getCantidad() { return cantidad; }
     public void setCantidad(BigDecimal cantidad) { this.cantidad = cantidad; }

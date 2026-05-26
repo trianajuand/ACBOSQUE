@@ -93,7 +93,9 @@ public class AdministracionService implements IAdministracion, IGestorParametros
     @Override
     @Transactional(readOnly = true)
     public boolean esFeriadoMercado(String mercado, LocalDate fecha) {
-        return feriadoRepo.existsByMercadoCodigoIgnoreCaseAndFecha(codigoMercado(mercado), fecha);
+        return buscarMercado(mercado)
+                .map(mc -> feriadoRepo.existsByMercadoConfigIdAndFecha(mc.getId(), fecha))
+                .orElse(false);
     }
 
     // =========================================================
@@ -138,34 +140,43 @@ public class AdministracionService implements IAdministracion, IGestorParametros
 
     @Transactional(readOnly = true)
     public List<FeriadoMercadoDTO> listarFeriados(String codigo) {
-        return feriadoRepo.findByMercadoCodigoIgnoreCaseOrderByFechaAsc(codigoMercado(codigo))
-                .stream().map(this::mapearFeriado).toList();
+        return buscarMercado(codigo)
+                .map(mc -> feriadoRepo.findByMercadoConfigIdOrderByFechaAsc(mc.getId())
+                        .stream().map(f -> mapearFeriado(f, mc.getCodigo())).toList())
+                .orElse(List.of());
     }
 
     @Transactional
     public FeriadoMercadoDTO crearFeriado(String codigo, FeriadoMercadoDTO dto, String adminCorreo) {
         String mercadoCodigo = codigoMercado(codigo);
-        if (feriadoRepo.existsByMercadoCodigoIgnoreCaseAndFecha(mercadoCodigo, dto.getFecha())) {
+        MercadoConfig mc = buscarMercado(mercadoCodigo)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Mercado no encontrado: " + mercadoCodigo));
+        if (feriadoRepo.existsByMercadoConfigIdAndFecha(mc.getId(), dto.getFecha())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El feriado ya existe para ese mercado");
         }
         FeriadoMercado feriado = new FeriadoMercado();
-        feriado.setMercadoCodigo(mercadoCodigo);
+        feriado.setMercadoConfigId(mc.getId());
         feriado.setFecha(dto.getFecha());
         feriado.setDescripcion(dto.getDescripcion());
         feriado.setCreadoEn(LocalDateTime.now());
         feriado = feriadoRepo.save(feriado);
         auditLog.registrar(TipoEvento.PARAMETRO_ADMIN_ACTUALIZADO, adminCorreo,
                 "Feriado agregado: " + mercadoCodigo + " " + dto.getFecha());
-        return mapearFeriado(feriado);
+        return mapearFeriado(feriado, mercadoCodigo);
     }
 
     @Transactional
     public void eliminarFeriado(String codigo, Long feriadoId, String adminCorreo) {
-        FeriadoMercado feriado = feriadoRepo.findByIdAndMercadoCodigoIgnoreCase(feriadoId, codigoMercado(codigo))
+        String mercadoCodigo = codigoMercado(codigo);
+        MercadoConfig mc = buscarMercado(mercadoCodigo)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Mercado no encontrado: " + mercadoCodigo));
+        FeriadoMercado feriado = feriadoRepo.findByIdAndMercadoConfigId(feriadoId, mc.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Feriado no encontrado"));
         feriadoRepo.delete(feriado);
         auditLog.registrar(TipoEvento.PARAMETRO_ADMIN_ACTUALIZADO, adminCorreo,
-                "Feriado eliminado: " + feriado.getMercadoCodigo() + " " + feriado.getFecha());
+                "Feriado eliminado: " + mercadoCodigo + " " + feriado.getFecha());
     }
 
     // =========================================================
@@ -187,16 +198,17 @@ public class AdministracionService implements IAdministracion, IGestorParametros
         if (totalSplit.compareTo(BigDecimal.valueOf(100)) != 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El split debe sumar 100%");
         }
-        parametroRepo.findAll().forEach(p -> {
-            p.setActivo(false);
+        // Close current active parameter by setting fechaFin to yesterday
+        parametroRepo.findParametroActivo(LocalDate.now()).ifPresent(p -> {
+            p.setFechaFin(LocalDate.now().minusDays(1));
             parametroRepo.save(p);
         });
         ParametroComision nuevo = new ParametroComision();
         nuevo.setPorcentajeComision(dto.getPorcentajeComision());
         nuevo.setSplitPlataforma(dto.getSplitPlataforma());
         nuevo.setSplitComisionista(dto.getSplitComisionista());
-        nuevo.setActivo(true);
-        nuevo.setActualizadoEn(LocalDateTime.now());
+        nuevo.setFechaInicio(LocalDate.now());
+        nuevo.setFechaFin(null);
         parametroRepo.save(nuevo);
         auditLog.registrar(TipoEvento.PARAMETRO_ADMIN_ACTUALIZADO, adminCorreo,
                 "Parametros de comision actualizados");
@@ -288,7 +300,7 @@ public class AdministracionService implements IAdministracion, IGestorParametros
     // =========================================================
 
     private Optional<ParametroComision> parametroActivo() {
-        return parametroRepo.findFirstByActivoTrueOrderByActualizadoEnDesc();
+        return parametroRepo.findParametroActivo(LocalDate.now());
     }
 
     private Optional<MercadoConfig> buscarMercado(String mercado) {
@@ -314,10 +326,10 @@ public class AdministracionService implements IAdministracion, IGestorParametros
         return dto;
     }
 
-    private FeriadoMercadoDTO mapearFeriado(FeriadoMercado feriado) {
+    private FeriadoMercadoDTO mapearFeriado(FeriadoMercado feriado, String mercadoCodigo) {
         FeriadoMercadoDTO dto = new FeriadoMercadoDTO();
         dto.setId(feriado.getId());
-        dto.setMercadoCodigo(feriado.getMercadoCodigo());
+        dto.setMercadoCodigo(mercadoCodigo);
         dto.setFecha(feriado.getFecha());
         dto.setDescripcion(feriado.getDescripcion());
         return dto;

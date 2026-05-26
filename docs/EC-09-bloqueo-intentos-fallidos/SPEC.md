@@ -41,7 +41,22 @@ Implementa RF-21, RNF-06 y EC-09. La lógica está separada en `MonitorIntentosS
 `LoginComponent` muestra el error recibido por `ApiService` como toast.
 
 ## Base de datos
-Tabla `intento_fallido`: `correo`, `contador`, `bloqueado_hasta`, `ultimo_intento`.
+Tabla `intento_fallido`: `correo` (UNIQUE), `contador`, `bloqueado_hasta`, `ultimo_intento`.
+
+**Schema real** (auditado 2026-05-25 vs. `IntentoFallido.java`):
+```sql
+CREATE TABLE intento_fallido (
+    id             BIGSERIAL PRIMARY KEY,
+    correo         VARCHAR UNIQUE NOT NULL,
+    contador       INTEGER NOT NULL,
+    bloqueado_hasta TIMESTAMP,
+    ultimo_intento  TIMESTAMP
+);
+```
+**Diferencias con CONVENCIONES.md §2.4** que describe `(correo, ip, timestamp, exitoso boolean)`:
+- El esquema real NO tiene columna `ip` ni columna `exitoso` (boolean).
+- En lugar de una fila por intento, hay **una fila por correo** con contador acumulado.
+- La IP se incluye como texto en el detalle del evento `IAuditLog` cuando está disponible.
 
 ## API / Endpoints
 - `POST /api/auth/login`

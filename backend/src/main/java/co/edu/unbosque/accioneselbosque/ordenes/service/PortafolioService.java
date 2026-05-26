@@ -1,5 +1,7 @@
 package co.edu.unbosque.accioneselbosque.ordenes.service;
 
+import co.edu.unbosque.accioneselbosque.mercado.model.Activo;
+import co.edu.unbosque.accioneselbosque.mercado.repository.ActivoRepository;
 import co.edu.unbosque.accioneselbosque.mercado.service.MercadoService;
 import co.edu.unbosque.accioneselbosque.ordenes.dto.HoldingDTO;
 import co.edu.unbosque.accioneselbosque.ordenes.dto.PortafolioDTO;
@@ -20,16 +22,20 @@ import java.util.Optional;
 public class PortafolioService {
 
     private final HoldingRepository holdingRepo;
+    private final ActivoRepository activoRepo;
     private final MercadoService mercadoService;
 
-    public PortafolioService(HoldingRepository holdingRepo, MercadoService mercadoService) {
+    public PortafolioService(HoldingRepository holdingRepo,
+                             ActivoRepository activoRepo,
+                             MercadoService mercadoService) {
         this.holdingRepo = holdingRepo;
+        this.activoRepo = activoRepo;
         this.mercadoService = mercadoService;
     }
 
     @Transactional(readOnly = true)
-    public PortafolioDTO obtenerPortafolio(Long usuarioId, String vistaPreferida) {
-        List<Holding> holdings = holdingRepo.findByUsuarioId(usuarioId);
+    public PortafolioDTO obtenerPortafolio(Long inversionistaId, String vistaPreferida) {
+        List<Holding> holdings = holdingRepo.findByInversionistaId(inversionistaId);
         List<HoldingDTO> dtos = new ArrayList<>();
 
         BigDecimal valorTotal = BigDecimal.ZERO;
@@ -38,14 +44,18 @@ public class PortafolioService {
         for (Holding h : holdings) {
             if (h.getCantidad().compareTo(BigDecimal.ZERO) <= 0) continue;
 
+            String ticker = activoRepo.findById(h.getActivoId())
+                    .map(Activo::getTicker)
+                    .orElse("???");
+
             HoldingDTO dto = new HoldingDTO();
-            dto.setSimbolo(h.getSimbolo());
+            dto.setSimbolo(ticker);
             dto.setCantidad(h.getCantidad());
             dto.setPrecioPromedio(h.getPrecioPromedio());
 
             BigDecimal precioActual = BigDecimal.ZERO;
             try {
-                var cot = mercadoService.obtenerCotizacion(h.getSimbolo());
+                var cot = mercadoService.obtenerCotizacion(ticker);
                 if (cot.getPrecioActual() != null) precioActual = cot.getPrecioActual();
             } catch (Exception ignored) {}
 
@@ -81,10 +91,9 @@ public class PortafolioService {
         return portafolio;
     }
 
-    /** Agrega o actualiza un holding al ejecutar una compra. */
     @Transactional
-    public void registrarCompra(Long usuarioId, String simbolo, BigDecimal cantidad, BigDecimal precioEjecucion) {
-        Optional<Holding> existente = holdingRepo.findByUsuarioIdAndSimbolo(usuarioId, simbolo);
+    public void registrarCompra(Long inversionistaId, Long activoId, BigDecimal cantidad, BigDecimal precioEjecucion) {
+        Optional<Holding> existente = holdingRepo.findByInversionistaIdAndActivoId(inversionistaId, activoId);
         if (existente.isPresent()) {
             Holding h = existente.get();
             BigDecimal cantidadAnterior = h.getCantidad();
@@ -99,8 +108,8 @@ public class PortafolioService {
             holdingRepo.save(h);
         } else {
             Holding nuevo = new Holding();
-            nuevo.setUsuarioId(usuarioId);
-            nuevo.setSimbolo(simbolo);
+            nuevo.setInversionistaId(inversionistaId);
+            nuevo.setActivoId(activoId);
             nuevo.setCantidad(cantidad);
             nuevo.setPrecioPromedio(precioEjecucion);
             nuevo.setActualizadoEn(LocalDateTime.now());
@@ -108,30 +117,38 @@ public class PortafolioService {
         }
     }
 
-    /** Reduce el holding al ejecutar una venta. */
     @Transactional
-    public void registrarVenta(Long usuarioId, String simbolo, BigDecimal cantidad) {
-        Holding h = holdingRepo.findByUsuarioIdAndSimbolo(usuarioId, simbolo)
-                .orElseThrow(() -> new HoldingInsuficienteException(
-                        "No tienes posición en " + simbolo));
+    public void registrarVenta(Long inversionistaId, Long activoId, BigDecimal cantidad) {
+        Holding h = holdingRepo.findByInversionistaIdAndActivoId(inversionistaId, activoId)
+                .orElseThrow(() -> new HoldingInsuficienteException("No tienes posicion en el activo " + activoId));
         if (h.getCantidad().compareTo(cantidad) < 0) {
             throw new HoldingInsuficienteException(
-                    "Cantidad insuficiente en " + simbolo + ". Disponible: " + h.getCantidad());
+                    "Cantidad insuficiente. Disponible: " + h.getCantidad());
         }
-        BigDecimal nueva = h.getCantidad().subtract(cantidad);
-        h.setCantidad(nueva);
+        h.setCantidad(h.getCantidad().subtract(cantidad));
         h.setActualizadoEn(LocalDateTime.now());
         holdingRepo.save(h);
     }
 
-    /** Verifica si el usuario tiene suficiente cantidad del símbolo para vender. */
-    public void verificarHolding(Long usuarioId, String simbolo, BigDecimal cantidad) {
-        Holding h = holdingRepo.findByUsuarioIdAndSimbolo(usuarioId, simbolo)
-                .orElseThrow(() -> new HoldingInsuficienteException(
-                        "No tienes posición en " + simbolo));
+    public void verificarHolding(Long inversionistaId, Long activoId, BigDecimal cantidad) {
+        Holding h = holdingRepo.findByInversionistaIdAndActivoId(inversionistaId, activoId)
+                .orElseThrow(() -> new HoldingInsuficienteException("No tienes posicion en el activo " + activoId));
         if (h.getCantidad().compareTo(cantidad) < 0) {
             throw new HoldingInsuficienteException(
-                    "Cantidad insuficiente en " + simbolo + ". Disponible: " + h.getCantidad());
+                    "Cantidad insuficiente. Disponible: " + h.getCantidad());
         }
+    }
+
+    /** Resuelve simbolo a activoId, creando el Activo si no existe. */
+    public Long resolverOCrearActivo(String simbolo) {
+        return activoRepo.findByTicker(simbolo)
+                .map(Activo::getId)
+                .orElseGet(() -> {
+                    Activo nuevo = new Activo();
+                    nuevo.setTicker(simbolo);
+                    nuevo.setNombreEmpresa(simbolo);
+                    nuevo.setTipo(simbolo.contains(".") ? "GLOBAL" : "US");
+                    return activoRepo.save(nuevo).getId();
+                });
     }
 }

@@ -4,19 +4,25 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * PK = activo_id (shared con Activo.id). Un registro de precio por activo.
+ */
 @Entity
 @Table(name = "precio_cache")
 public class PrecioCache {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "activo_id")
+    private Long activoId;
 
     @Column(name = "simbolo", nullable = false, unique = true, length = 20)
     private String simbolo;
 
-    @Column(name = "nombre_empresa", length = 100)
+    @Column(name = "nombre_empresa", length = 200)
     private String nombreEmpresa;
+
+    @Column(name = "mercado", length = 20)
+    private String mercado;
 
     @Column(name = "precio_actual", precision = 18, scale = 4)
     private BigDecimal precioActual;
@@ -39,27 +45,25 @@ public class PrecioCache {
     @Column(name = "volumen")
     private Long volumen;
 
-    @Column(name = "mercado", length = 20)
-    private String mercado;
-
-    // "ALPACA" para mercados US, "ALPHAVANTAGE" para globales
     @Column(name = "fuente", length = 20)
     private String fuente;
 
     @Column(name = "actualizado_en", nullable = false)
     private LocalDateTime actualizadoEn;
 
-    public PrecioCache() {
-    }
+    public PrecioCache() {}
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getActivoId() { return activoId; }
+    public void setActivoId(Long activoId) { this.activoId = activoId; }
 
     public String getSimbolo() { return simbolo; }
     public void setSimbolo(String simbolo) { this.simbolo = simbolo; }
 
     public String getNombreEmpresa() { return nombreEmpresa; }
     public void setNombreEmpresa(String nombreEmpresa) { this.nombreEmpresa = nombreEmpresa; }
+
+    public String getMercado() { return mercado; }
+    public void setMercado(String mercado) { this.mercado = mercado; }
 
     public BigDecimal getPrecioActual() { return precioActual; }
     public void setPrecioActual(BigDecimal precioActual) { this.precioActual = precioActual; }
@@ -81,9 +85,6 @@ public class PrecioCache {
 
     public Long getVolumen() { return volumen; }
     public void setVolumen(Long volumen) { this.volumen = volumen; }
-
-    public String getMercado() { return mercado; }
-    public void setMercado(String mercado) { this.mercado = mercado; }
 
     public String getFuente() { return fuente; }
     public void setFuente(String fuente) { this.fuente = fuente; }

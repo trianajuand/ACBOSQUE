@@ -5,12 +5,15 @@ import co.edu.unbosque.accioneselbosque.autenticacion.dto.ComisionistaAsignadoDT
 import co.edu.unbosque.accioneselbosque.autenticacion.interfaces.IAsignacionComisionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.AsignacionComisionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Comisionista;
+import co.edu.unbosque.accioneselbosque.autenticacion.model.Especialidad;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.EstadoCuenta;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Inversionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Rol;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.AsignacionComisionistaRepository;
+import co.edu.unbosque.accioneselbosque.autenticacion.repository.ComisionistaEspecialidadRepository;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.ComisionistaRepository;
+import co.edu.unbosque.accioneselbosque.autenticacion.repository.EspecialidadRepository;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.InversionistaRepository;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
 import co.edu.unbosque.accioneselbosque.shared.exceptions.UsuarioNoEncontradoException;
@@ -38,17 +41,23 @@ public class AsignacionComisionistaService implements IAsignacionComisionista {
     private final UsuarioRepository usuarioRepo;
     private final InversionistaRepository inversionistaRepo;
     private final ComisionistaRepository comisionistaRepo;
+    private final ComisionistaEspecialidadRepository comisionistaEspecialidadRepo;
+    private final EspecialidadRepository especialidadRepo;
     private final IAuditLog auditLog;
 
     public AsignacionComisionistaService(AsignacionComisionistaRepository asignacionRepo,
                                          UsuarioRepository usuarioRepo,
                                          InversionistaRepository inversionistaRepo,
                                          ComisionistaRepository comisionistaRepo,
+                                         ComisionistaEspecialidadRepository comisionistaEspecialidadRepo,
+                                         EspecialidadRepository especialidadRepo,
                                          IAuditLog auditLog) {
         this.asignacionRepo = asignacionRepo;
         this.usuarioRepo = usuarioRepo;
         this.inversionistaRepo = inversionistaRepo;
         this.comisionistaRepo = comisionistaRepo;
+        this.comisionistaEspecialidadRepo = comisionistaEspecialidadRepo;
+        this.especialidadRepo = especialidadRepo;
         this.auditLog = auditLog;
     }
 
@@ -80,14 +89,9 @@ public class AsignacionComisionistaService implements IAsignacionComisionista {
                 .findFirst()
                 .orElse(comisionistas.get(0));
 
-        List<String> coincidencias = coincidencias(intereses, normalizarCsv(especialidadesMercado(elegido)));
         AsignacionComisionista asignacion = new AsignacionComisionista();
         asignacion.setInversionistaId(inversionista.getId());
         asignacion.setComisionistaId(elegido.getId());
-        asignacion.setInteresesCoincidentes(String.join(",", coincidencias));
-        asignacion.setMotivo(coincidencias.isEmpty()
-                ? "Asignacion por menor carga de clientes"
-                : "Asignacion por intereses: " + String.join(", ", coincidencias));
         asignacion.setActiva(true);
         asignacion.setFechaAsignacion(LocalDateTime.now());
         asignacionRepo.save(asignacion);
@@ -142,8 +146,6 @@ public class AsignacionComisionistaService implements IAsignacionComisionista {
         dto.setCorreo(comisionista.getCorreo());
         dto.setEspecialidadesMercado(new ArrayList<>(normalizarCsv(especialidadesMercado(comisionista))));
         dto.setFechaAsignacion(asignacion.getFechaAsignacion());
-        dto.setInteresesCoincidentes(asignacion.getInteresesCoincidentes());
-        dto.setMotivo(asignacion.getMotivo());
         return Optional.of(dto);
     }
 
@@ -162,37 +164,41 @@ public class AsignacionComisionistaService implements IAsignacionComisionista {
             dto.setNivelExperiencia(nivelExperiencia(usuario));
             dto.setInteresesMercado(new ArrayList<>(normalizarCsv(interesesMercado(usuario))));
             dto.setFechaAsignacion(asignacion.getFechaAsignacion());
-            dto.setInteresesCoincidentes(asignacion.getInteresesCoincidentes());
             clientes.add(dto);
         }
         return clientes;
     }
 
     private boolean solicitaComisionista(Usuario usuario) {
-        return inversionistaRepo.findByUsuarioId(usuario.getId())
+        // InversionistaRepository now uses findById(usuarioId) — shared PK
+        return inversionistaRepo.findById(usuario.getId())
                 .map(Inversionista::isSolicitaComisionista)
                 .orElse(false);
     }
 
     private String interesesMercado(Usuario usuario) {
-        return inversionistaRepo.findByUsuarioId(usuario.getId())
+        return inversionistaRepo.findById(usuario.getId())
                 .map(Inversionista::getInteresesMercado)
                 .filter(v -> v != null && !v.isBlank())
                 .orElse("");
     }
 
     private String nivelExperiencia(Usuario usuario) {
-        return inversionistaRepo.findByUsuarioId(usuario.getId())
+        return inversionistaRepo.findById(usuario.getId())
                 .map(Inversionista::getNivelExperiencia)
                 .filter(v -> v != null && !v.isBlank())
                 .orElse("");
     }
 
     private String especialidadesMercado(Usuario usuario) {
-        return comisionistaRepo.findByUsuarioId(usuario.getId())
-                .map(Comisionista::getEspecialidadesMercado)
-                .filter(v -> v != null && !v.isBlank())
-                .orElse("");
+        List<String> titulos = comisionistaEspecialidadRepo.findByComisionistaId(usuario.getId())
+                .stream()
+                .map(ce -> especialidadRepo.findById(ce.getEspecialidadId())
+                        .map(Especialidad::getTitulo)
+                        .orElse(""))
+                .filter(t -> !t.isBlank())
+                .toList();
+        return String.join(",", titulos);
     }
 
     private Set<String> normalizarCsv(String csv) {

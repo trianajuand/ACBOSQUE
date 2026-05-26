@@ -1,11 +1,14 @@
 package co.edu.unbosque.accioneselbosque.ordenes.service;
 
 import co.edu.unbosque.accioneselbosque.autenticacion.model.EstadoCuenta;
-import co.edu.unbosque.accioneselbosque.autenticacion.model.Inversionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
-import co.edu.unbosque.accioneselbosque.autenticacion.repository.InversionistaRepository;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
+import co.edu.unbosque.accioneselbosque.autenticacion.interfaces.IConsultaInversionista;
 import co.edu.unbosque.accioneselbosque.integracion.adaptadores.alpaca.IIntegracionAlpaca;
+import co.edu.unbosque.accioneselbosque.integracion.notificaciones.ContextoNotificacion;
+import co.edu.unbosque.accioneselbosque.integracion.notificaciones.INotificacion;
+import co.edu.unbosque.accioneselbosque.mercado.model.Activo;
+import co.edu.unbosque.accioneselbosque.mercado.repository.ActivoRepository;
 import co.edu.unbosque.accioneselbosque.ordenes.model.EstadoOrden;
 import co.edu.unbosque.accioneselbosque.ordenes.model.Orden;
 import co.edu.unbosque.accioneselbosque.ordenes.model.TipoLado;
@@ -21,13 +24,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 
 /**
  * Procesa las órdenes EN_COLA al abrir el mercado (HU-23, EC-04).
- * Se ejecuta cada minuto verificando si el mercado acaba de abrir.
  */
 @Service
 public class ColaOrdenesService {
@@ -36,32 +37,34 @@ public class ColaOrdenesService {
 
     private final OrdenRepository ordenRepo;
     private final UsuarioRepository usuarioRepo;
-    private final InversionistaRepository inversionistaRepo;
+    private final ActivoRepository activoRepo;
     private final IIntegracionAlpaca alpaca;
     private final SaldoService saldoService;
     private final PortafolioService portafolioService;
     private final IAuditLog auditLog;
+    private final IConsultaInversionista consultaInversionista;
+    private final INotificacion notificacion;
 
     @Value("${app.comision.porcentaje:2.0}")
     private BigDecimal porcentajeComision;
 
     public ColaOrdenesService(OrdenRepository ordenRepo, UsuarioRepository usuarioRepo,
-                               InversionistaRepository inversionistaRepo,
+                               ActivoRepository activoRepo,
                                IIntegracionAlpaca alpaca, SaldoService saldoService,
-                               PortafolioService portafolioService, IAuditLog auditLog) {
+                               PortafolioService portafolioService, IAuditLog auditLog,
+                               IConsultaInversionista consultaInversionista,
+                               INotificacion notificacion) {
         this.ordenRepo = ordenRepo;
         this.usuarioRepo = usuarioRepo;
-        this.inversionistaRepo = inversionistaRepo;
+        this.activoRepo = activoRepo;
         this.alpaca = alpaca;
         this.saldoService = saldoService;
         this.portafolioService = portafolioService;
         this.auditLog = auditLog;
+        this.consultaInversionista = consultaInversionista;
+        this.notificacion = notificacion;
     }
 
-    /**
-     * Cada minuto revisa si hay órdenes encoladas y el mercado US está abierto.
-     * EC-04: procesa grupos paralelos (aquí secuencial por simplicidad académica).
-     */
     @Scheduled(fixedDelay = 60_000)
     @Transactional
     public void procesarColaAlAbrirMercado() {
@@ -71,6 +74,17 @@ public class ColaOrdenesService {
         if (cola.isEmpty()) return;
 
         log.info("Procesando {} órdenes encoladas al abrir mercado US", cola.size());
+
+        cola.stream()
+                .map(Orden::getInversionistaId)
+                .distinct()
+                .forEach(uid -> {
+                    try {
+                        ContextoNotificacion ctx = ContextoNotificacion.desde(
+                                consultaInversionista.obtenerPreferenciasNotificacion(uid));
+                        notificacion.notificarAperturaMercado(ctx, "NYSE/NASDAQ");
+                    } catch (Exception ignored) {}
+                });
 
         for (Orden orden : cola) {
             try {
@@ -82,75 +96,82 @@ public class ColaOrdenesService {
     }
 
     private void procesarOrdenEncolada(Orden orden) {
-        Usuario usuario = usuarioRepo.findById(orden.getUsuarioId()).orElse(null);
+        Usuario usuario = usuarioRepo.findById(orden.getInversionistaId()).orElse(null);
         if (usuario == null || usuario.getEstadoCuenta() != EstadoCuenta.ACTIVA) {
             orden.setEstado(EstadoOrden.CANCELADA);
             orden.setCanceladaEn(LocalDateTime.now());
             ordenRepo.save(orden);
             if (orden.getLado() == TipoLado.COMPRA) {
-                saldoService.liberarFondosReservados(orden.getUsuarioId(), orden.getMontoNeto());
+                saldoService.liberarFondosReservados(orden.getInversionistaId(), orden.getMontoNeto());
             }
             return;
         }
 
-        // Revalidar fondos para compras
         if (orden.getLado() == TipoLado.COMPRA) {
             try {
-                saldoService.obtenerOCrear(orden.getUsuarioId());
-                // fondos ya están reservados — solo verificar que siguen reservados
+                saldoService.obtenerOCrear(orden.getInversionistaId());
             } catch (Exception e) {
                 orden.setEstado(EstadoOrden.CANCELADA);
                 orden.setCanceladaEn(LocalDateTime.now());
                 ordenRepo.save(orden);
-                auditLog.registrar(TipoEvento.ORDEN_RECHAZADA_FONDOS, orden.getUsuarioId().toString(),
+                auditLog.registrar(TipoEvento.ORDEN_RECHAZADA_FONDOS, orden.getInversionistaId().toString(),
                         "Orden cancelada por fondos insuficientes al abrir mercado id=" + orden.getId());
                 return;
             }
         }
 
-        if (esSimboloUs(orden.getSimbolo())) {
-            // Si ya tiene alpacaOrderId fue enviada al crearla (mercado estaba cerrado).
-            // Solo se promueve a ENVIADA para que sincronizarOrdenesEnviadasConAlpaca la procese.
+        Activo activo = activoRepo.findById(orden.getActivoId()).orElse(null);
+        String ticker = activo != null ? activo.getTicker() : "";
+
+        if (esSimboloUs(ticker)) {
             if (orden.getAlpacaOrderId() != null) {
                 orden.setEstado(EstadoOrden.ENVIADA);
                 ordenRepo.save(orden);
-                auditLog.registrar(TipoEvento.ORDEN_ENVIADA_ALPACA, orden.getUsuarioId().toString(),
+                auditLog.registrar(TipoEvento.ORDEN_ENVIADA_ALPACA, orden.getInversionistaId().toString(),
                         "Orden encolada promovida a ENVIADA (ya en Alpaca): " + orden.getAlpacaOrderId());
                 return;
             }
 
-            Inversionista inversionista = inversionistaRepo.findByUsuarioId(usuario.getId())
-                    .orElseThrow(() -> new IllegalStateException("Inversionista no encontrado para usuario " + usuario.getId()));
-            // Mercado US → Alpaca
+            String alpacaAccountId = consultaInversionista.obtenerAlpacaAccountId(usuario.getId());
+            if (alpacaAccountId == null) {
+                throw new IllegalStateException("Cuenta Alpaca no encontrada para usuario " + usuario.getId());
+            }
             String tipoAlpaca = toAlpacaTipo(orden.getTipoOrden());
             String ladoAlpaca = orden.getLado() == TipoLado.COMPRA ? "buy" : "sell";
             String precioLimite = orden.getPrecioLimite() != null ? orden.getPrecioLimite().toPlainString() : null;
             String precioStop = orden.getPrecioStop() != null ? orden.getPrecioStop().toPlainString() : null;
 
             String alpacaOrderId = alpaca.crearOrden(
-                    inversionista.getAlpacaAccountId(), orden.getSimbolo(), tipoAlpaca,
+                    alpacaAccountId, ticker, tipoAlpaca,
                     ladoAlpaca, orden.getCantidad().toPlainString(), precioLimite, precioStop);
 
             if (alpacaOrderId != null) {
                 orden.setAlpacaOrderId(alpacaOrderId);
                 orden.setEstado(EstadoOrden.ENVIADA);
                 ordenRepo.save(orden);
-                auditLog.registrar(TipoEvento.ORDEN_ENVIADA_ALPACA, orden.getUsuarioId().toString(),
+                auditLog.registrar(TipoEvento.ORDEN_ENVIADA_ALPACA, orden.getInversionistaId().toString(),
                         "Orden encolada US enviada a Alpaca: " + alpacaOrderId);
             } else {
                 log.warn("Fallo al enviar orden encolada id={} a Alpaca", orden.getId());
-                auditLog.registrar(TipoEvento.ORDEN_FALLO_ALPACA, orden.getUsuarioId().toString(),
+                auditLog.registrar(TipoEvento.ORDEN_FALLO_ALPACA, orden.getInversionistaId().toString(),
                         "Fallo al enviar orden encolada id=" + orden.getId());
             }
         } else {
-            // Mercado global -> ejecucion interna al precio actual de Alpha Vantage
+            BigDecimal precioEjec = orden.getMontoTotal()
+                    .divide(orden.getCantidad(), 4, java.math.RoundingMode.HALF_UP);
             orden.setEstado(EstadoOrden.EJECUTADA);
-            orden.setPrecioEjecucion(orden.getMontoTotal()
-                    .divide(orden.getCantidad(), 4, java.math.RoundingMode.HALF_UP));
+            orden.setPrecioEjecucion(precioEjec);
             orden.setEjecutadaEn(java.time.LocalDateTime.now());
             ordenRepo.save(orden);
-            auditLog.registrar(TipoEvento.ORDEN_EJECUTADA, orden.getUsuarioId().toString(),
+            auditLog.registrar(TipoEvento.ORDEN_EJECUTADA, orden.getInversionistaId().toString(),
                     "Orden global encolada ejecutada internamente id=" + orden.getId());
+            try {
+                ContextoNotificacion ctxEjec = ContextoNotificacion.desde(
+                        consultaInversionista.obtenerPreferenciasNotificacion(orden.getInversionistaId()));
+                notificacion.notificarOrdenEjecutada(ctxEjec, ticker,
+                        orden.getTipoOrden().name(), orden.getLado().name(),
+                        precioEjec, orden.getCantidad(), orden.getComision());
+            } catch (Exception ignored) {}
         }
     }
 

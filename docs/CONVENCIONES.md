@@ -99,7 +99,7 @@
 
 ### 2.3 Códigos de verificación (registro, MFA, recuperación)
 
-- 6 dígitos numéricos para registro/MFA, 64 chars hex para recuperación de contraseña.
+- 6 dígitos numéricos para registro/MFA **y también para recuperación de contraseña** (el código real usa `String.format("%06d", random.nextInt(1_000_000))` en `RecuperacionPasswordService`). La especificación original de 64 chars hex para recuperación no fue implementada; el equipo optó por 6 dígitos por consistencia con el flujo MFA.
 - TTL 10 min para registro/MFA, 30 min para recuperación.
 - Un solo uso (campo `usado` boolean en entidad `CodigoVerificacion`).
 - **Persistidos en BD**, no en `ConcurrentHashMap` en memoria (prohibido — el proyecto Malwatcher hacía esto y no escala con múltiples instancias).
@@ -107,7 +107,7 @@
 ### 2.4 Bloqueo de cuenta (Lock Computer EC-09)
 
 - 5 intentos fallidos en ventana móvil de 15 min → cuenta bloqueada 15 min.
-- Tabla `intento_fallido` con (correo, ip, timestamp, exitoso boolean).
+- Tabla `intento_fallido` con columnas reales: `correo` (UNIQUE), `contador`, `bloqueado_hasta`, `ultimo_intento`. Una fila por correo con contador acumulado. La IP se registra como texto en el detalle de `IAuditLog`, no en esta tabla.
 - Al bloquear: `IAuditLog.registrar(CUENTA_BLOQUEADA, ...)` + `INotificacion.notificarBloqueo(usuario)`.
 
 ### 2.5 Secretos

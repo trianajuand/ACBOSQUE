@@ -17,13 +17,13 @@ public class PerfilInversionistaDTO {
     private String codigoPostal;
     private String pais;
     private String estiloTrading;
-    private String rangoIngresos;
     private boolean solicitaComisionista;
     private ComisionistaAsignadoDTO comisionistaAsignado;
     private boolean mfaHabilitado;
     private String planSuscripcion;
     private boolean esPremium;
     // Preferencias de notificación
+    private boolean notificacionesActivas;
     private boolean notificacionEmail;
     private boolean notificacionSms;
     private boolean notificacionWhatsapp;
@@ -73,9 +73,6 @@ public class PerfilInversionistaDTO {
     public String getEstiloTrading() { return estiloTrading; }
     public void setEstiloTrading(String estiloTrading) { this.estiloTrading = estiloTrading; }
 
-    public String getRangoIngresos() { return rangoIngresos; }
-    public void setRangoIngresos(String rangoIngresos) { this.rangoIngresos = rangoIngresos; }
-
     public boolean isSolicitaComisionista() { return solicitaComisionista; }
     public void setSolicitaComisionista(boolean solicitaComisionista) { this.solicitaComisionista = solicitaComisionista; }
 
@@ -90,6 +87,9 @@ public class PerfilInversionistaDTO {
 
     public boolean isEsPremium() { return esPremium; }
     public void setEsPremium(boolean esPremium) { this.esPremium = esPremium; }
+
+    public boolean isNotificacionesActivas() { return notificacionesActivas; }
+    public void setNotificacionesActivas(boolean notificacionesActivas) { this.notificacionesActivas = notificacionesActivas; }
 
     public boolean isNotificacionEmail() { return notificacionEmail; }
     public void setNotificacionEmail(boolean notificacionEmail) { this.notificacionEmail = notificacionEmail; }

@@ -7,10 +7,13 @@ import co.edu.unbosque.accioneselbosque.autenticacion.dto.PreferenciasOperacionD
 import co.edu.unbosque.accioneselbosque.autenticacion.interfaces.IAsignacionComisionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Inversionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Rol;
+import co.edu.unbosque.accioneselbosque.autenticacion.model.Suscripcion;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.InversionistaRepository;
+import co.edu.unbosque.accioneselbosque.autenticacion.repository.SuscripcionRepository;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
 import co.edu.unbosque.accioneselbosque.integracion.adaptadores.stripe.IIntegracionStripe;
+import co.edu.unbosque.accioneselbosque.integracion.orquestadores.OrquestadorSuscripcion;
 import co.edu.unbosque.accioneselbosque.shared.exceptions.UsuarioNoEncontradoException;
 import co.edu.unbosque.accioneselbosque.trazabilidad.interfaces.IAuditLog;
 import co.edu.unbosque.accioneselbosque.trazabilidad.model.TipoEvento;
@@ -20,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -29,19 +31,25 @@ public class PerfilService {
 
     private final UsuarioRepository usuarioRepository;
     private final InversionistaRepository inversionistaRepository;
+    private final SuscripcionRepository suscripcionRepository;
     private final IAsignacionComisionista asignacionComisionista;
     private final IIntegracionStripe stripe;
+    private final OrquestadorSuscripcion orquestadorSuscripcion;
     private final IAuditLog auditLog;
 
     public PerfilService(UsuarioRepository usuarioRepository,
                          InversionistaRepository inversionistaRepository,
+                         SuscripcionRepository suscripcionRepository,
                          IAsignacionComisionista asignacionComisionista,
                          IIntegracionStripe stripe,
+                         OrquestadorSuscripcion orquestadorSuscripcion,
                          IAuditLog auditLog) {
         this.usuarioRepository = usuarioRepository;
         this.inversionistaRepository = inversionistaRepository;
+        this.suscripcionRepository = suscripcionRepository;
         this.asignacionComisionista = asignacionComisionista;
         this.stripe = stripe;
+        this.orquestadorSuscripcion = orquestadorSuscripcion;
         this.auditLog = auditLog;
     }
 
@@ -58,15 +66,13 @@ public class PerfilService {
         Usuario u = buscarPorCorreo(correo);
         Inversionista inversionista = obtenerOCrearInversionista(u);
         u.setNombreCompleto(dto.getNombreCompleto());
-        inversionista.setNivelExperiencia(dto.getNivelExperiencia());
-        if (dto.getInteresesMercado() != null) {
-            String intereses = String.join(",", dto.getInteresesMercado());
-            inversionista.setInteresesMercado(intereses);
-        }
         if (dto.getTelefono() != null) {
-            inversionista.setTelefono(dto.getTelefono());
+            u.setTelefono(dto.getTelefono());
         }
-        u.setFechaActualizacion(LocalDateTime.now());
+        inversionista.setNivelExperiencia(dto.getNivelExperiencia());
+        if (dto.getInteresesMercado() != null && !dto.getInteresesMercado().isEmpty()) {
+            inversionista.setInteresesMercado(String.join(",", dto.getInteresesMercado()));
+        }
         inversionista.setFechaActualizacion(LocalDateTime.now());
         usuarioRepository.save(u);
         inversionistaRepository.save(inversionista);
@@ -77,18 +83,19 @@ public class PerfilService {
     @Transactional
     public void actualizarPreferenciasNotificacion(String correo, PreferenciasNotificacionDTO dto) {
         Usuario u = buscarPorCorreo(correo);
-        Inversionista inversionista = obtenerOCrearInversionista(u);
-        inversionista.setNotificacionEmail(dto.isNotificacionEmail());
-        inversionista.setNotificacionSms(dto.isNotificacionSms());
-        inversionista.setNotificacionWhatsapp(dto.isNotificacionWhatsapp());
-        if (dto.getTiposNotificacion() != null) {
-            String tipos = String.join(",", dto.getTiposNotificacion());
-            inversionista.setTiposNotificacion(tipos);
-        }
-        u.setFechaActualizacion(LocalDateTime.now());
-        inversionista.setFechaActualizacion(LocalDateTime.now());
+        u.setNotificacionesActivas(dto.isNotificacionesActivas());
+        u.setNotificacionEmail(dto.isNotificacionEmail());
+        u.setNotificacionSms(dto.isNotificacionSms());
+        u.setNotificacionWhatsapp(dto.isNotificacionWhatsapp());
         usuarioRepository.save(u);
+
+        Inversionista inversionista = obtenerOCrearInversionista(u);
+        if (dto.getTiposNotificacion() != null && !dto.getTiposNotificacion().isEmpty()) {
+            inversionista.setTipoNotificacion(String.join(",", dto.getTiposNotificacion()));
+        }
+        inversionista.setFechaActualizacion(LocalDateTime.now());
         inversionistaRepository.save(inversionista);
+
         auditLog.registrar(TipoEvento.PREFERENCIAS_NOTIFICACION_ACTUALIZADAS, correo,
                 "Canales: email=" + dto.isNotificacionEmail() + " sms=" + dto.isNotificacionSms());
     }
@@ -100,7 +107,6 @@ public class PerfilService {
         Inversionista inversionista = obtenerOCrearInversionista(u);
         inversionista.setTipoOrdenDefault(dto.getTipoOrdenDefault());
         inversionista.setVistaPortafolio(dto.getVistaPortafolio());
-        u.setFechaActualizacion(LocalDateTime.now());
         inversionista.setFechaActualizacion(LocalDateTime.now());
         usuarioRepository.save(u);
         inversionistaRepository.save(inversionista);
@@ -117,7 +123,6 @@ public class PerfilService {
                     "Solo los inversionistas regulares pueden modificar el MFA opcional");
         }
         u.setMfaHabilitado(activar);
-        u.setFechaActualizacion(LocalDateTime.now());
         usuarioRepository.save(u);
         TipoEvento evento = activar ? TipoEvento.MFA_ACTIVADO : TipoEvento.MFA_DESACTIVADO;
         auditLog.registrar(evento, correo, "MFA " + (activar ? "activado" : "desactivado") + " por el usuario");
@@ -127,23 +132,21 @@ public class PerfilService {
     @Transactional
     public void cancelarSuscripcion(String correo) {
         Usuario u = buscarPorCorreo(correo);
-        Inversionista inversionista = obtenerOCrearInversionista(u);
-        if (!Boolean.TRUE.equals(inversionista.isEsPremium())) {
+        Suscripcion suscripcion = suscripcionRepository.findById(u.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "No tienes una suscripcion premium activa"));
+        if (!suscripcion.isEsPremium()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No tienes una suscripcion premium activa");
         }
-        if (inversionista.getStripeSuscripcionId() != null) {
+        if (suscripcion.getStripeSuscripcionId() != null) {
             try {
-                stripe.cancelarSuscripcion(inversionista.getStripeSuscripcionId());
-            } catch (Exception ignored) {
-                // Stripe puede estar en modo placeholder; se cancela igual localmente
-            }
+                stripe.cancelarSuscripcion(suscripcion.getStripeSuscripcionId());
+            } catch (Exception ignored) {}
+            suscripcion.setStripeSuscripcionId(null);
         }
-        inversionista.setEsPremium(false);
-        inversionista.setPlanSuscripcion("BASICO");
-        inversionista.setStripeSuscripcionId(null);
-        inversionista.setFechaExpiracionPremium(null);
-        inversionista.setFechaActualizacion(java.time.LocalDateTime.now());
-        inversionistaRepository.save(inversionista);
+        suscripcion.setEsPremium(false);
+        suscripcion.setPlanSuscripcion("BASICO");
+        suscripcion.setFechaExpiracionPremium(null);
+        suscripcionRepository.save(suscripcion);
         auditLog.registrar(TipoEvento.SUSCRIPCION_PREMIUM_CANCELADA, correo,
                 "Suscripcion premium cancelada por el usuario");
     }
@@ -157,12 +160,30 @@ public class PerfilService {
         }
         Inversionista inversionista = obtenerOCrearInversionista(u);
         inversionista.setSolicitaComisionista(true);
-        inversionista.setFechaActualizacion(LocalDateTime.now());
         inversionistaRepository.save(inversionista);
         boolean asignado = asignacionComisionista.asignarSiSolicitado(u).isPresent();
         auditLog.registrar(asignado ? TipoEvento.COMISIONISTA_ASIGNADO : TipoEvento.COMISIONISTA_ASIGNACION_FALLIDA, correo,
                 asignado ? "Solicitud de comisionista atendida desde perfil" : "Solicitud de comisionista registrada sin asignacion inmediata");
         return asignado;
+    }
+
+    @Transactional
+    public String iniciarUpgradePremium(String correo, String plan) {
+        Usuario u = buscarPorCorreo(correo);
+        Suscripcion suscripcion = suscripcionRepository.findById(u.getId()).orElseGet(() -> {
+            Suscripcion s = new Suscripcion();
+            s.setInversionistaId(u.getId());
+            return s;
+        });
+        if (suscripcion.isEsPremium()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ya tienes una suscripcion premium activa");
+        }
+        String planNorm = plan != null ? plan.toUpperCase() : "PREMIUM_MENSUAL";
+        suscripcion.setPlanSuscripcion(planNorm);
+        suscripcionRepository.save(suscripcion);
+        String url = orquestadorSuscripcion.iniciarSuscripcion(u);
+        auditLog.registrar(TipoEvento.SUSCRIPCION_PREMIUM_INICIADA, correo, "Upgrade iniciado: " + planNorm);
+        return url;
     }
 
     private Usuario buscarPorCorreo(String correo) {
@@ -171,62 +192,54 @@ public class PerfilService {
     }
 
     private PerfilInversionistaDTO mapearDTO(Usuario u) {
-        Inversionista i = inversionistaRepository.findByUsuarioId(u.getId()).orElse(null);
+        Inversionista i = inversionistaRepository.findById(u.getId()).orElse(null);
+        Suscripcion s = suscripcionRepository.findById(u.getId()).orElse(null);
+
         PerfilInversionistaDTO dto = new PerfilInversionistaDTO();
         dto.setNombreCompleto(u.getNombreCompleto());
         dto.setCorreo(u.getCorreo());
         dto.setNivelExperiencia(i != null ? i.getNivelExperiencia() : null);
-        dto.setTelefono(i != null ? i.getTelefono() : null);
-        dto.setTipoIdentificacion(i != null ? i.getTipoIdentificacion() : null);
-        dto.setNumeroIdentificacion(i != null ? i.getNumeroIdentificacion() : null);
-        dto.setFechaNacimiento(i != null ? i.getFechaNacimiento() : null);
+        dto.setTelefono(u.getTelefono());
+        dto.setTipoIdentificacion(i != null ? i.getTipoIdentificacion() : u.getTipoIdentificacion());
+        dto.setNumeroIdentificacion(u.getNumeroIdentificacion());
+        dto.setFechaNacimiento(u.getFechaNacimiento() != null ? u.getFechaNacimiento().toString() : null);
         dto.setDireccion(i != null ? i.getDireccion() : null);
         dto.setCiudad(i != null ? i.getCiudad() : null);
         dto.setCodigoPostal(i != null ? i.getCodigoPostal() : null);
         dto.setPais(i != null ? i.getPais() : null);
         dto.setEstiloTrading(i != null ? i.getEstiloTrading() : null);
-        dto.setRangoIngresos(i != null ? i.getRangoIngresos() : null);
         dto.setSolicitaComisionista(i != null && i.isSolicitaComisionista());
         dto.setComisionistaAsignado(asignacionComisionista.obtenerComisionistaAsignado(u.getId()).orElse(null));
         dto.setMfaHabilitado(u.isMfaHabilitado());
-        dto.setPlanSuscripcion(i != null && i.getPlanSuscripcion() != null ? i.getPlanSuscripcion() : "BASICO");
-        dto.setEsPremium(i != null && i.isEsPremium());
-        dto.setNotificacionEmail(i == null || i.isNotificacionEmail());
-        dto.setNotificacionSms(i != null && i.isNotificacionSms());
-        dto.setNotificacionWhatsapp(i != null && i.isNotificacionWhatsapp());
+        dto.setPlanSuscripcion(s != null && s.getPlanSuscripcion() != null ? s.getPlanSuscripcion() : "BASICO");
+        dto.setEsPremium(s != null && s.isEsPremium());
+        dto.setNotificacionesActivas(u.isNotificacionesActivas());
+        dto.setNotificacionEmail(u.isNotificacionEmail());
+        dto.setNotificacionSms(u.isNotificacionSms());
+        dto.setNotificacionWhatsapp(u.isNotificacionWhatsapp());
         dto.setTipoOrdenDefault(i != null ? i.getTipoOrdenDefault() : null);
         dto.setVistaPortafolio(i != null ? i.getVistaPortafolio() : null);
-
-        dto.setInteresesMercado(splitCsv(i != null ? i.getInteresesMercado() : null));
-        dto.setTiposNotificacion(splitCsv(i != null ? i.getTiposNotificacion() : null));
+        String tipoNotif = i != null ? i.getTipoNotificacion() : null;
+        dto.setTiposNotificacion(tipoNotif != null ? List.of(tipoNotif.split(",")) : Collections.emptyList());
+        String intereses = i != null ? i.getInteresesMercado() : null;
+        dto.setInteresesMercado(intereses != null && !intereses.isBlank()
+                ? List.of(intereses.split(","))
+                : Collections.emptyList());
         return dto;
     }
 
     private Inversionista obtenerOCrearInversionista(Usuario usuario) {
-        return inversionistaRepository.findByUsuarioId(usuario.getId())
+        return inversionistaRepository.findById(usuario.getId())
                 .orElseGet(() -> {
                     Inversionista inversionista = new Inversionista();
-                    inversionista.setUsuarioId(usuario.getId());
+                    inversionista.setId(usuario.getId());
                     inversionista.setNivelExperiencia("PRINCIPIANTE");
-                    inversionista.setInteresesMercado("AAPL,MSFT,TSLA");
                     inversionista.setPais("CO");
                     inversionista.setSolicitaComisionista(false);
-                    inversionista.setNotificacionEmail(true);
-                    inversionista.setNotificacionSms(false);
-                    inversionista.setNotificacionWhatsapp(false);
-                    inversionista.setTiposNotificacion("ORDENES,MERCADO,SEGURIDAD");
                     inversionista.setTipoOrdenDefault("MARKET");
                     inversionista.setVistaPortafolio("LISTA");
-                    inversionista.setPlanSuscripcion("BASICO");
-                    inversionista.setEsPremium(false);
-                    inversionista.setPendienteCuentaAlpaca(false);
                     inversionista.setFechaCreacion(LocalDateTime.now());
                     return inversionista;
                 });
-    }
-
-    private List<String> splitCsv(String csv) {
-        if (csv == null || csv.isBlank()) return Collections.emptyList();
-        return Arrays.asList(csv.split(","));
     }
 }

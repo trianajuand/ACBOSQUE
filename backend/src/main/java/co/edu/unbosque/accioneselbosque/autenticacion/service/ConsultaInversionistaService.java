@@ -1,5 +1,6 @@
 package co.edu.unbosque.accioneselbosque.autenticacion.service;
 
+import co.edu.unbosque.accioneselbosque.autenticacion.dto.NotificacionPreferenciasDTO;
 import co.edu.unbosque.accioneselbosque.autenticacion.interfaces.IConsultaInversionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.EstadoCuenta;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Inversionista;
@@ -48,7 +49,7 @@ public class ConsultaInversionistaService implements IConsultaInversionista {
     @Override
     @Transactional(readOnly = true)
     public String obtenerAlpacaAccountId(Long usuarioId) {
-        return inversionistaRepo.findByUsuarioId(usuarioId)
+        return inversionistaRepo.findById(usuarioId)
                 .map(Inversionista::getAlpacaAccountId)
                 .orElse(null);
     }
@@ -56,7 +57,7 @@ public class ConsultaInversionistaService implements IConsultaInversionista {
     @Override
     @Transactional(readOnly = true)
     public boolean necesitaCuentaAlpaca(Long usuarioId) {
-        return inversionistaRepo.findByUsuarioId(usuarioId)
+        return inversionistaRepo.findById(usuarioId)
                 .map(i -> i.getAlpacaAccountId() == null)
                 .orElse(true);
     }
@@ -64,18 +65,34 @@ public class ConsultaInversionistaService implements IConsultaInversionista {
     @Override
     @Transactional
     public void actualizarAlpacaAccountId(Long usuarioId, String alpacaAccountId) {
-        inversionistaRepo.findByUsuarioId(usuarioId).ifPresent(inversionista -> {
-            inversionista.setAlpacaAccountId(alpacaAccountId);
-            inversionista.setPendienteCuentaAlpaca(false);
-            inversionistaRepo.save(inversionista);
-        });
+        Inversionista inversionista = inversionistaRepo.findById(usuarioId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Inversionista no encontrado"));
+        inversionista.setAlpacaAccountId(alpacaAccountId);
+        inversionista.setPendienteCuentaAlpaca(false);
+        inversionistaRepo.save(inversionista);
     }
 
     @Override
     @Transactional(readOnly = true)
     public String obtenerVistaPortafolio(Long usuarioId) {
-        return inversionistaRepo.findByUsuarioId(usuarioId)
+        return inversionistaRepo.findById(usuarioId)
                 .map(Inversionista::getVistaPortafolio)
                 .orElse("RESUMEN");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public NotificacionPreferenciasDTO obtenerPreferenciasNotificacion(Long usuarioId) {
+        Usuario usuario = usuarioRepo.findById(usuarioId).orElse(null);
+        if (usuario == null) return null;
+        return new NotificacionPreferenciasDTO(
+                usuario.getCorreo(),
+                usuario.getNombreCompleto(),
+                usuario.getTelefono(),
+                usuario.isNotificacionesActivas(),
+                usuario.isNotificacionEmail(),
+                usuario.isNotificacionSms(),
+                usuario.isNotificacionWhatsapp()
+        );
     }
 }

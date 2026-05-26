@@ -26,6 +26,9 @@ public interface IIntegracionAlpaca {
 
     List<Map<String, Object>> obtenerPosiciones(String accountId);
 
+    // --- Sandbox: fondear cuenta via Journals API ---
+    boolean fondearCuentaSandbox(String accountId, String monto);
+
     // --- Market Data (US stocks) ---
     Map<String, Object> obtenerSnapshot(String simbolo);
 
