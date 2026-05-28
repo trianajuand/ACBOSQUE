@@ -6,6 +6,8 @@ import co.edu.unbosque.accioneselbosque.autenticacion.model.*;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.*;
 import co.edu.unbosque.accioneselbosque.trazabilidad.interfaces.IAuditLog;
 import co.edu.unbosque.accioneselbosque.trazabilidad.model.TipoEvento;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,20 +20,37 @@ import java.util.*;
 @Service
 public class GestionCuentasService implements IGestionCuentas {
 
+    private static final Logger log = LoggerFactory.getLogger(GestionCuentasService.class);
+
     private final UsuarioRepository usuarioRepo;
+    private final InversionistaRepository inversionistaRepo;
     private final ComisionistaRepository comisionistaRepo;
+    private final ComisionistaEspecialidadRepository comisionistaEspecialidadRepo;
     private final AsignacionComisionistaRepository asignacionRepo;
+    private final CodigoVerificacionRepository codigoVerificacionRepo;
+    private final IntentoFallidoRepository intentoFallidoRepo;
+    private final SuscripcionRepository suscripcionRepo;
     private final PasswordEncoder passwordEncoder;
     private final IAuditLog auditLog;
 
     public GestionCuentasService(UsuarioRepository usuarioRepo,
+                                  InversionistaRepository inversionistaRepo,
                                   ComisionistaRepository comisionistaRepo,
+                                  ComisionistaEspecialidadRepository comisionistaEspecialidadRepo,
                                   AsignacionComisionistaRepository asignacionRepo,
+                                  CodigoVerificacionRepository codigoVerificacionRepo,
+                                  IntentoFallidoRepository intentoFallidoRepo,
+                                  SuscripcionRepository suscripcionRepo,
                                   PasswordEncoder passwordEncoder,
                                   IAuditLog auditLog) {
         this.usuarioRepo = usuarioRepo;
+        this.inversionistaRepo = inversionistaRepo;
         this.comisionistaRepo = comisionistaRepo;
+        this.comisionistaEspecialidadRepo = comisionistaEspecialidadRepo;
         this.asignacionRepo = asignacionRepo;
+        this.codigoVerificacionRepo = codigoVerificacionRepo;
+        this.intentoFallidoRepo = intentoFallidoRepo;
+        this.suscripcionRepo = suscripcionRepo;
         this.passwordEncoder = passwordEncoder;
         this.auditLog = auditLog;
     }
@@ -103,16 +122,34 @@ public class GestionCuentasService implements IGestionCuentas {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
         if (usuario.getRol() == Rol.ADMINISTRADOR) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "No se elimina administradores desde este modulo");
+                    "No se puede dar de baja a un administrador");
         }
-        usuario.setEstadoCuenta(EstadoCuenta.INACTIVA);
-        usuarioRepo.save(usuario);
-        asignacionRepo.findByInversionistaIdAndActivaTrue(usuarioId).ifPresent(a -> {
-            a.setActiva(false);
-            asignacionRepo.save(a);
-        });
+        String correo = usuario.getCorreo();
+        Rol rol = usuario.getRol();
+
+        // 1. Asignaciones de comisionista (como inversionista o como comisionista)
+        asignacionRepo.deleteByInversionistaId(usuarioId);
+        if (rol == Rol.COMISIONISTA) {
+            asignacionRepo.deleteByComisionistaId(usuarioId);
+            comisionistaEspecialidadRepo.deleteByComisionistaId(usuarioId);
+            comisionistaRepo.deleteById(usuarioId);
+        }
+
+        // 2. Datos de perfil inversionista
+        if (rol == Rol.INVERSIONISTA || rol == Rol.INVERSIONISTA_PREMIUM) {
+            try { suscripcionRepo.deleteByInversionistaId(usuarioId); } catch (Exception e) { log.warn("No se pudo borrar suscripcion de {}", usuarioId); }
+            inversionistaRepo.deleteById(usuarioId);
+        }
+
+        // 3. Códigos de verificación e intentos fallidos (por correo)
+        try { codigoVerificacionRepo.deleteByCorreo(correo); } catch (Exception e) { log.warn("No se pudo borrar codigos de {}", correo); }
+        try { intentoFallidoRepo.deleteByCorreo(correo); } catch (Exception e) { log.warn("No se pudo borrar intentos de {}", correo); }
+
+        // 4. Usuario
+        usuarioRepo.deleteById(usuarioId);
+
         auditLog.registrar(TipoEvento.USUARIO_ADMIN_GESTIONADO, adminCorreo,
-                "Baja logica de usuario: " + usuario.getCorreo());
+                "Baja definitiva de usuario: " + correo);
     }
 
     @Override

@@ -11,4 +11,6 @@ public interface CodigoVerificacionRepository extends CrudRepository<CodigoVerif
     Optional<CodigoVerificacion> findByCorreoAndTipoAndUsadoFalse(String correo, TipoCodigo tipo);
 
     void deleteByCorreoAndTipo(String correo, TipoCodigo tipo);
+
+    void deleteByCorreo(String correo);
 }

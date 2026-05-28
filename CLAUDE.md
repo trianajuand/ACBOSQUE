@@ -12,7 +12,7 @@
 | `docs/ESCENARIOS_CALIDAD.md` | Para conocer los 23 escenarios de calidad (EC-01 a EC-23) y las tácticas asociadas. **Cada vez que un cambio toque seguridad, rendimiento, disponibilidad o trazabilidad, revisar acá.** |
 | `docs/HISTORIAS_USUARIO.md` | Para el detalle de cada HU (criterios de aceptación, prioridad, épica). |
 | `docs/ARQUITECTURA.md` | Para la estructura de los 6 módulos del Monolito Modular, interfaces expuestas, despliegue, y estructura de carpetas. **Consultar antes de crear cualquier archivo nuevo.** |
-| `docs/CONVENCIONES.md` | Para reglas de naming, estilo Java, Angular, manejo de errores, secretos, y mejoras vs. el proyecto Malwatcher previo. **Consultar antes de escribir código.** |
+| `docs/CONVENCIONES.md` | Para reglas de naming, estilo Java, Angular, manejo de errores, secretos, y mejoras. **Consultar antes de escribir código.** |
 | `docs/PROGRESO.md` | Para saber qué quedó hecho, qué está en progreso, y qué sigue. **Actualizar siempre al terminar una historia.** |
 
 ---
@@ -48,12 +48,12 @@
 2. **Comunicación entre módulos solo por interfaz `I...`.** Un módulo nunca importa clases internas de otro.
 3. **Trazabilidad transversal.** Cualquier evento auditable se registra vía `IAuditLog`. No se reimplementa lógica de logs por módulo.
 4. **Solo el rol `INVERSIONISTA` se auto-registra.** El resto de roles los crea un Administrador autenticado.
-5. **Contraseñas con BCrypt.** Texto plano está prohibido (mejora vs. proyecto Malwatcher previo).
+5. **Contraseñas con BCrypt.** Texto plano está prohibido
 6. **JWT firmado, claim de rol, expiración 1h.** Tokens revocados van a tabla en BD (necesario para HU-5).
-7. **Códigos de verificación van en BD con TTL, no en `ConcurrentHashMap` en memoria.** (mejora vs. Malwatcher).
-8. **Secretos en `application.properties` o variables de entorno, NUNCA hardcodeados.** (mejora vs. Malwatcher).
-9. **Inyección por constructor, no por campo.** (mejora vs. Malwatcher).
-10. **CORS configurado en `shared/config/CorsConfig`, no por controller con `@CrossOrigin`.** (mejora vs. Malwatcher).
+7. **Códigos de verificación van en BD con TTL, no en `ConcurrentHashMap` en memoria.** 
+8. **Secretos en `application.properties` o variables de entorno, NUNCA hardcodeados.** 
+9. **Inyección por constructor, no por campo.** 
+10. **CORS configurado en `shared/config/CorsConfig`, no por controller con `@CrossOrigin`.** 
 11. **DTOs siempre en endpoints.** Nunca exponer entidades JPA con datos sensibles al frontend.
 12. **`@Transactional` va en services, no en controllers.**
 13. **Sin Docker en este proyecto.** Desarrollo local con PostgreSQL nativo.
@@ -73,7 +73,7 @@
 5. **No mezcles módulos.** Si trabajas en `autenticacion/`, no toques `ordenes/`. Si necesitas algo de otro módulo, hazlo a través de su interfaz `I...`.
 6. **Cada vez que termines una historia, actualiza `docs/PROGRESO.md`** marcando el checkbox y agregando una nota breve.
 7. **Si introduces una decisión técnica nueva** (cambio de librería, ajuste arquitectónico, nuevo patrón), documéntala en `docs/CONVENCIONES.md` o `docs/ARQUITECTURA.md` según corresponda.
-8. **Ante la duda entre dos enfoques**, prefiere el que se parezca al estilo del proyecto Malwatcher previo (descrito en `docs/CONVENCIONES.md`), excepto donde dicho proyecto tenga malas prácticas explícitamente listadas como "mejoradas".
+8. **Ante la duda entre dos enfoques**, prefiere el que se parezca al estilo previo (descrito en `docs/CONVENCIONES.md`), excepto donde dicho proyecto tenga malas prácticas explícitamente listadas como "mejoradas".
 9. **Auditar siempre eventos sensibles** vía `IAuditLog` (login exitoso/fallido, registro, cambio contraseña, ejecución de orden, cambio de parámetro administrativo, etc.).
 
 ---

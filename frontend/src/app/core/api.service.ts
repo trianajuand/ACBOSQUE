@@ -45,6 +45,24 @@ export class ApiService {
     }
   }
 
+  obtenerCorreoActual(): string | null {
+    const token = this.token;
+    if (!token) return null;
+    try {
+      const payload = token.split('.')[1];
+      const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+      const json = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => `%${(`00${c.charCodeAt(0).toString(16)}`).slice(-2)}`)
+          .join(''),
+      );
+      return JSON.parse(json)?.sub || null;
+    } catch {
+      return null;
+    }
+  }
+
   async get<T>(endpoint: string, auth = true): Promise<ApiResult<T>> {
     return this.request<T>(endpoint, { method: 'GET' }, auth);
   }
@@ -81,6 +99,13 @@ export class ApiService {
 
     try {
       const res = await fetch(this.baseUrl + endpoint, { ...init, headers: { ...headers, ...(init.headers ?? {}) } });
+
+      if (res.status === 401 && auth) {
+        this.clearToken();
+        window.location.replace('/login');
+        return { ok: false, status: 401, data: null, error: 'Sesión terminada' };
+      }
+
       const payload = await res.json().catch(() => ({}));
       const hasWrappedData = payload && Object.prototype.hasOwnProperty.call(payload, 'data');
       const data = (hasWrappedData ? payload.data : payload) as T;

@@ -29,6 +29,7 @@ export class ComisionistaDashboardComponent implements OnInit, OnDestroy {
   readonly aprobadas = signal<Orden[]>([]);
   readonly catalogo = signal<Record<string, string[]>>({});
   readonly cargando = signal(true);
+  readonly firmandoId = signal<number | null>(null);
 
   readonly clientesActivos = computed(() => this.clientes().length);
   readonly valorCliente = computed(() => this.portafolio()?.valorTotalPortafolio || 0);
@@ -216,12 +217,17 @@ export class ComisionistaDashboardComponent implements OnInit, OnDestroy {
 
   async firmarEnviar(id?: number): Promise<void> {
     if (!id) return;
-    const res = await this.api.post<Orden>(`/api/comisionista/propuestas/${id}/firmar-enviar`);
-    this.toast.mostrar(res.ok ? 'Orden firmada y enviada' : res.error || 'No se pudo firmar', res.ok ? 'success' : 'error');
-    if (res.ok) {
-      await this.cargarAprobadas();
-      const cliente = this.clienteSeleccionado();
-      if (cliente) await this.cargarOrdenesCliente(cliente.id);
+    this.firmandoId.set(id);
+    try {
+      const res = await this.api.post<Orden>(`/api/comisionista/propuestas/${id}/firmar-enviar`);
+      this.toast.mostrar(res.ok ? 'Orden firmada y enviada' : res.error || 'No se pudo firmar', res.ok ? 'success' : 'error');
+      if (res.ok) {
+        await this.cargarAprobadas();
+        const cliente = this.clienteSeleccionado();
+        if (cliente) await this.cargarOrdenesCliente(cliente.id);
+      }
+    } finally {
+      this.firmandoId.set(null);
     }
   }
 

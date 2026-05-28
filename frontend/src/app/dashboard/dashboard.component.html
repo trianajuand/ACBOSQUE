@@ -719,13 +719,19 @@
                       }
                     </div>
                     <div class="modal-footer">
-                      <button class="btn secondary" type="button" (click)="cerrarModalOrden()">Cancelar</button>
+                      <button class="btn secondary" type="button" (click)="cerrarModalOrden()" [disabled]="cargandoOrden()">Cancelar</button>
                       <button class="btn" type="button"
                         [class.success]="ladoPendiente() === 'COMPRA'"
                         [class.danger]="ladoPendiente() === 'VENTA'"
+                        [disabled]="cargandoOrden()"
                         (click)="confirmarOrden()">
-                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l3.5 3.5L13 5"/></svg>
-                        Confirmar {{ ladoPendiente() === 'VENTA' ? 'venta' : 'compra' }}
+                        @if (cargandoOrden()) {
+                          <span class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle"></span>
+                          Procesando...
+                        } @else {
+                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l3.5 3.5L13 5"/></svg>
+                          Confirmar {{ ladoPendiente() === 'VENTA' ? 'venta' : 'compra' }}
+                        }
                       </button>
                     </div>
                   }

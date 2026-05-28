@@ -1,6 +1,8 @@
 package co.edu.unbosque.accioneselbosque.mercado.controller;
 
+import co.edu.unbosque.accioneselbosque.autenticacion.model.Inversionista;
 import co.edu.unbosque.accioneselbosque.autenticacion.model.Usuario;
+import co.edu.unbosque.accioneselbosque.autenticacion.repository.InversionistaRepository;
 import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
 import co.edu.unbosque.accioneselbosque.mercado.dto.CotizacionDTO;
 import co.edu.unbosque.accioneselbosque.mercado.dto.DetalleAccionDTO;
@@ -22,11 +24,14 @@ public class MercadoController {
 
     private final MercadoService mercadoService;
     private final UsuarioRepository usuarioRepo;
+    private final InversionistaRepository inversionistaRepo;
 
     public MercadoController(MercadoService mercadoService,
-                             UsuarioRepository usuarioRepo) {
+                             UsuarioRepository usuarioRepo,
+                             InversionistaRepository inversionistaRepo) {
         this.mercadoService = mercadoService;
         this.usuarioRepo = usuarioRepo;
+        this.inversionistaRepo = inversionistaRepo;
     }
 
     /** HU-13: Dashboard con acciones de interés del usuario. */
@@ -34,9 +39,21 @@ public class MercadoController {
     public ResponseEntity<RespuestaDTO> dashboard(
             @AuthenticationPrincipal String correo) {
         log.info("GET /api/mercado/dashboard - usuario={}", correo);
-        List<CotizacionDTO> cotizaciones = mercadoService.obtenerDashboard("");
+        String intereses = obtenerInteresesMercado(correo);
+        List<CotizacionDTO> cotizaciones = mercadoService.obtenerDashboard(intereses);
         log.info("Dashboard devolviendo {} cotizaciones", cotizaciones.size());
         return ResponseEntity.ok(RespuestaDTO.exito(cotizaciones));
+    }
+
+    private String obtenerInteresesMercado(String correo) {
+        if (correo == null || correo.isBlank()) {
+            return "";
+        }
+        return usuarioRepo.findByCorreo(correo)
+                .map(Usuario::getId)
+                .flatMap(inversionistaRepo::findById)
+                .map(Inversionista::getInteresesMercado)
+                .orElse("");
     }
 
     /** Cotización de un símbolo específico. */

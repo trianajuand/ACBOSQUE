@@ -8,9 +8,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Component
@@ -26,6 +29,7 @@ public class AlpacaAdapter implements IIntegracionAlpaca {
     private final String dataApiKey;
     private final String dataApiSecret;
     private final String authBasic;
+    private volatile LocalDateTime dataApiBlockedUntil = null;
 
     public AlpacaAdapter(
             @Value("${alpaca.broker.base-url}") String brokerBaseUrl,
@@ -120,8 +124,39 @@ public class AlpacaAdapter implements IIntegracionAlpaca {
                 autoFondearCuentaSandbox(accountId, usuario.getCorreo());
                 return accountId;
             }
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 409) {
+                log.warn("Cuenta Alpaca ya existe para {}. Buscando ID existente...", usuario.getCorreo());
+                return buscarCuentaAlpacaPorEmail(usuario.getCorreo());
+            }
+            log.error("Error Alpaca al crear cuenta {} ({}): {}", usuario.getCorreo(), e.getStatusCode(),
+                    extraerMensajeAlpaca(e.getResponseBodyAsString()));
         } catch (Exception e) {
             log.error("Error al crear cuenta Alpaca para {}: {}", usuario.getCorreo(), e.getMessage());
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private String buscarCuentaAlpacaPorEmail(String correo) {
+        try {
+            String url = UriComponentsBuilder
+                    .fromHttpUrl(brokerBaseUrl + "/v1/accounts")
+                    .queryParam("query", correo)
+                    .toUriString();
+            HttpEntity<Void> request = new HttpEntity<>(headersBroker());
+            ResponseEntity<List<Map<String, Object>>> resp = restTemplate.exchange(
+                    url, HttpMethod.GET, request,
+                    new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+            if (resp.getBody() != null && !resp.getBody().isEmpty()) {
+                Object id = resp.getBody().get(0).get("id");
+                if (id != null) {
+                    log.info("Cuenta Alpaca existente recuperada para {}: {}", correo, id);
+                    return id.toString();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("No se pudo buscar cuenta Alpaca existente para {}: {}", correo, e.getMessage());
         }
         return null;
     }
@@ -233,10 +268,27 @@ public class AlpacaAdapter implements IIntegracionAlpaca {
             if (respuesta != null && respuesta.get("id") != null) {
                 return respuesta.get("id").toString();
             }
+        } catch (HttpClientErrorException e) {
+            String msg = extraerMensajeAlpaca(e.getResponseBodyAsString());
+            log.error("Error al crear orden Alpaca accountId={}, simbolo={}: {} {}", accountId, simbolo, e.getStatusCode(), msg);
+            throw new RuntimeException(msg);
         } catch (Exception e) {
             log.error("Error al crear orden Alpaca accountId={}, simbolo={}: {}", accountId, simbolo, e.getMessage());
         }
         return null;
+    }
+
+    private String extraerMensajeAlpaca(String body) {
+        if (body == null || body.isBlank()) return "Error desconocido de Alpaca";
+        int idx = body.indexOf("\"message\":");
+        if (idx >= 0) {
+            int start = body.indexOf('"', idx + 10) + 1;
+            int end = body.indexOf('"', start);
+            if (start > 0 && end > start) {
+                return body.substring(start, end);
+            }
+        }
+        return body;
     }
 
     @Override
@@ -356,6 +408,7 @@ public class AlpacaAdapter implements IIntegracionAlpaca {
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> obtenerSnapshot(String simbolo) {
+        if (dataApiBloqueada()) return Collections.emptyMap();
         try {
             String url = UriComponentsBuilder
                     .fromHttpUrl(dataBaseUrl + "/v2/stocks/" + simbolo + "/snapshot")
@@ -366,6 +419,9 @@ public class AlpacaAdapter implements IIntegracionAlpaca {
                     url, HttpMethod.GET, request,
                     new ParameterizedTypeReference<Map<String, Object>>() {});
             return resp.getBody() != null ? resp.getBody() : Collections.emptyMap();
+        } catch (ResourceAccessException e) {
+            bloquearDataApi("snapshot " + simbolo, e);
+            return Collections.emptyMap();
         } catch (Exception e) {
             log.error("Error al obtener snapshot Alpaca simbolo={}: {}", simbolo, e.getMessage());
             return Collections.emptyMap();
@@ -375,6 +431,7 @@ public class AlpacaAdapter implements IIntegracionAlpaca {
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> obtenerSnapshots(List<String> simbolos) {
+        if (dataApiBloqueada()) return Collections.emptyMap();
         try {
             String symbolsParam = String.join(",", simbolos);
             String url = UriComponentsBuilder
@@ -388,6 +445,9 @@ public class AlpacaAdapter implements IIntegracionAlpaca {
                     url, HttpMethod.GET, request,
                     new ParameterizedTypeReference<Map<String, Object>>() {});
             return resp.getBody() != null ? resp.getBody() : Collections.emptyMap();
+        } catch (ResourceAccessException e) {
+            bloquearDataApi("snapshots", e);
+            return Collections.emptyMap();
         } catch (Exception e) {
             log.error("Error al obtener snapshots Alpaca: {}", e.getMessage());
             return Collections.emptyMap();
@@ -398,6 +458,7 @@ public class AlpacaAdapter implements IIntegracionAlpaca {
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> obtenerBarras(String simbolo, String timeframe,
                                                     String inicio, String fin) {
+        if (dataApiBloqueada()) return Collections.emptyList();
         try {
             String url = UriComponentsBuilder
                     .fromHttpUrl(dataBaseUrl + "/v2/stocks/" + simbolo + "/bars")
@@ -416,9 +477,26 @@ public class AlpacaAdapter implements IIntegracionAlpaca {
             if (resp.getBody() != null && resp.getBody().get("bars") instanceof List) {
                 return (List<Map<String, Object>>) resp.getBody().get("bars");
             }
+        } catch (ResourceAccessException e) {
+            bloquearDataApi("barras " + simbolo, e);
+            return Collections.emptyList();
         } catch (Exception e) {
             log.error("Error al obtener barras Alpaca simbolo={}: {}", simbolo, e.getMessage());
         }
         return Collections.emptyList();
+    }
+
+    private boolean dataApiBloqueada() {
+        return dataApiBlockedUntil != null && LocalDateTime.now().isBefore(dataApiBlockedUntil);
+    }
+
+    private void bloquearDataApi(String operacion, ResourceAccessException e) {
+        LocalDateTime hasta = LocalDateTime.now().plusMinutes(2);
+        boolean reportar = dataApiBlockedUntil == null || LocalDateTime.now().isAfter(dataApiBlockedUntil);
+        dataApiBlockedUntil = hasta;
+        if (reportar) {
+            log.warn("Alpaca Market Data inaccesible durante '{}'. Se usara fallback hasta {}. Causa: {}",
+                    operacion, hasta, e.getMessage());
+        }
     }
 }

@@ -1,10 +1,13 @@
 package co.edu.unbosque.accioneselbosque.autenticacion.security;
 
+import co.edu.unbosque.accioneselbosque.autenticacion.model.EstadoCuenta;
+import co.edu.unbosque.accioneselbosque.autenticacion.repository.UsuarioRepository;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,9 +21,11 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final UsuarioRepository usuarioRepo;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
+    public JwtAuthenticationFilter(JwtUtil jwtUtil, @Lazy UsuarioRepository usuarioRepo) {
         this.jwtUtil = jwtUtil;
+        this.usuarioRepo = usuarioRepo;
     }
 
     @Override
@@ -36,6 +41,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Claims claims = jwtUtil.parsearToken(token);
                 String correo = claims.getSubject();
                 String rol = claims.get("rol", String.class);
+
+                boolean cuentaValida = false;
+                try {
+                    var usuarioOpt = usuarioRepo.findByCorreo(correo);
+                    cuentaValida = usuarioOpt.isPresent()
+                            && usuarioOpt.get().getEstadoCuenta() != EstadoCuenta.INACTIVA;
+                } catch (Exception e) {
+                    // Si hay error al consultar la BD, se permite el acceso para no bloquear el sistema
+                    cuentaValida = true;
+                }
+
+                if (!cuentaValida) {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"error\":\"CUENTA_INACTIVA\"}");
+                    response.getWriter().flush();
+                    return;
+                }
 
                 UsernamePasswordAuthenticationToken autenticacion =
                         new UsernamePasswordAuthenticationToken(

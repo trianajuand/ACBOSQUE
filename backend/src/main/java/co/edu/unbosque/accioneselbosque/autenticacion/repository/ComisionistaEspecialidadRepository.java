@@ -8,4 +8,6 @@ import java.util.List;
 public interface ComisionistaEspecialidadRepository extends CrudRepository<ComisionistaEspecialidad, Long> {
     List<ComisionistaEspecialidad> findByComisionistaId(Long comisionistaId);
     boolean existsByComisionistaIdAndEspecialidadId(Long comisionistaId, Long especialidadId);
+
+    void deleteByComisionistaId(Long comisionistaId);
 }

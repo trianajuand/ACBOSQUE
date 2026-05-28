@@ -35,8 +35,11 @@ export class AdminDashboardComponent implements OnInit {
   readonly usuarios = signal<UsuarioAdmin[]>([]);
   readonly errorCarga = signal('');
 
+  private readonly correoActual = this.api.obtenerCorreoActual();
+
   readonly inversionistas = computed(() => this.usuarios().filter((u) => u.rol?.startsWith('INVERSIONISTA')));
   readonly comisionistas = computed(() => this.usuarios().filter((u) => u.rol === 'COMISIONISTA'));
+  readonly usuariosCicloVida = computed(() => this.usuarios().filter((u) => u.correo !== this.correoActual));
   readonly totalMercadosHabilitados = computed(() => this.mercados().filter((m) => m.habilitado).length);
   readonly usuariosRestringidos = computed(() => this.usuarios().filter((u) => u.estadoCuenta === 'OPERACIONES_RESTRINGIDAS').length);
 
@@ -90,6 +93,10 @@ export class AdminDashboardComponent implements OnInit {
 
   seleccionar(panel: PanelAdmin): void {
     this.panel.set(panel);
+  }
+
+  async actualizar(): Promise<void> {
+    await Promise.all([this.cargarMetricas(), this.cargarUsuarios()]);
   }
 
   async cargarMetricas(): Promise<void> {

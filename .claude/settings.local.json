@@ -29,7 +29,9 @@
       "Bash(curl -s --max-time 5 \"https://data.alpaca.markets\" -o /dev/null -w \"%{http_code}\")",
       "Skill(update-config)",
       "Skill(update-config:*)",
-      "Bash(grep -E \"\\\\.\\(ts|html\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|html\\)$\")",
+      "Bash(psql -U postgres -d accioneselbosque -c ' *)",
+      "Bash('/c/Program Files/PostgreSQL/18/bin/psql.exe' -U postgres -d accioneselbosque -c ' *)"
     ]
   }
 }

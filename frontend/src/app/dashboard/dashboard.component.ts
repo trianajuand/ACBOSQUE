@@ -120,6 +120,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly saldo = signal<Saldo | null>(null);
   readonly resumen = signal<ResumenComision | null>(null);
   readonly cargando = signal(true);
+  readonly cargandoOrden = signal(false);
   readonly reloj = signal('');
   readonly editandoPerfil = signal(false);
   readonly notifActivas = signal(true);
@@ -348,14 +349,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   async cargarMercado(): Promise<void> {
     this.cargandoMercado.set(true);
-    const res = await this.api.get<Cotizacion[]>('/api/mercado/dashboard');
-    if (res.ok && res.data) {
-      this.cotizaciones.set(res.data);
-      this.toast.mostrar('Precios actualizados', 'success');
-    } else {
-      this.toast.mostrar('No se pudo actualizar precios', 'error');
+    try {
+      const res = await this.api.get<Cotizacion[]>('/api/mercado/dashboard');
+      if (res.ok && res.data) {
+        this.cotizaciones.set(res.data);
+        const simboloSeleccionado = this.detalleSeleccionado()?.simbolo || this.busqueda()?.simbolo;
+        if (simboloSeleccionado) {
+          const cotizacionActualizada = res.data.find((c) => c.simbolo === simboloSeleccionado);
+          if (cotizacionActualizada) {
+            this.busqueda.set({
+              ...cotizacionActualizada,
+              nombreEmpresa: cotizacionActualizada.nombreEmpresa || this.nombreEmpresa(cotizacionActualizada.simbolo),
+            });
+          }
+          await this.cargarDetalle(simboloSeleccionado);
+        }
+        this.toast.mostrar(`${res.data.length} precios actualizados`, 'success');
+      } else {
+        this.toast.mostrar(res.error || 'No se pudo actualizar precios', 'error');
+      }
+    } finally {
+      this.cargandoMercado.set(false);
     }
-    this.cargandoMercado.set(false);
   }
 
   async cargarCatalogo(): Promise<void> {
@@ -532,14 +547,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   async confirmarOrden(): Promise<void> {
-    const res = await this.api.post<Orden>('/api/ordenes', this.construirOrdenPayload());
-    if (res.ok) {
-      this.toast.mostrar('Orden enviada correctamente', 'success');
-      this.modalOrden.set(false);
-      this.resumen.set(null);
-      await Promise.all([this.cargarOrdenes(), this.cargarSaldo(), this.cargarPortafolio()]);
-    } else {
-      this.toast.mostrar(res.error || 'No se pudo enviar la orden', 'error');
+    this.cargandoOrden.set(true);
+    try {
+      const res = await this.api.post<Orden>('/api/ordenes', this.construirOrdenPayload());
+      if (res.ok) {
+        this.toast.mostrar('Orden enviada correctamente', 'success');
+        this.modalOrden.set(false);
+        this.resumen.set(null);
+        await Promise.all([this.cargarOrdenes(), this.cargarSaldo(), this.cargarPortafolio()]);
+      } else {
+        this.toast.mostrar(res.error || 'No se pudo enviar la orden', 'error');
+      }
+    } finally {
+      this.cargandoOrden.set(false);
     }
   }
 

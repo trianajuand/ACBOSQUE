@@ -15,4 +15,8 @@ public interface AsignacionComisionistaRepository extends CrudRepository<Asignac
     boolean existsByComisionistaIdAndInversionistaIdAndActivaTrue(Long comisionistaId, Long inversionistaId);
 
     long countByComisionistaIdAndActivaTrue(Long comisionistaId);
+
+    void deleteByInversionistaId(Long inversionistaId);
+
+    void deleteByComisionistaId(Long comisionistaId);
 }

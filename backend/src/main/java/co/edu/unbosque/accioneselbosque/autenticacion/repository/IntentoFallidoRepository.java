@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface IntentoFallidoRepository extends CrudRepository<IntentoFallido, Long> {
 
     Optional<IntentoFallido> findByCorreo(String correo);
+
+    void deleteByCorreo(String correo);
 }

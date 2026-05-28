@@ -23,6 +23,8 @@ import co.edu.unbosque.accioneselbosque.ordenes.repository.PropuestaOrdenReposit
 import co.edu.unbosque.accioneselbosque.shared.exceptions.OrdenNoEncontradaException;
 import co.edu.unbosque.accioneselbosque.trazabilidad.interfaces.IAuditLog;
 import co.edu.unbosque.accioneselbosque.trazabilidad.model.TipoEvento;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,8 @@ import java.util.*;
 
 @Service
 public class OrdenService implements IOrden {
+
+    private static final Logger log = LoggerFactory.getLogger(OrdenService.class);
 
     private final OrdenRepository ordenRepo;
     private final ComisionRepository comisionRepo;
@@ -208,12 +212,16 @@ public class OrdenService implements IOrden {
                     }
                 }
                 String alpacaAccountId = consultaInversionista.obtenerAlpacaAccountId(usuarioId);
-                String alpacaOrderId = enviarAAlpaca(alpacaAccountId, simbolo, orden);
-                if (alpacaOrderId != null) {
-                    orden.setAlpacaOrderId(alpacaOrderId);
-                    orden = ordenRepo.save(orden);
-                    auditLog.registrar(TipoEvento.ORDEN_ENVIADA_ALPACA, usuarioId.toString(),
-                            "Orden encolada enviada a Alpaca (mercado cerrado): " + alpacaOrderId + " | " + simbolo);
+                try {
+                    String alpacaOrderId = enviarAAlpaca(alpacaAccountId, simbolo, orden);
+                    if (alpacaOrderId != null) {
+                        orden.setAlpacaOrderId(alpacaOrderId);
+                        orden = ordenRepo.save(orden);
+                        auditLog.registrar(TipoEvento.ORDEN_ENVIADA_ALPACA, usuarioId.toString(),
+                                "Orden encolada enviada a Alpaca (mercado cerrado): " + alpacaOrderId + " | " + simbolo);
+                    }
+                } catch (RuntimeException e) {
+                    log.warn("No se pudo pre-registrar orden encolada en Alpaca: {} - {}", simbolo, e.getMessage());
                 }
             }
 
@@ -245,7 +253,15 @@ public class OrdenService implements IOrden {
 
         if (esSimboloUs(simbolo)) {
             // --- Mercado US: ejecutar vía Alpaca ---
-            String alpacaOrderId = enviarAAlpaca(alpacaAccountId, simbolo, orden);
+            String alpacaOrderId;
+            try {
+                alpacaOrderId = enviarAAlpaca(alpacaAccountId, simbolo, orden);
+            } catch (RuntimeException alpacaEx) {
+                auditLog.registrar(TipoEvento.ORDEN_FALLO_ALPACA, usuarioId.toString(),
+                        "Orden rechazada por Alpaca: " + simbolo + " - " + alpacaEx.getMessage());
+                // La transacción hace rollback automáticamente, liberando los fondos reservados
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, alpacaEx.getMessage());
+            }
             if (alpacaOrderId != null) {
                 orden.setAlpacaOrderId(alpacaOrderId);
                 orden.setEstado(EstadoOrden.ENVIADA);

@@ -145,6 +145,7 @@ co\edu\unbosque\accioneselbosque\administracion\controller\AdminController.class
 co\edu\unbosque\accioneselbosque\autenticacion\dto\ResetPasswordDTO.class
 co\edu\unbosque\accioneselbosque\autenticacion\interfaces\IAsignacionComisionista.class
 co\edu\unbosque\accioneselbosque\integracion\adaptadores\alpaca\AlpacaAdapter$1.class
+co\edu\unbosque\accioneselbosque\integracion\adaptadores\alpaca\AlpacaAdapter$8.class
 co\edu\unbosque\accioneselbosque\ordenes\dto\PortafolioDTO.class
 co\edu\unbosque\accioneselbosque\autenticacion\model\CodigoVerificacion$TipoCodigo.class
 co\edu\unbosque\accioneselbosque\integracion\adaptadores\alpaca\IIntegracionAlpaca.class
